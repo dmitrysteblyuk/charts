@@ -1,0 +1,45 @@
+{
+  "name": "reader",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "webpack-dev-server --mode development --host 0.0.0.0 --disable-host-check",
+    "build": "rm -rf dist && webpack",
+    "test": "cross-env TS_NODE_FILES=true ts-node node_modules/jasmine/bin/jasmine --files=./definitions/globals.d.ts",
+    "lint": "tslint --project ./tsconfig.json --format verbose \"./src/**/*.ts\""
+  },
+  "pre-push": [
+    "lint",
+    "test"
+  ],
+  "dependencies": {
+    "@types/d3": "^5.7.1",
+    "d3": "^5.9.1"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ],
+  "devDependencies": {
+    "@babel/core": "^7.2.2",
+    "@babel/preset-env": "^7.3.1",
+    "@types/jasmine": "^3.3.7",
+    "awesome-typescript-loader": "^5.2.1",
+    "babel-loader": "^8.0.5",
+    "git-pre-push": "^0.0.5",
+    "html-webpack-plugin": "^3.2.0",
+    "jasmine": "^3.3.1",
+    "source-map-loader": "^0.2.4",
+    "ts-node": "^8.0.1",
+    "tslint": "^5.12.1",
+    "typescript": "^3.2.4",
+    "webpack": "^4.29.0",
+    "webpack-cli": "^3.2.1",
+    "webpack-dev-server": "^3.1.14"
+  }
+}
