@@ -1,5 +1,7 @@
 import * as d3 from 'd3';
 import {data} from './data';
+import {Axis, AxisOrient} from './axis';
+import {Chart} from './chart';
 
 interface Datum {
   date: Date;
@@ -22,15 +24,24 @@ const x2 = d3.scaleTime().range([0, width]);
 const y = d3.scaleLinear().range([height, 0]);
 const y2 = d3.scaleLinear().range([height2, 0]);
 
-const xAxis = d3.axisBottom(x);
-const xAxis2 = d3.axisBottom(x2);
-const yAxis = d3.axisLeft(y);
+const mainChart = new Chart(
+  [
+    new Axis(AxisOrient.bottom, x),
+    new Axis(AxisOrient.left, y)
+  ]
+);
+
+const contextChart = new Chart(
+  [
+    new Axis(AxisOrient.bottom, x2)
+  ]
+);
 
 const brush = d3.brushX()
   .extent([[0, 0], [width, height2]])
   .on('brush end', brushed);
 
-const zoom = d3.zoom()
+const zoom = d3.zoom<SVGRectElement, {}>()
   .scaleExtent([1, Infinity])
   .translateExtent([[0, 0], [width, height]])
   .extent([[0, 0], [width, height]])
@@ -63,8 +74,8 @@ const context = svg.append('g')
 loadData(data);
 
 function loadData(data: Datum[]) {
-  x.domain(d3.extent(data, (d) => d.date) as any);
-  y.domain([0, d3.max(data, (d) => d.price)] as any);
+  x.domain(d3.extent(data, (d) => d.date) as [Date, Date]);
+  y.domain([0, d3.max(data, (d) => d.price) as number]);
   x2.domain(x.domain());
   y2.domain(y.domain());
 
@@ -73,24 +84,21 @@ function loadData(data: Datum[]) {
     .attr('class', 'line')
     .attr('d', line);
 
-  focus.append('g')
-    .attr('class', 'axis axis--x')
-    .attr('transform', 'translate(0,' + height + ')')
-    .call(xAxis);
-
-  focus.append('g')
-    .attr('class', 'axis axis--y')
-    .call(yAxis);
-
   context.append('path')
     .datum(data)
     .attr('class', 'line')
     .attr('d', line2);
 
-  context.append('g')
-    .attr('class', 'axis axis--x')
+  mainChart.render(focus.node() as Element);
+  contextChart.render(context.node() as Element);
+
+  focus.select('g:nth-child(2) > g:first-child')
+    .attr('transform', 'translate(0,' + height + ')')
+    .attr('class', 'axis axis--x');
+
+  context.select('g:nth-child(2) > g:first-child')
     .attr('transform', 'translate(0,' + height2 + ')')
-    .call(xAxis2);
+    .attr('class', 'axis axis--x');
 
   context.append('g')
     .attr('class', 'brush')
@@ -102,7 +110,7 @@ function loadData(data: Datum[]) {
     .attr('width', width)
     .attr('height', height)
     .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
-    .call(zoom as any);
+    .call(zoom);
 }
 
 function brushed() {
@@ -110,7 +118,9 @@ function brushed() {
   const s = d3.event.selection || x2.range();
   x.domain(s.map(x2.invert, x2));
   focus.select('.line').attr('d', line as any);
-  focus.select('.axis--x').call(xAxis as any);
+
+  mainChart.render(focus.node() as Element);
+
   svg.select('.zoom').call(zoom.transform as any, d3.zoomIdentity
     .scale(width / (s[1] - s[0]))
     .translate(-s[0], 0));
@@ -121,6 +131,6 @@ function zoomed() {
   const t = d3.event.transform;
   x.domain(t.rescaleX(x2).domain());
   focus.select('.line').attr('d', line as any);
-  focus.select('.axis--x').call(xAxis as any);
+  mainChart.render(focus.node() as Element);
   context.select('.brush').call(brush.move as any, x.range().map(t.invertX, t));
 }
