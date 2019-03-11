@@ -1,0 +1,186 @@
+import {LinearScale, getDecimalTicks} from './linear-scale';
+
+export class TimeScale extends LinearScale {
+  getTicks(count: number, utc: boolean) {
+    return getTimeTicks(count, this.getDomain(), utc);
+  }
+}
+
+interface DateUnit {
+  duration: number;
+  periods: number[];
+  offset: number;
+  get: (this: Date) => number;
+  set: (this: Date, value: number, ...rest: number[]) => number;
+  getUTC: (this: Date) => number;
+  setUTC: (this: Date, value: number, ...rest: number[]) => number;
+}
+
+const millisecond: DateUnit = {
+  duration: 1,
+  periods: [1],
+  offset: 0,
+  get: Date.prototype.getMilliseconds,
+  set: Date.prototype.setMilliseconds,
+  getUTC: Date.prototype.getUTCMilliseconds,
+  setUTC: Date.prototype.setUTCMilliseconds
+};
+const second: DateUnit = {
+  duration: 1000,
+  periods: [1, 5, 15, 30],
+  offset: 0,
+  get: Date.prototype.getSeconds,
+  set: Date.prototype.setSeconds,
+  getUTC: Date.prototype.getUTCSeconds,
+  setUTC: Date.prototype.setUTCSeconds
+};
+const minute: DateUnit = {
+  duration: second.duration * 60,
+  periods: [1, 5, 15, 30],
+  offset: 0,
+  get: Date.prototype.getMinutes,
+  set: Date.prototype.setMinutes,
+  getUTC: Date.prototype.getUTCMinutes,
+  setUTC: Date.prototype.setUTCMinutes
+};
+const hour: DateUnit = {
+  duration: minute.duration * 60,
+  periods: [1, 3, 6, 12],
+  offset: 0,
+  get: Date.prototype.getHours,
+  set: Date.prototype.setHours,
+  getUTC: Date.prototype.getUTCHours,
+  setUTC: Date.prototype.setUTCHours
+};
+const day: DateUnit = {
+  duration: hour.duration * 24,
+  periods: [1, 2, 7],
+  offset: 1,
+  get: Date.prototype.getDate,
+  set: Date.prototype.setDate,
+  getUTC: Date.prototype.getUTCDate,
+  setUTC: Date.prototype.setUTCDate
+};
+const month: DateUnit = {
+  duration: day.duration * 30,
+  periods: [1, 3],
+  offset: 0,
+  get: Date.prototype.getMonth,
+  set: Date.prototype.setMonth,
+  getUTC: Date.prototype.getUTCMonth,
+  setUTC: Date.prototype.setUTCMonth
+};
+const year: DateUnit = {
+  duration: day.duration * 365,
+  periods: [1],
+  offset: 0,
+  get: Date.prototype.getFullYear,
+  set: Date.prototype.setFullYear,
+  getUTC: Date.prototype.getUTCFullYear,
+  setUTC: Date.prototype.setUTCFullYear
+};
+
+const units = [millisecond, second, minute, hour, day, month, year];
+const intervals = units.reduce((result, unit, index) => {
+  return result.concat(unit.periods.map((period) => {
+    const value = period * unit.duration;
+    return {unit, index, period, value};
+  }));
+}, [] as {unit: DateUnit, index: number, period: number, value: number}[]);
+
+function getTimeTicks(
+  count: number,
+  domain: ReadonlyArray<number>,
+  utc: boolean
+): number[] {
+  const step = (domain[1] - domain[0]) / (count - 1);
+  if (!(step > 0) || !isFinite(step)) {
+    return [];
+  }
+  const ticks: number[] = [];
+  const intervalIndex = binarySearch(
+    0,
+    intervals.length,
+    (index) => step < intervals[index].value
+  ) - 1;
+
+  if (intervalIndex < 1) {
+    return getDecimalTicks(count, domain, false);
+  }
+
+  const intervalData = intervals[intervalIndex];
+  const {unit, index: unitIndex} = intervalData;
+  let {period} = intervalData;
+
+  if (unit === year) {
+    const yearStep = step / year.duration;
+    const power = Math.floor(Math.log(yearStep) / Math.LN10);
+    const product = Math.pow(10, power);
+    period = Math.max(1, Math.floor(yearStep / product)) * product;
+  }
+
+  const date = new Date(domain[0]);
+  for (let index = 0; index < unitIndex; index++) {
+    const {setUTC, set, offset} = units[index];
+    (utc ? setUTC : set).call(date, offset);
+  }
+  floorDate();
+
+  const tick = date.getTime();
+  if (tick >= domain[0]) {
+    ticks.push(tick);
+  }
+
+  for (;;) {
+    (utc ? unit.setUTC : unit.set).call(
+      date,
+      (utc ? unit.getUTC : unit.get).call(date) + period
+    );
+    floorDate();
+
+    const tick = date.getTime();
+    if (tick > domain[1]) {
+      break;
+    }
+    ticks.push(tick);
+  }
+
+  return ticks;
+
+  function floorDate() {
+    if (period === 1 || unit === year) {
+      return;
+    }
+    const value = (utc ? unit.getUTC : unit.get).call(date) - unit.offset;
+    const diff = value % period;
+    if (diff === 0) {
+      return;
+    }
+    (utc ? unit.setUTC : unit.set).call(date, value - diff + unit.offset);
+  }
+}
+
+export function binarySearch(
+  startIndex: number,
+  endIndex: number,
+  isLessThan: (index: number) => boolean
+): number {
+  if (startIndex < endIndex) {
+    return search(startIndex, endIndex);
+  }
+  return startIndex - 1;
+
+  function search(start: number, end: number): number {
+    const middle = Math.floor((end - start) / 2) + start;
+    if (isLessThan(middle)) {
+      if (middle === start) {
+        return start;
+      }
+      return search(start, middle);
+    }
+    if (middle === end - 1) {
+      return end;
+    }
+    return search(middle + 1, end);
+  }
+}

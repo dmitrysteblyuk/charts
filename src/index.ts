@@ -2,11 +2,17 @@ import * as d3 from 'd3';
 import {data} from './data';
 import {Axis, AxisOrient} from './axis';
 import {Chart} from './chart';
+import {LinearScale} from './lib/linear-scale';
+import {TimeScale, binarySearch} from './lib/time-scale';
 
 interface Datum {
   date: Date;
   price: number;
 }
+
+(window as any).LinearScale = LinearScale;
+(window as any).TimeScale = TimeScale;
+(window as any).binarySearch = binarySearch;
 
 const svg = d3.select('#root')
   .append('svg')

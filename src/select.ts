@@ -4,9 +4,9 @@ const SVG_URI = 'http://www.w3.org/2000/svg';
 const XHTML_URI = 'http://www.w3.org/1999/xhtml';
 
 export function renderOne<E extends Element>(
+  context: Element,
   selector: string | number,
   creator: string | ((context: Element) => E),
-  context: Element,
   updater?: (element: E, isNew: boolean) => void
 ): E {
   let element = (
@@ -27,9 +27,9 @@ export function renderOne<E extends Element>(
 }
 
 export function renderAll<E extends Element, D>(
+  context: Element,
   data: D[],
   creator: string | ((context: Element) => E),
-  context: Element,
   updater?: (element: E, datum: D, isNew: boolean, previousDatum?: D) => void,
   remover?: (element: E, datum: D) => Promise<void> | void,
   selector?: string

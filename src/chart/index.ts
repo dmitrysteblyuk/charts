@@ -11,28 +11,19 @@ export class Chart {
   }
 
   readonly render = (context: Element) => {
-    const gridContainer = renderOne(0, 'g', context);
-    const axisContainer = renderOne<SVGGElement>(1, 'g', context);
-    const seriesContainer = renderOne(2, 'g', context);
+    const gridContainer = renderOne(context, 0, 'g');
+    const axisContainer = renderOne(context, 1, 'g');
+    const seriesContainer = renderOne(context, 2, 'g');
 
-    renderAll(this.axes, 'g', axisContainer, (
-      element: SVGGElement,
-      datum
-    ) => {
-      datum.render(element);
+    renderAll(axisContainer, this.axes, 'g', (element: SVGGElement, axis) => {
+      axis.render(element);
     });
 
-    renderAll(this.grids, 'g', gridContainer, (
-      element: SVGGElement,
-      datum
-    ) => {
+    renderAll(gridContainer, this.grids, 'g', (element, grid) => {
 
     });
 
-    renderAll(this.series, 'g', seriesContainer, (
-      element: SVGGElement,
-      datum
-    ) => {
+    renderAll(seriesContainer, this.series, 'g', (element, series) => {
 
     });
   };
