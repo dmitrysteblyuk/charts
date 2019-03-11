@@ -1,3 +1,7 @@
+#root {
+  background: #eee;
+}
+
 .line {
   stroke: steelblue;
   fill: none;

@@ -4,6 +4,7 @@ import {Axis, AxisOrient} from './axis';
 import {Chart} from './chart';
 import {LinearScale} from './lib/linear-scale';
 import {TimeScale, binarySearch} from './lib/time-scale';
+import {onDrag} from './lib/drag';
 
 interface Datum {
   date: Date;
@@ -16,8 +17,13 @@ interface Datum {
 
 const svg = d3.select('#root')
   .append('svg')
-  .attr('width', '500')
+  .attr('width', Math.min(500, window.innerWidth - 100))
   .attr('height', '500');
+
+const root = document.getElementById('root') as HTMLElement;
+onDrag(root, (dx, dy) => {
+  root.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+}, undefined, () => root.style.transform = null);
 
 const margin = {top: 20, right: 20, bottom: 110, left: 40};
 const margin2 = {top: 430, right: 20, bottom: 30, left: 40};
