@@ -1,10 +1,10 @@
 import * as d3 from 'd3';
-import {data} from './data';
-import {Axis, AxisOrient} from './axis';
-import {Chart} from './chart';
+import {data as chartData} from './data';
+import {TimeChart} from './time-chart';
+import {Selection} from './lib/selection';
 import {LinearScale} from './lib/linear-scale';
-import {TimeScale, binarySearch} from './lib/time-scale';
-import {onDrag} from './lib/drag';
+import {TimeScale} from './lib/time-scale';
+import {binarySearch} from './lib/binary-search';
 
 interface Datum {
   date: Date;
@@ -20,34 +20,19 @@ const svg = d3.select('#root')
   .attr('width', Math.min(500, window.innerWidth - 100))
   .attr('height', '500');
 
-const root = document.getElementById('root') as HTMLElement;
-onDrag(root, (dx, dy) => {
-  root.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
-}, undefined, () => root.style.transform = null);
-
 const margin = {top: 20, right: 20, bottom: 110, left: 40};
 const margin2 = {top: 430, right: 20, bottom: 30, left: 40};
 const width = +svg.attr('width') - margin.left - margin.right;
 const height = +svg.attr('height') - margin.top - margin.bottom;
 const height2 = +svg.attr('height') - margin2.top - margin2.bottom;
 
-const x = d3.scaleTime().range([0, width]);
-const x2 = d3.scaleTime().range([0, width]);
-const y = d3.scaleLinear().range([height, 0]);
-const y2 = d3.scaleLinear().range([height2, 0]);
+const timeChart = new TimeChart();
+const chartProps = {width, height, helperHeight: height2};
 
-const mainChart = new Chart(
-  [
-    new Axis(AxisOrient.bottom, x),
-    new Axis(AxisOrient.left, y)
-  ]
-);
-
-const contextChart = new Chart(
-  [
-    new Axis(AxisOrient.bottom, x2)
-  ]
-);
+const x = timeChart.mainTimeScale.range([0, width]);
+const x2 = timeChart.helperTimeScale.range([0, width]);
+const y = timeChart.mainValueScale.range([height, 0]);
+const y2 = timeChart.helperValueScale.range([height2, 0]);
 
 const brush = d3.brushX()
   .extent([[0, 0], [width, height2]])
@@ -83,7 +68,13 @@ const context = svg.append('g')
   .attr('class', 'context')
   .attr('transform', 'translate(' + margin2.left + ',' + margin2.top + ')');
 
-loadData(data);
+const chartElement = svg.append('g')
+  .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
+  .node() as Element;
+const chartSelection = new Selection(chartElement);
+timeChart.render(chartSelection, chartProps);
+
+loadData(chartData);
 
 function loadData(data: Datum[]) {
   x.domain(d3.extent(data, (d) => d.date) as [Date, Date]);
@@ -101,16 +92,20 @@ function loadData(data: Datum[]) {
     .attr('class', 'line')
     .attr('d', line2);
 
-  mainChart.render(focus.node() as Element);
-  contextChart.render(context.node() as Element);
+  timeChart.render(chartSelection, chartProps);
 
-  focus.select('g:nth-child(2) > g:first-child')
+  d3.select(chartElement.children[0])
+    .select('g:nth-child(2) > g:first-child')
     .attr('transform', 'translate(0,' + height + ')')
     .attr('class', 'axis axis--x');
 
-  context.select('g:nth-child(2) > g:first-child')
-    .attr('transform', 'translate(0,' + height2 + ')')
+  d3.select(chartElement.children[1])
+    .select('g:nth-child(2) > g:first-child')
+    .attr('transform', 'translate(0,' + (margin2.top + margin.top) + ')')
     .attr('class', 'axis axis--x');
+
+  d3.select(chartElement.children[2])
+    .attr('transform', 'translate(0,' + (height + margin.top) + ')');
 
   context.append('g')
     .attr('class', 'brush')
@@ -126,12 +121,14 @@ function loadData(data: Datum[]) {
 }
 
 function brushed() {
-  if (d3.event.sourceEvent && d3.event.sourceEvent.type === 'zoom') return; // ignore brush-by-zoom
+  if (d3.event.sourceEvent && d3.event.sourceEvent.type === 'zoom') {
+    return;
+  }
   const s = d3.event.selection || x2.range();
   x.domain(s.map(x2.invert, x2));
   focus.select('.line').attr('d', line as any);
 
-  mainChart.render(focus.node() as Element);
+  timeChart.render(chartSelection, chartProps);
 
   svg.select('.zoom').call(zoom.transform as any, d3.zoomIdentity
     .scale(width / (s[1] - s[0]))
@@ -139,10 +136,14 @@ function brushed() {
 }
 
 function zoomed() {
-  if (d3.event.sourceEvent && d3.event.sourceEvent.type === 'brush') return; // ignore zoom-by-brush
+  if (d3.event.sourceEvent && d3.event.sourceEvent.type === 'brush') {
+    return;
+  }
   const t = d3.event.transform;
   x.domain(t.rescaleX(x2).domain());
   focus.select('.line').attr('d', line as any);
-  mainChart.render(focus.node() as Element);
+
+  timeChart.render(chartSelection, chartProps);
+
   context.select('.brush').call(brush.move as any, x.range().map(t.invertX, t));
 }

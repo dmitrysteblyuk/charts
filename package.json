@@ -31,6 +31,7 @@
     "@types/jasmine": "^3.3.7",
     "awesome-typescript-loader": "^5.2.1",
     "babel-loader": "^8.0.5",
+    "cross-env": "^5.2.0",
     "git-pre-push": "^0.0.5",
     "html-webpack-plugin": "^3.2.0",
     "jasmine": "^3.3.1",

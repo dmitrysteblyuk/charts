@@ -1,4 +1,5 @@
 import {LinearScale, getDecimalTicks} from './linear-scale';
+import {binarySearch} from './binary-search';
 
 export class TimeScale extends LinearScale {
   getTicks(count: number, utc: boolean) {
@@ -126,9 +127,9 @@ function getTimeTicks(
   }
   floorDate();
 
-  const tick = date.getTime();
-  if (tick >= domain[0]) {
-    ticks.push(tick);
+  const firstTick = date.getTime();
+  if (firstTick >= domain[0]) {
+    ticks.push(firstTick);
   }
 
   for (;;) {
@@ -138,11 +139,11 @@ function getTimeTicks(
     );
     floorDate();
 
-    const tick = date.getTime();
-    if (tick > domain[1]) {
+    const nextTick = date.getTime();
+    if (nextTick > domain[1]) {
       break;
     }
-    ticks.push(tick);
+    ticks.push(nextTick);
   }
 
   return ticks;
@@ -157,30 +158,5 @@ function getTimeTicks(
       return;
     }
     (utc ? unit.setUTC : unit.set).call(date, value - diff + unit.offset);
-  }
-}
-
-export function binarySearch(
-  startIndex: number,
-  endIndex: number,
-  isLessThan: (index: number) => boolean
-): number {
-  if (startIndex < endIndex) {
-    return search(startIndex, endIndex);
-  }
-  return startIndex - 1;
-
-  function search(start: number, end: number): number {
-    const middle = Math.floor((end - start) / 2) + start;
-    if (isLessThan(middle)) {
-      if (middle === start) {
-        return start;
-      }
-      return search(start, middle);
-    }
-    if (middle === end - 1) {
-      return end;
-    }
-    return search(middle + 1, end);
   }
 }

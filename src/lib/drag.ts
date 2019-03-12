@@ -1,7 +1,7 @@
 export function onDrag(
   target: Element,
   listener: (diffX: number, diffY: number) => void,
-  onDragStart?: () => void,
+  onDragStart?: (startX: number, startY: number, target: Element) => void,
   onDragEnd?: () => void
 ) {
   let isDragging = false;
@@ -18,7 +18,7 @@ export function onDrag(
   window.addEventListener('touchmove', drag);
 
   function dragStart(event: Event) {
-    let {clientX, clientY} = (
+    const {clientX, clientY} = (
       event.type === 'touchstart'
         ? (event as TouchEvent).touches[0]
         : event as MouseEvent
@@ -26,7 +26,7 @@ export function onDrag(
     startX = clientX;
     startY = clientY;
     if (onDragStart) {
-      onDragStart();
+      onDragStart(startX, startY, event.target as Element);
     }
     isDragging = true;
   }
@@ -43,7 +43,7 @@ export function onDrag(
       return;
     }
 
-    let {clientX, clientY} = (
+    const {clientX, clientY} = (
       event.type === 'touchmove'
         ? (event as TouchEvent).touches[0]
         : event as MouseEvent

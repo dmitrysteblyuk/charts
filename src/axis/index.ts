@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import {Selection} from '../lib/selection';
 
 export enum AxisOrient {
   top,
@@ -27,12 +28,7 @@ export class Axis<
     this.axis = axisMethod(scale);
   }
 
-  readonly render = (
-    selection: d3.Selection<SVGGElement, any, d3.BaseType, any> | SVGGElement
-  ) => {
-    if (selection instanceof Element) {
-      selection = d3.select(selection);
-    }
-    return selection.call(this.axis);
-  };
+  render(parent: Selection) {
+    d3.select(parent.getElement() as SVGGElement).call(this.axis);
+  }
 }

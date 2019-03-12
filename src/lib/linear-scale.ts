@@ -69,7 +69,7 @@ export function getDecimalTicks(
     domain[1] / roundedStep
   );
 
-  let stepPower = Math.floor(Math.log(roundedStep) / Math.LN10);
+  const stepPower = Math.floor(Math.log(roundedStep) / Math.LN10);
   let precision = 1;
   let finalStep = roundedStep;
 

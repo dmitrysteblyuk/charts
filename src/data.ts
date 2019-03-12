@@ -1,6 +1,6 @@
 import {timeParse} from 'd3';
 
-const parseDate = timeParse("%b %Y");
+const parseDate = timeParse('%b %Y');
 
 const data = [
   {
