@@ -11,7 +11,9 @@ export class Brush {
     left: number;
     right: number;
   }>();
+  readonly activeEvent = new EventEmitter<boolean>();
 
+  private draggedBeforeClick = false;
   private width = 0;
   private height = 0;
   private left = 0;
@@ -46,7 +48,8 @@ export class Brush {
         .attr('fill', this.fill)
         .attr('stroke', this.stroke)
         .attr('x', '0')
-        .attr('y', '0');
+        .attr('y', '0')
+        .on('click', () => this.onClearClick());
     });
 
     parent.renderOne(1, 'rect', (selection, isNew) => {
@@ -60,7 +63,8 @@ export class Brush {
       selection
         .attr('fill', this.fill)
         .attr('stroke', this.stroke)
-        .attr('y', '0');
+        .attr('y', '0')
+        .on('click', () => this.onClearClick());
     });
 
     parent.renderOne(2, 'rect', (selection, isNew) => {
@@ -82,25 +86,44 @@ export class Brush {
     this.initializeEvents(parent);
   }
 
+  onClearClick() {
+    if (this.draggedBeforeClick || this.isCleared()) {
+      return;
+    }
+    this.changeEvent.emit({
+      left: 0,
+      right: this.width
+    });
+  }
+
+  isCleared() {
+    const {left, right, width} = this;
+    return left === 0 && right === width;
+  }
+
   private initializeEvents(parent: Selection) {
     const limit = (x: number) => Math.max(0, Math.min(x, this.width));
-    const onChange = (left: number, right: number) => {
-      if (left === this.left && right === this.right) {
-        return;
-      }
-      this.changeEvent.emit({left, right});
-    };
     let behaviour: Behaviour | undefined;
     let startLeft = 0;
     let startRight = 0;
     let sumDiffX = 0;
+    let hasMoved = false;
 
     onDragEvents(parent.getElement(), (diffX) => {
+      this.draggedBeforeClick = true;
       if (diffX === 0) {
         return;
       }
-      sumDiffX += diffX;
+
       let {left, right} = this;
+      if (!hasMoved) {
+        hasMoved = true;
+        left = startLeft;
+        right = startRight;
+        this.activeEvent.emit(true);
+      }
+
+      sumDiffX += diffX;
 
       switch (behaviour) {
         case Behaviour.selectNew:
@@ -149,27 +172,36 @@ export class Brush {
         }
       }
 
-      onChange(left, right);
+      if (left === this.left && right === this.right) {
+        return;
+      }
+      this.changeEvent.emit({left, right});
     }, (clientX) => {
+      this.draggedBeforeClick = false;
       const {left, right, borderWidth} = this;
       const startX = clientX - getPositionX();
       sumDiffX = 0;
 
       behaviour = (
-        (startX < left - borderWidth) ? Behaviour.selectNew
+        (startX < left - borderWidth || this.isCleared()) ? Behaviour.selectNew
           : (startX < left) ? Behaviour.resizeLeft
           : (startX < right) ? Behaviour.move
           : (startX < right + borderWidth) ? Behaviour.resizeRight
           : Behaviour.selectNew
       );
 
-      if (behaviour !== Behaviour.selectNew) {
-        startLeft = left;
-        startRight = right;
+      if (behaviour === Behaviour.selectNew) {
+        startLeft = startRight = limit(startX);
         return;
       }
-      startLeft = startRight = limit(startX);
-      onChange(startLeft, startRight);
+      startLeft = left;
+      startRight = right;
+    }, () => {
+      if (!hasMoved) {
+        return;
+      }
+      hasMoved = false;
+      this.activeEvent.emit(false);
     });
 
     function getPositionX() {

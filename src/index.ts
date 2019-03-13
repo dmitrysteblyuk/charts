@@ -29,9 +29,9 @@ const height2 = +svg.attr('height') - margin2.top - margin2.bottom;
 const timeChart = new TimeChart();
 timeChart.setProps({width, helperHeight: height2});
 
-const x = timeChart.mainTimeScale.range([0, width]);
+const x = timeChart.timeScale.range([0, width]);
 const x2 = timeChart.helperTimeScale.range([0, width]);
-const y = timeChart.mainValueScale.range([height, 0]);
+const y = timeChart.valueScale.range([height, 0]);
 const y2 = timeChart.helperValueScale.range([height2, 0]);
 
 const brush = d3.brushX()

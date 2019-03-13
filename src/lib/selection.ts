@@ -26,6 +26,16 @@ export class Selection<EL extends Element = Element> {
     return this;
   }
 
+  on(eventName: string, listener: (event: Event) => void): this {
+    this.element.addEventListener(eventName, listener);
+    return this;
+  }
+
+  off(eventName: string, listener: (event: Event) => void): this {
+    this.element.removeEventListener(eventName, listener);
+    return this;
+  }
+
   renderOne<E extends Element>(
     selector: string | number,
     creator: string | ((parent: Element) => E),
