@@ -1,66 +1,74 @@
-export function onDrag(
+export function onDragEvents(
   target: Element,
-  listener: (diffX: number, diffY: number) => void,
+  onDragMove?: (diffX: number, diffY: number) => void,
   onDragStart?: (startX: number, startY: number, target: Element) => void,
   onDragEnd?: () => void
 ) {
   let isDragging = false;
-  let startX = 0;
-  let startY = 0;
+  let currentX = 0;
+  let currentY = 0;
 
-  target.addEventListener('mousedown', dragStart);
-  window.addEventListener('mouseup', dragEnd);
-  window.addEventListener('mousemove', drag);
+  target.addEventListener('mousedown', onStart);
+  window.addEventListener('mouseup', onEnd);
+  window.addEventListener('mousemove', onMove);
 
-  target.addEventListener('touchstart', dragStart);
-  window.addEventListener('touchend', dragEnd);
-  window.addEventListener('touchcancel', dragEnd);
-  window.addEventListener('touchmove', drag);
+  target.addEventListener('touchstart', onStart);
+  window.addEventListener('touchend', onEnd);
+  window.addEventListener('touchcancel', onEnd);
+  window.addEventListener('touchmove', onMove);
 
-  function dragStart(event: Event) {
-    const {clientX, clientY} = (
-      event.type === 'touchstart'
-        ? (event as TouchEvent).touches[0]
-        : event as MouseEvent
-    );
-    startX = clientX;
-    startY = clientY;
-    if (onDragStart) {
-      onDragStart(startX, startY, event.target as Element);
-    }
+  function onStart(event: Event) {
+    const {nextX, nextY} = getPosition(event);
+    currentX = nextX;
+    currentY = nextY;
     isDragging = true;
-  }
-
-  function dragEnd() {
-    isDragging = false;
-    if (onDragEnd) {
-      onDragEnd();
+    if (!onDragStart) {
+      return;
     }
+    onDragStart(currentX, currentY, event.target as Element);
   }
 
-  function drag(event: Event) {
+  function onEnd() {
+    isDragging = false;
+    if (!onDragEnd) {
+      return;
+    }
+    onDragEnd();
+  }
+
+  function onMove(event: Event) {
     if (!isDragging) {
       return;
     }
+    event.preventDefault();
 
-    const {clientX, clientY} = (
+    const {nextX, nextY} = getPosition(event);
+    const diffX = -currentX + (currentX = nextX);
+    const diffY = -currentY + (currentY = nextY);
+
+    if (!onDragMove) {
+      return;
+    }
+    onDragMove(diffX, diffY);
+  }
+
+  return (() => {
+    target.removeEventListener('mousedown', onStart);
+    window.removeEventListener('mouseup', onEnd);
+    window.removeEventListener('mousemove', onMove);
+
+    target.removeEventListener('touchstart', onStart);
+    window.removeEventListener('touchend', onEnd);
+    window.removeEventListener('touchcancel', onEnd);
+    window.removeEventListener('touchmove', onMove);
+  });
+
+  function getPosition(event: Event) {
+    const {clientX: nextX, clientY: nextY} = (
       event.type === 'touchmove'
         ? (event as TouchEvent).touches[0]
         : event as MouseEvent
     );
-    event.preventDefault();
-
-    listener(clientX - startX, clientY - startY);
+    return {nextX, nextY};
   }
-
-  return (() => {
-    target.removeEventListener('mousedown', dragStart);
-    window.removeEventListener('mouseup', dragEnd);
-    window.removeEventListener('mousemove', drag);
-
-    target.removeEventListener('touchstart', dragStart);
-    window.removeEventListener('touchend', dragEnd);
-    window.removeEventListener('touchcancel', dragEnd);
-    window.removeEventListener('touchmove', drag);
-  });
 }

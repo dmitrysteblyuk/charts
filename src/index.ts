@@ -27,7 +27,7 @@ const height = +svg.attr('height') - margin.top - margin.bottom;
 const height2 = +svg.attr('height') - margin2.top - margin2.bottom;
 
 const timeChart = new TimeChart();
-const chartProps = {width, height, helperHeight: height2};
+timeChart.setProps({width, helperHeight: height2});
 
 const x = timeChart.mainTimeScale.range([0, width]);
 const x2 = timeChart.helperTimeScale.range([0, width]);
@@ -72,7 +72,7 @@ const chartElement = svg.append('g')
   .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
   .node() as Element;
 const chartSelection = new Selection(chartElement);
-timeChart.render(chartSelection, chartProps);
+timeChart.render(chartSelection);
 
 loadData(chartData);
 
@@ -92,7 +92,7 @@ function loadData(data: Datum[]) {
     .attr('class', 'line')
     .attr('d', line2);
 
-  timeChart.render(chartSelection, chartProps);
+  timeChart.render(chartSelection);
 
   d3.select(chartElement.children[0])
     .select('g:nth-child(2) > g:first-child')
@@ -128,7 +128,7 @@ function brushed() {
   x.domain(s.map(x2.invert, x2));
   focus.select('.line').attr('d', line as any);
 
-  timeChart.render(chartSelection, chartProps);
+  timeChart.render(chartSelection);
 
   svg.select('.zoom').call(zoom.transform as any, d3.zoomIdentity
     .scale(width / (s[1] - s[0]))
@@ -143,7 +143,7 @@ function zoomed() {
   x.domain(t.rescaleX(x2).domain());
   focus.select('.line').attr('d', line as any);
 
-  timeChart.render(chartSelection, chartProps);
+  timeChart.render(chartSelection);
 
   context.select('.brush').call(brush.move as any, x.range().map(t.invertX, t));
 }

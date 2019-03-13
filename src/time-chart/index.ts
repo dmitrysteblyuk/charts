@@ -3,11 +3,7 @@ import {Chart} from '../chart';
 import {Axis, AxisOrient} from '../axis';
 import {Brush} from '../brush';
 import {Selection} from '../lib/selection';
-
-interface Props {
-  width: number;
-  helperHeight: number;
-}
+import {forEach} from '../lib/forEach';
 
 export class TimeChart {
   readonly mainTimeScale = d3.scaleTime();
@@ -28,8 +24,20 @@ export class TimeChart {
     ]
   );
 
-  render(parent: Selection, props: Props) {
-    const {width, helperHeight} = props;
+  private width = 0;
+  private brushLeft = 0;
+  private brushRight = 0;
+  private helperHeight = 0;
+
+  setProps(props: {
+    width: number;
+    helperHeight: number;
+  }) {
+    forEach(props, (value, key) => this[key] = value);
+  }
+
+  render(parent: Selection) {
+    const {width, helperHeight, brushLeft, brushRight} = this;
     parent.renderOne(0, 'g', (selection) => {
       this.mainChart.render(selection);
     });
@@ -39,12 +47,22 @@ export class TimeChart {
     });
 
     parent.renderOne(2, 'g', (selection, isNew) => {
-      this.brush.render(selection, {
+      this.brush.setProps({
         width,
         height: helperHeight,
-        left: width / 2,
-        right: width * 2 / 3
-      }, isNew);
+        left: brushLeft,
+        right: brushRight
+      });
+      this.brush.render(selection, isNew);
+
+      if (!isNew) {
+        return;
+      }
+      this.brush.changeEvent.on(({left, right}) => {
+        this.brushLeft = left;
+        this.brushRight = right;
+        this.render(parent);
+      });
     });
   }
 }
