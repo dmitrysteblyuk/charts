@@ -91,7 +91,7 @@ const intervals = units.reduce((result, unit, index) => {
 
 function getTimeTicks(
   count: number,
-  domain: ReadonlyArray<number>,
+  domain: number[],
   utc: boolean
 ): number[] {
   const step = (domain[1] - domain[0]) / (count - 1);

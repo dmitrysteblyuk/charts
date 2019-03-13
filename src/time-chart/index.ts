@@ -1,15 +1,16 @@
-import * as d3 from 'd3';
 import {Chart} from '../chart';
 import {Axis, AxisOrient} from '../axis';
 import {Brush} from '../brush';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/forEach';
+import {LinearScale} from '../lib/linear-scale';
+import {TimeScale} from '../lib/time-scale';
 
 export class TimeChart {
-  readonly timeScale = d3.scaleTime();
-  readonly helperTimeScale = d3.scaleTime();
-  readonly valueScale = d3.scaleLinear();
-  readonly helperValueScale = d3.scaleLinear();
+  readonly timeScale = new TimeScale();
+  readonly helperTimeScale = new TimeScale();
+  readonly valueScale = new LinearScale();
+  readonly helperValueScale = new LinearScale();
   readonly brush = new Brush();
 
   readonly mainChart = new Chart(
@@ -23,22 +24,29 @@ export class TimeChart {
       new Axis(AxisOrient.bottom, this.helperTimeScale)
     ]
   );
-
   private isBrushing = false;
-  private width = 0;
   private brushLeft = 0;
   private brushRight = 0;
+
+  private width = 0;
+  private height = 0;
   private helperHeight = 0;
 
   setProps(props: {
     width: number;
+    height: number;
     helperHeight: number;
   }) {
     forEach(props, (value, key) => this[key] = value);
   }
 
   render(parent: Selection) {
-    const {width, helperHeight, brushLeft, brushRight} = this;
+    const {width, height, helperHeight, brushLeft, brushRight} = this;
+    this.timeScale.setRange([0, width]);
+    this.helperTimeScale.setRange([0, width]);
+    this.valueScale.setRange([height, 0]);
+    this.helperValueScale.setRange([helperHeight, 0]);
+
     parent.renderOne(0, 'g', (selection) => {
       this.mainChart.render(selection);
     });
@@ -84,26 +92,24 @@ export class TimeChart {
       return;
     }
     if (this.brush.isCleared()) {
-      this.timeScale.domain(this.helperTimeScale.domain());
+      this.timeScale.setDomain(this.helperTimeScale.getDomain());
       return;
     }
 
-    const [minDate, maxDate] = this.helperTimeScale.domain().map(Number);
-    const [minX, maxX] = this.helperTimeScale.range();
-    const width = maxX - minX;
+    const [minDate, maxDate] = this.helperTimeScale.getDomain();
+    const width = this.getInnerWidth();
     const dateSpan = maxDate - minDate;
 
     const startDate = minDate + dateSpan * left / width;
     const endDate = minDate + dateSpan * right / width;
 
-    this.timeScale.domain([new Date(startDate), new Date(endDate)]);
+    this.timeScale.setDomain([startDate, endDate]);
   }
 
   getBrushExtentFromTimeScale() {
-    const [startDate, endDate] = this.timeScale.domain().map(Number);
-    const [minDate, maxDate] = this.helperTimeScale.domain().map(Number);
-    const [minX, maxX] = this.helperTimeScale.range();
-    const width = maxX - minX;
+    const [startDate, endDate] = this.timeScale.getDomain();
+    const [minDate, maxDate] = this.helperTimeScale.getDomain();
+    const width = this.getInnerWidth();
     const dateSpan = maxDate - minDate;
 
     if (!(dateSpan > 0)) {
@@ -120,5 +126,10 @@ export class TimeChart {
     ));
 
     return {width, left, right};
+  }
+
+  getInnerWidth() {
+    const range = this.timeScale.getRange();
+    return range[1] - range[0];
   }
 }

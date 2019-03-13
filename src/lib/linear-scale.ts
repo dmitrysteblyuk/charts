@@ -3,8 +3,8 @@ export class LinearScale {
   private offset = 0;
   private invertFactor = 1;
   private invertOffset = 0;
-  private range: ReadonlyArray<number> = [0, 1];
-  private domain: ReadonlyArray<number> = [0, 1];
+  private domain = [0, 1];
+  private range = [0, 1];
 
   scale(x: number) {
     return this.factor * x + this.offset;
@@ -14,8 +14,8 @@ export class LinearScale {
     return this.invertFactor * x + this.invertOffset;
   }
 
-  getDomain() {
-    return this.domain;
+  getTicks(count: number, extended: boolean) {
+    return getDecimalTicks(count, this.domain, extended);
   }
 
   setDomain(domain: number[]) {
@@ -28,12 +28,16 @@ export class LinearScale {
     this.rescale();
   }
 
-  getTicks(count: number, extended: boolean) {
-    return getDecimalTicks(count, this.domain, extended);
+  getDomain() {
+    return this.domain;
+  }
+
+  getRange() {
+    return this.range;
   }
 
   private rescale() {
-    const {range, domain} = this;
+    const {domain, range} = this;
     this.factor = (range[1] - range[0]) / (domain[1] - domain[0]);
     this.offset = range[1] - domain[1] * this.factor;
 
@@ -51,7 +55,7 @@ export function arrayIsEqual<T>(a: T[], b: T[]): boolean {
 
 export function getDecimalTicks(
   count: number,
-  domain: ReadonlyArray<number>,
+  domain: number[],
   extended: boolean
 ): number[] {
   const step = (domain[1] - domain[0]) / (count - 1);

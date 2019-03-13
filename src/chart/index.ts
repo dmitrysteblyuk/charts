@@ -3,9 +3,9 @@ import {Selection} from '../lib/selection';
 
 export class Chart {
   constructor(
-    private axes: Axis[],
-    private grids = [],
-    private series = []
+    readonly axes: Axis[],
+    readonly grids = [],
+    readonly series = []
   ) {}
 
   render(parent: Selection) {

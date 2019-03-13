@@ -3,7 +3,7 @@ const BEING_REMOVED_PROPERTY = '__BEING_REMOVED__';
 const SVG_URI = 'http://www.w3.org/2000/svg';
 const XHTML_URI = 'http://www.w3.org/1999/xhtml';
 
-type AttributeValue = string | boolean | number;
+type Primitive = string | boolean | number | null | undefined;
 
 export class Selection<EL extends Element = Element> {
   constructor(private element: EL) {}
@@ -12,9 +12,14 @@ export class Selection<EL extends Element = Element> {
     return this.element;
   }
 
+  text(text: Primitive): this {
+    this.element.textContent = text == null ? null : String(text);
+    return this;
+  }
+
   attr(name: string): string | null;
-  attr(name: string, value: AttributeValue | null | undefined): this;
-  attr(name: string, value?: AttributeValue | null): this | string | null {
+  attr(name: string, value: Primitive): this;
+  attr(name: string, value?: Primitive): this | string | null {
     if (arguments.length < 2) {
       return this.element.getAttribute(name);
     }
@@ -137,7 +142,7 @@ export class Selection<EL extends Element = Element> {
   }
 }
 
-function addElement<E extends Element = Element>(
+export function addElement<E extends Element = Element>(
   creator: string | ((parent: Element) => E),
   parent: Element
 ): E {
