@@ -4,6 +4,7 @@
     "sourceMap": true,
     "strict": true,
     "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "suppressImplicitAnyIndexErrors": false,
     "noFallthroughCasesInSwitch": true,
     "module": "commonjs",

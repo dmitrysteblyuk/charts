@@ -1,4 +1,4 @@
-import {forEach} from './forEach';
+import {forEach} from './utils';
 
 type ObjectChanges<T> = {[key in keyof T]?: boolean};
 const DEFAULT_DATA_PROPERTY = '__DETECT_CHANGES_DATA__';

@@ -58,32 +58,41 @@ export function getDecimalTicks(
   domain: number[],
   extended: boolean
 ): number[] {
-  const step = (domain[1] - domain[0]) / (count - 1);
-  if (!(step > 0) || !isFinite(step)) {
+  function isPositive(x: number) {
+    return x > 0 && isFinite(x);
+  }
+
+  let step = (domain[1] - domain[0]) / (count - 1);
+  if (!isPositive(step)) {
     return [];
   }
 
   const ticks: number[] = [];
-  const product = Math.pow(10, Math.floor(Math.log(step) / Math.LN10));
-  const roundedStep = Math.max(1, Math.floor(step / product)) * product;
-  const startIndex = (extended ? Math.floor : Math.ceil)(
-    domain[0] / roundedStep
-  );
-  const endIndex = (extended ? Math.ceil : Math.floor)(
-    domain[1] / roundedStep
-  );
+  let product = Math.pow(10, Math.floor(Math.log(step) / Math.LN10));
+  if (!isPositive(product)) {
+    return [];
+  }
+  step = Math.max(1, Math.floor(step / product));
+  while (product % 1) {
+    product *= 10;
+    step /= 10;
+  }
+  step *= product;
+  if (!isPositive(step)) {
+    return [];
+  }
 
-  const stepPower = Math.floor(Math.log(roundedStep) / Math.LN10);
+  const startIndex = (extended ? Math.floor : Math.ceil)(domain[0] / step);
+  const endIndex = (extended ? Math.ceil : Math.floor)(domain[1] / step);
+
   let precision = 1;
-  let finalStep = roundedStep;
-
-  if (stepPower < 0) {
-    precision = Math.pow(10, -stepPower);
-    finalStep *= precision;
+  while (step % 1) {
+    precision *= 10;
+    step *= 10;
   }
 
   for (let index = startIndex; index <= endIndex; index++) {
-    ticks.push(index * finalStep / precision);
+    ticks.push(index * step / precision);
   }
   return ticks;
 }

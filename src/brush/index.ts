@@ -1,7 +1,7 @@
 import {detectChanges} from '../lib/detect-changes';
 import {onDragEvents} from '../lib/drag';
 import {Selection} from '../lib/selection';
-import {forEach} from '../lib/forEach';
+import {forEach} from '../lib/utils';
 import {EventEmitter} from '../lib/event-emitter';
 
 enum Behaviour {selectNew, resizeLeft, resizeRight, move};
@@ -31,13 +31,18 @@ export class Brush {
     forEach(props, (value, key) => this[key] = value);
   }
 
-  render(parent: Selection, isInitial: boolean) {
+  render(container: Selection, isInitial: boolean) {
     const {left, right, height, width} = this;
-    if (!detectChanges(parent.getElement(), {left, right, height, width})) {
+    if (!detectChanges(container.getElement(), {
+      left,
+      right,
+      height,
+      width
+    })) {
       return;
     }
 
-    parent.renderOne(0, 'rect', (selection, isNew) => {
+    container.renderOne(0, 'rect', (selection, isNew) => {
       selection
         .attr('width', left)
         .attr('height', height);
@@ -52,7 +57,7 @@ export class Brush {
         .on('click', () => this.onClearClick());
     });
 
-    parent.renderOne(1, 'rect', (selection, isNew) => {
+    container.renderOne(1, 'rect', (selection, isNew) => {
       selection
         .attr('x', right)
         .attr('width', width - right)
@@ -67,7 +72,7 @@ export class Brush {
         .on('click', () => this.onClearClick());
     });
 
-    parent.renderOne(2, 'rect', (selection, isNew) => {
+    container.renderOne(2, 'rect', (selection, isNew) => {
       selection
         .attr('x', left)
         .attr('width', right - left)
@@ -83,10 +88,15 @@ export class Brush {
     if (!isInitial) {
       return;
     }
-    this.initializeEvents(parent);
+    this.initializeEvents(container);
   }
 
-  onClearClick() {
+  isCleared() {
+    const {left, right, width} = this;
+    return left === 0 && right === width;
+  }
+
+  private onClearClick() {
     if (this.draggedBeforeClick || this.isCleared()) {
       return;
     }
@@ -96,12 +106,7 @@ export class Brush {
     });
   }
 
-  isCleared() {
-    const {left, right, width} = this;
-    return left === 0 && right === width;
-  }
-
-  private initializeEvents(parent: Selection) {
+  private initializeEvents(container: Selection) {
     const limit = (x: number) => Math.max(0, Math.min(x, this.width));
     let behaviour: Behaviour | undefined;
     let startLeft = 0;
@@ -109,7 +114,7 @@ export class Brush {
     let sumDiffX = 0;
     let hasMoved = false;
 
-    onDragEvents(parent.getElement(), (diffX) => {
+    onDragEvents(container.getElement(), (diffX) => {
       this.draggedBeforeClick = true;
       if (diffX === 0) {
         return;
@@ -179,7 +184,7 @@ export class Brush {
     }, (clientX) => {
       this.draggedBeforeClick = false;
       const {left, right, borderWidth} = this;
-      const startX = clientX - getPositionX();
+      const startX = Math.round(clientX - container.getRect().left);
       sumDiffX = 0;
 
       behaviour = (
@@ -203,9 +208,5 @@ export class Brush {
       hasMoved = false;
       this.activeEvent.emit(false);
     });
-
-    function getPositionX() {
-      return parent.getElement().getBoundingClientRect().left;
-    }
   }
 }

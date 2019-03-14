@@ -1,3 +1,5 @@
+import {map} from './utils';
+
 const DATUM_PROPERTY = '__DATUM__';
 const BEING_REMOVED_PROPERTY = '__BEING_REMOVED__';
 const SVG_URI = 'http://www.w3.org/2000/svg';
@@ -10,6 +12,15 @@ export class Selection<EL extends Element = Element> {
 
   getElement() {
     return this.element;
+  }
+
+  getRect() {
+    const {width, height, left, top} = this.element.getBoundingClientRect();
+    return {width, height, left, top};
+  }
+
+  getRoundedRect() {
+    return map(this.getRect(), Math.round);
   }
 
   text(text: Primitive): this {
