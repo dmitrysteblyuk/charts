@@ -1,6 +1,7 @@
 import {Axis, AxisPosition} from '../axis';
 import {Selection} from '../lib/selection';
 import {forEach, newArray} from '../lib/utils';
+import {TimeSeries} from '../time-series';
 
 export class Chart {
   private outerWidth = 0;
@@ -13,8 +14,8 @@ export class Chart {
 
   constructor(
     readonly axes: Axis[],
-    readonly grids = [],
-    readonly series = []
+    readonly grids: Axis[] = [],
+    readonly series: TimeSeries[] = []
   ) {}
 
   setProps(props: {
@@ -33,13 +34,10 @@ export class Chart {
 
     this.renderAxes(axisContainer);
     this.positionContainer(container);
+    this.renderGrids(gridContainer);
 
-    gridContainer.renderAll(this.grids, 'g', (_selection, _grid) => {
-
-    });
-
-    seriesContainer.renderAll(this.series, 'g', (_selection, _series) => {
-
+    seriesContainer.renderAll(this.series, 'g', (selection, series) => {
+      series.render(selection);
     });
   }
 
@@ -53,6 +51,16 @@ export class Chart {
 
   getPaddings() {
     return this.paddings;
+  }
+
+  private renderGrids(gridContainer: Selection) {
+    gridContainer.renderAll(this.grids, 'g', (selection, grid) => {
+      grid.setProps({
+        transform: this.getAxisTransform(grid),
+        tickSize: -(grid.isVertical() ? this.innerWidth : this.innerHeight)
+      });
+      grid.render(selection);
+    });
   }
 
   private renderAxes(axisContainer: Selection) {
@@ -75,18 +83,13 @@ export class Chart {
         axis.scale.setRange(
           axis.isVertical() ? [innerHeight, 0] : [0, innerWidth]
         );
-        const position = axis.getPosition();
-        const translate = (
-          position === AxisPosition.bottom ? [0, innerHeight]
-            : position === AxisPosition.right ? [0, innerWidth]
-            : null
-        );
         axis.setProps({
-          transform: translate && `translate(${translate})`
+          transform: this.getAxisTransform(axis, innerWidth, innerHeight)
         });
         axis.render(selection);
-        const size = axis.getSize();
 
+        const size = axis.getSize();
+        const position = axis.getPosition();
         if (
           forcedPaddings[position] !== undefined ||
           paddings[position] >= size
@@ -105,6 +108,20 @@ export class Chart {
     this.paddings = paddings;
     this.innerWidth = innerWidth;
     this.innerHeight = innerHeight;
+  }
+
+  private getAxisTransform(
+    axis: Axis,
+    horizontalOffset = this.innerWidth,
+    verticalOffset = this.innerHeight
+  ) {
+    const position = axis.getPosition();
+    const translate = (
+      position === AxisPosition.right ? [horizontalOffset, 0]
+        : position === AxisPosition.bottom ? [0, verticalOffset]
+        : null
+    );
+    return translate && `translate(${translate})`;
   }
 
   private positionContainer(container: Selection) {

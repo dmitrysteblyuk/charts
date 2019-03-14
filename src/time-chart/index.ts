@@ -5,6 +5,8 @@ import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
 import {LinearScale} from '../lib/linear-scale';
 import {TimeScale} from '../lib/time-scale';
+import {TimeSeries} from '../time-series';
+import {TimeSeriesData} from '../lib/time-series-data';
 
 export class TimeChart {
   readonly timeScale = new TimeScale();
@@ -13,15 +15,28 @@ export class TimeChart {
   readonly helperValueScale = new LinearScale();
   readonly brush = new Brush();
 
+  private gridProps = {
+    displayText: false,
+    color: '#aaa'
+  };
   readonly mainChart = new Chart(
     [
       new Axis(AxisPosition.bottom, this.timeScale),
       new Axis(AxisPosition.left, this.valueScale)
+    ],
+    [
+      new Axis(AxisPosition.bottom, this.timeScale, false),
+      new Axis(AxisPosition.left, this.valueScale, false)
     ]
   );
   readonly helperChart = new Chart(
     [
-      new Axis(AxisPosition.bottom, this.helperTimeScale)
+      new Axis(AxisPosition.top, this.helperTimeScale),
+      new Axis(AxisPosition.right, this.helperValueScale)
+    ],
+    [
+      new Axis(AxisPosition.top, this.helperTimeScale, false),
+      new Axis(AxisPosition.right, this.helperValueScale, false)
     ]
   );
   private isBrushing = false;
@@ -31,6 +46,12 @@ export class TimeChart {
   private outerWidth = 0;
   private outerHeight = 0;
   private helperHeight = 0;
+
+  constructor() {
+    this.mainChart.grids.concat(this.helperChart.grids).forEach(
+      (grid) => grid.setProps(this.gridProps)
+    );
+  }
 
   setProps(props: {
     outerWidth: number,
@@ -99,6 +120,20 @@ export class TimeChart {
         this.render(container);
       });
     });
+  }
+
+  addTimeSeries(data: TimeSeriesData) {
+    this.mainChart.series.push(new TimeSeries(
+      this.timeScale,
+      this.valueScale,
+      data
+    ));
+
+    this.helperChart.series.push(new TimeSeries(
+      this.helperTimeScale,
+      this.helperValueScale,
+      data
+    ));
   }
 
   private setBrushExtentToTimeScale(left: number, right: number) {

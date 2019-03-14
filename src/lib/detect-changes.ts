@@ -5,7 +5,7 @@ const DEFAULT_DATA_PROPERTY = '__DETECT_CHANGES_DATA__';
 
 export function detectChanges<
   T,
-  S extends IDict<any> = IDict<any>,
+  S extends Dictionary<any> = Dictionary<any>,
   C = ObjectChanges<T>
 >(
   store: S,
@@ -28,13 +28,19 @@ export function detectChanges<
   return changes;
 }
 
-function getValueFromStoreDefault<T, S extends IDict<any> = IDict<any>>(
+function getValueFromStoreDefault<
+  T,
+  S extends Dictionary<any> = Dictionary<any>
+>(
   store: S
 ): T | undefined {
   return store[DEFAULT_DATA_PROPERTY];
 }
 
-function updateObjectInStoreDefault<T, S extends IDict<any> = IDict<any>>(
+function updateObjectInStoreDefault<
+  T,
+  S extends Dictionary<any> = Dictionary<any>
+>(
   store: S,
   previousValue: T | undefined,
   nextValue: T

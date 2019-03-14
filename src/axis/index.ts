@@ -14,9 +14,11 @@ export enum AxisPosition {top, right, bottom, left};
 export class Axis {
   constructor (
     private position: AxisPosition,
-    readonly scale: LinearScale
+    readonly scale: LinearScale,
+    private displayScale = true,
   ) {}
 
+  private displayText = true;
   private transform: string | null = null;
   private tickCount = 5;
   private tickPadding = 5;
@@ -27,9 +29,12 @@ export class Axis {
   private resultHeight = 0;
 
   setProps(props: {
-    transform: string | null
+    transform?: string | null,
+    tickSize?: number,
+    color?: string,
+    displayText?: boolean
   }) {
-    forEach(props, (value, key) => this[key] = value);
+    forEach(props, (value, key) => value !== undefined && (this[key] = value));
   }
 
   render(container: Selection) {
@@ -41,7 +46,9 @@ export class Axis {
       color,
       rotateTicks,
       tickPadding,
-      transform
+      transform,
+      displayText,
+      displayScale
     } = this;
     const range = scale.getRange();
     const matrix = axisTransformMatrix[position];
@@ -51,13 +58,15 @@ export class Axis {
       (matrix ? `matrix(${matrix[0]})` : '')
     ) || null);
 
-    const pathAttr = `M${range[0]},${tickSize}V0H${range[1]}V${tickSize}`;
-    container.renderOne(0, 'path')
-      .attr('d', pathAttr)
-      .attr('fill', 'none')
-      .attr('stroke', color);
+    if (displayScale) {
+      const pathAttr = `M${range[0]},${tickSize}V0H${range[1]}V${tickSize}`;
+      container.renderOne(0, 'path')
+        .attr('d', pathAttr)
+        .attr('fill', 'none')
+        .attr('stroke', color);
+    }
 
-    const ticksContainer = container.renderOne(1, 'g');
+    const ticksContainer = container.renderOne(displayScale ? 1 : 0, 'g');
     const ticksData = scale.getTicks(tickCount, false);
     ticksContainer.renderAll(ticksData, 'g', (selection, tick) => {
       selection.attr('transform', `translate(${scale.scale(tick)})`)
@@ -65,6 +74,10 @@ export class Axis {
         .attr('y2', tickSize)
         .attr('stroke', color);
 
+      if (!displayText) {
+        selection.removeOne(1);
+        return;
+      }
       const textAnchor = (
         rotateTicks
           ? (position === AxisPosition.top ? 'start' : 'end')

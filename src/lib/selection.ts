@@ -6,6 +6,9 @@ const SVG_URI = 'http://www.w3.org/2000/svg';
 const XHTML_URI = 'http://www.w3.org/1999/xhtml';
 
 type Primitive = string | boolean | number | null | undefined;
+type ElementRemover<E extends Element, D> = (
+  (selection: Selection<E>, datum: D) => Promise<void> | void
+);
 
 export class Selection<EL extends Element = Element> {
   constructor(private element: EL) {}
@@ -52,16 +55,23 @@ export class Selection<EL extends Element = Element> {
     return this;
   }
 
+  removeOne<E extends Element, D>(
+    index: number,
+    remover?: ElementRemover<E, D>
+  ) {
+    const element = selectOne<E>(index, this.element);
+    if (element === null) {
+      return;
+    }
+    removeElement(element, remover);
+  }
+
   renderOne<E extends Element>(
-    selector: string | number,
+    index: number,
     creator: string | ((parent: Element) => E),
     updater?: (selection: Selection<E>, isNew: boolean) => void
   ): Selection<E> {
-    let element = (
-      typeof selector === 'string'
-        ? this.element.querySelector(selector)
-        : this.element.children.item(selector)
-    ) as (E | null);
+    let element = selectOne<E>(index, this.element);
     let isNew = false;
 
     if (element === null) {
@@ -85,7 +95,7 @@ export class Selection<EL extends Element = Element> {
       isNew: boolean,
       previousDatum?: D
     ) => void,
-    remover?: (selection: Selection<E>, datum: D) => Promise<void> | void,
+    remover?: ElementRemover<E, D>,
     selector?: string
   ) {
     const elements = (
@@ -115,23 +125,7 @@ export class Selection<EL extends Element = Element> {
     const toAdd = data.slice(usedDataIndex);
 
     toRemove.forEach((element) => {
-      startRemovingElement(element);
-      function done() {
-        if (element.parentElement === null) {
-          return;
-        }
-        element.parentElement.removeChild(element);
-      }
-
-      const whenDone = remover && remover(
-        new Selection(element),
-        getDatum(element)
-      );
-      if (whenDone !== undefined) {
-        whenDone.then(done);
-      } else {
-        done();
-      }
+      removeElement(element, remover);
     });
 
     toUpdate.forEach(({element, datum}) => {
@@ -145,12 +139,38 @@ export class Selection<EL extends Element = Element> {
     toAdd.forEach((datum) => {
       const element = addElement(creator, this.element);
       setDatum(element, datum);
-
       if (updater) {
         updater(new Selection(element), datum, true);
       }
     });
   }
+}
+
+function removeElement<E extends Element, D>(
+  element: E,
+  remover?: ElementRemover<E, D>
+) {
+  startRemovingElement(element);
+  function done() {
+    if (element.parentElement === null) {
+      return;
+    }
+    element.parentElement.removeChild(element);
+  }
+
+  const whenDone = remover && remover(
+    new Selection(element),
+    getDatum(element)
+  );
+  if (whenDone !== undefined) {
+    whenDone.then(done);
+  } else {
+    done();
+  }
+}
+
+function selectOne<E>(index: number, parent: Element): E | null {
+  return parent.children.item(index) as (E | null);
 }
 
 export function addElement<E extends Element = Element>(

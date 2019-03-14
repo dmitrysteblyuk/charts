@@ -1,3 +1,3 @@
-type IDict<T, K extends string = string> = {
-  [n in K]: T;
+type Dictionary<T, K extends string = string> = {
+  [key in K]: T;
 };
