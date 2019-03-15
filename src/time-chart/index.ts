@@ -36,6 +36,7 @@ export class TimeChart {
     ]
   );
   private isBrushing = false;
+  private actionTimerId: number | null = null;
   private brushLeft = 0;
   private brushRight = 0;
 
@@ -86,7 +87,7 @@ export class TimeChart {
       this.helperChart.setProps({
         chartOuterWidth,
         chartOuterHeight: helperHeight,
-        forcedPaddings: [, , , this.mainChart.getPaddings()[3]]
+        fixedPaddings: [, , , this.mainChart.getPaddings()[3]]
       });
       this.helperChart.render(selection);
     });
@@ -124,6 +125,7 @@ export class TimeChart {
         if (!reset) {
           this.setBrushExtentToTimeScale(left, right);
         }
+        this.setInAction(!reset, container);
         this.render(container);
       });
     });
@@ -177,5 +179,22 @@ export class TimeChart {
     ));
 
     return {width, left, right};
+  }
+
+  private setInAction(inAction: boolean, container: Selection) {
+    if (this.actionTimerId !== null) {
+      clearTimeout(this.actionTimerId);
+    }
+    this.mainChart.setProps({inAction});
+    this.helperChart.setProps({inAction});
+    if (!inAction) {
+      return;
+    }
+
+    this.actionTimerId = setTimeout(() => {
+      this.mainChart.setProps({inAction: false});
+      this.helperChart.setProps({inAction: false});
+      this.render(container);
+    }, 500);
   }
 }

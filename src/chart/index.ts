@@ -9,7 +9,8 @@ export class Chart {
   private chartOuterHeight = 0;
   private chartInnerWidth = 0;
   private chartInnerHeight = 0;
-  private forcedPaddings: (number | undefined)[] = [];
+  private fixedPaddings: (number | undefined)[] = [];
+  private inAction = false;
   private paddings: number[] = [0, 0, 0, 0];
 
   constructor(
@@ -18,11 +19,12 @@ export class Chart {
     readonly series: Series[] = []
   ) {}
 
-  setProps(props: {
+  setProps(props: Partial<{
     chartOuterWidth: number,
     chartOuterHeight: number,
-    forcedPaddings?: (number | undefined)[]
-  }) {
+    inAction: boolean,
+    fixedPaddings: (number | undefined)[]
+  }>) {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
   }
 
@@ -101,8 +103,17 @@ export class Chart {
   }
 
   private renderAxes(axesContainer: Selection) {
-    const {chartOuterWidth, chartOuterHeight, forcedPaddings} = this;
-    const paddings = newArray(4, (index) => forcedPaddings[index] || 0);
+    const {chartOuterWidth, chartOuterHeight, fixedPaddings} = this;
+    const paddings = newArray(4, (index) => {
+      const fixed = fixedPaddings[index];
+      if (fixed !== undefined) {
+        return fixed;
+      }
+      if (this.inAction) {
+        return this.paddings[index];
+      }
+      return 0;
+    });
     let chartInnerWidth = chartOuterWidth - paddings[1] - paddings[3];
     let chartInnerHeight = chartOuterHeight - paddings[0] - paddings[2];
     let shouldRerender = false;
@@ -113,7 +124,7 @@ export class Chart {
       const size = axis.getSize();
       const position = axis.getPosition();
       if (
-        forcedPaddings[position] !== undefined ||
+        fixedPaddings[position] !== undefined ||
         paddings[position] >= size
       ) {
         return;

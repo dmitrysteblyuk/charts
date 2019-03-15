@@ -22,7 +22,6 @@ export class Axis {
   private displayScale = true;
   private tickCount = 5;
   private tickPadding = 5;
-  private rotateTicks = 0;
   private tickSize = 5;
   private color = '#444';
   private resultWidth = 0;
@@ -45,7 +44,6 @@ export class Axis {
       scale,
       tickCount,
       color,
-      rotateTicks,
       tickPadding,
       displayLabels,
       displayLines,
@@ -79,14 +77,27 @@ export class Axis {
 
       tickSelection.renderOne('text', 'tickLabel', (selection) => {
         const textAnchor = (
-          rotateTicks
-            ? (position === AxisPosition.top ? 'start' : 'end')
-            : null
+          position === AxisPosition.left ? 'end'
+            : position === AxisPosition.right ? null
+            : 'middle'
         );
+        const dominantBaseline = (
+          position === AxisPosition.top ? null
+            : position === AxisPosition.bottom ? 'hanging'
+            : 'central'
+        );
+        const indent = (tickPadding + tickSize) * (
+          position === AxisPosition.left ||
+          position === AxisPosition.bottom
+            ? 1 : -1
+        );
+
         selection
+          .attr('transform', matrix ? `matrix(${matrix[1]})` : null)
           .attr('text-anchor', textAnchor)
-          .attr('dy', '1em')
-          .attr('y', tickPadding)
+          .attr('dominant-baseline', dominantBaseline)
+          .attr('x', this.isVertical() ? -indent : 0)
+          .attr('y', this.isVertical() ? 0 : indent)
           .text(tick);
       }, !displayLabels);
     });
