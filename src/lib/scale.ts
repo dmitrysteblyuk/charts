@@ -1,10 +1,11 @@
-export class LinearScale {
+export class Scale {
   private factor = 1;
   private offset = 0;
   private invertFactor = 1;
   private invertOffset = 0;
   private domain = [0, 1];
   private range = [0, 1];
+  private fixed = false;
 
   scale(x: number) {
     return this.factor * x + this.offset;
@@ -22,18 +23,23 @@ export class LinearScale {
     this.domain = domain;
     this.rescale();
   }
+  getDomain() {
+    return this.domain;
+  }
 
   setRange(range: number[]) {
     this.range = range;
     this.rescale();
   }
-
-  getDomain() {
-    return this.domain;
-  }
-
   getRange() {
     return this.range;
+  }
+
+  isFixed() {
+    return this.fixed;
+  }
+  setFixed(fixed: boolean) {
+    this.fixed = fixed;
   }
 
   private rescale() {

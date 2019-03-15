@@ -1,7 +1,7 @@
-import {LinearScale, getDecimalTicks} from './linear-scale';
+import {Scale, getDecimalTicks} from './scale';
 import {binarySearch} from './binary-search';
 
-export class TimeScale extends LinearScale {
+export class TimeScale extends Scale {
   getTicks(count: number, utc: boolean) {
     return getTimeTicks(count, this.getDomain(), utc);
   }

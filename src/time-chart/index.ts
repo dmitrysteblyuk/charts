@@ -3,16 +3,16 @@ import {Axis, AxisPosition} from '../axis';
 import {Brush} from '../brush';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
-import {LinearScale} from '../lib/linear-scale';
+import {Scale} from '../lib/scale';
 import {TimeScale} from '../lib/time-scale';
-import {TimeSeries} from '../time-series';
-import {TimeSeriesData} from '../lib/time-series-data';
+import {LineSeries} from '../series/line-series';
+import {SeriesData} from '../lib/series-data';
 
 export class TimeChart {
   readonly timeScale = new TimeScale();
   readonly helperTimeScale = new TimeScale();
-  readonly valueScale = new LinearScale();
-  readonly helperValueScale = new LinearScale();
+  readonly valueScale = new Scale();
+  readonly helperValueScale = new Scale();
   readonly brush = new Brush();
 
   readonly mainChart = new Chart(
@@ -119,20 +119,24 @@ export class TimeChart {
       this.brush.changeEvent.on(({left, right}) => {
         this.brushLeft = left;
         this.brushRight = right;
-        this.setBrushExtentToTimeScale(left, right);
+        const reset = this.brush.isReset();
+        this.timeScale.setFixed(!reset);
+        if (!reset) {
+          this.setBrushExtentToTimeScale(left, right);
+        }
         this.render(container);
       });
     });
   }
 
-  addTimeSeries(data: TimeSeriesData) {
-    this.mainChart.series.push(new TimeSeries(
+  addSeries(data: SeriesData) {
+    this.mainChart.series.push(new LineSeries(
       this.timeScale,
       this.valueScale,
       data
     ));
 
-    this.helperChart.series.push(new TimeSeries(
+    this.helperChart.series.push(new LineSeries(
       this.helperTimeScale,
       this.helperValueScale,
       data
@@ -143,11 +147,6 @@ export class TimeChart {
     if (!(left < right)) {
       return;
     }
-    if (this.brush.isCleared()) {
-      this.timeScale.setDomain(this.helperTimeScale.getDomain());
-      return;
-    }
-
     const [minDate, maxDate] = this.helperTimeScale.getDomain();
     const width = this.helperChart.getInnerWidth();
     const dateSpan = maxDate - minDate;

@@ -1,7 +1,8 @@
 import {Axis, AxisPosition} from '../axis';
 import {Selection} from '../lib/selection';
-import {forEach, newArray} from '../lib/utils';
-import {TimeSeries} from '../time-series';
+import {Scale} from '../lib/scale';
+import {forEach, newArray, groupBy} from '../lib/utils';
+import {Series} from '../series';
 
 export class Chart {
   private outerWidth = 0;
@@ -14,7 +15,7 @@ export class Chart {
   constructor(
     readonly axes: Axis[],
     readonly grids: Axis[] = [],
-    readonly series: TimeSeries[] = []
+    readonly series: Series[] = []
   ) {}
 
   setProps(props: {
@@ -31,13 +32,12 @@ export class Chart {
     const axesContainer = chartContainer.renderOne('g', 1);
     const seriesContainer = chartContainer.renderOne('g', 2);
 
+    this.setDomains(({xScale}) => xScale, ({extendXDomain}) => extendXDomain);
+    this.setDomains(({yScale}) => yScale, ({extendYDomain}) => extendYDomain);
     this.renderAxes(axesContainer);
     this.positionContainer(chartContainer);
     this.renderGrids(gridsContainer);
-
-    seriesContainer.renderAll('g', this.series, (selection, series) => {
-      series.render(selection);
-    });
+    this.renderSeries(seriesContainer);
   }
 
   getInnerWidth() {
@@ -50,6 +50,42 @@ export class Chart {
 
   getPaddings() {
     return this.paddings;
+  }
+
+  private setDomains(
+    getScale: (series: Series) => Scale,
+    getDomainExtender: (
+      (series: Series) => (this: Series, domain: number[]) => number[]
+    )
+  ) {
+    const groupsByScale = (
+      groupBy(this.series, (a, b) => getScale(a) === getScale(b))
+    );
+    groupsByScale.forEach(group => {
+      const scale = getScale(group[0]);
+      if (scale.isFixed()) {
+        return;
+      }
+      const domain = group.reduce(
+        (result, series) => getDomainExtender(series).call(series, result),
+        [Infinity, -Infinity]
+      );
+
+      if (domain[0] > domain[1]) {
+        return;
+      }
+      if (!(domain[0] < domain[1])) {
+        domain[0] -= 1;
+        domain[1] += 1;
+      }
+      scale.setDomain(domain);
+    });
+  }
+
+  private renderSeries(seriesContainer: Selection) {
+    seriesContainer.renderAll('g', this.series, (selection, series, isNew) => {
+      series.render(selection, isNew);
+    });
   }
 
   private renderGrids(gridsContainer: Selection) {

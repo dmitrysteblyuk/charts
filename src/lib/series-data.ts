@@ -3,12 +3,12 @@ interface DataArray<T> {
   readonly length: number;
 }
 
-export class TimeSeriesData {
+export class SeriesData {
   readonly size: number;
   constructor(
-    readonly times: DataArray<number>,
-    readonly values: DataArray<number>
+    readonly x: DataArray<number>,
+    readonly y: DataArray<number>
   ) {
-    this.size = times.length;
+    this.size = x.length;
   }
 }

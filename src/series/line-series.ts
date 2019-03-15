@@ -1,21 +1,9 @@
 import {Selection} from '../lib/selection';
-import {forEach, newArray} from '../lib/utils';
-import {LinearScale} from '../lib/linear-scale';
-import {TimeSeriesData} from '../lib/time-series-data';
+import {newArray} from '../lib/utils';
+import {SeriesData} from '../lib/series-data';
+import {Series} from './index';
 
-export class TimeSeries {
-  private color = 'steelblue';
-
-  constructor(
-    private xScale: LinearScale,
-    private yScale: LinearScale,
-    private data: TimeSeriesData
-  ) {}
-
-  setProps(props: {}) {
-    forEach(props, (value, key) => this[key] = value);
-  }
-
+export class LineSeries extends Series {
   render(container: Selection) {
     const {data, xScale, yScale, color} = this;
 
@@ -43,18 +31,18 @@ export class TimeSeries {
 function drawPath(
   scaleX: (x: number) => number,
   scaleY: (y: number) => number,
-  data: TimeSeriesData,
+  data: SeriesData,
   points: number[],
   startIndex: number,
   endIndex: number
 ): string {
-  let lastX = scaleX(data.times[points[startIndex]]);
-  let lastY = scaleY(data.values[points[startIndex]]);
+  let lastX = scaleX(data.x[points[startIndex]]);
+  let lastY = scaleY(data.y[points[startIndex]]);
   const path = ['M', lastX, ',', lastY];
 
   for (let index = startIndex + 1; index < endIndex; index++) {
-    const nextX = scaleX(data.times[points[index]]);
-    const nextY = scaleY(data.values[points[index]]);
+    const nextX = scaleX(data.x[points[index]]);
+    const nextY = scaleY(data.y[points[index]]);
 
     if (lastX !== nextX) {
       lastX = nextX;

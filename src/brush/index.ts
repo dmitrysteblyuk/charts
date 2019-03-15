@@ -17,6 +17,7 @@ export class Brush {
   private height = 0;
   private left = 0;
   private right = 0;
+  private reset = true;
   private fill = 'rgba(0, 0, 0, 0.3)';
   private stroke = '#444';
   private borderWidth = 10;
@@ -30,7 +31,7 @@ export class Brush {
     forEach(props, (value, key) => this[key] = value);
   }
 
-  render(container: Selection, isInitial: boolean) {
+  render(container: Selection, isFirstRender: boolean) {
     const {left, right, height, width} = this;
     if (!container.getChanges({left, right, height, width})) {
       return;
@@ -48,7 +49,7 @@ export class Brush {
         .attr('stroke', this.stroke)
         .attr('x', '0')
         .attr('y', '0')
-        .on('click', () => this.onClearClick());
+        .on('click', () => this.onResetClick());
     });
 
     container.renderOne('rect', 1, (selection, isNew) => {
@@ -63,7 +64,7 @@ export class Brush {
         .attr('fill', this.fill)
         .attr('stroke', this.stroke)
         .attr('y', '0')
-        .on('click', () => this.onClearClick());
+        .on('click', () => this.onResetClick());
     });
 
     container.renderOne('rect', 2, (selection, isNew) => {
@@ -79,21 +80,21 @@ export class Brush {
         .attr('y', '0');
     });
 
-    if (!isInitial) {
+    if (!isFirstRender) {
       return;
     }
     this.initializeEvents(container);
   }
 
-  isCleared() {
-    const {left, right, width} = this;
-    return left === 0 && right === width;
+  isReset() {
+    return this.reset;
   }
 
-  private onClearClick() {
-    if (this.draggedBeforeClick || this.isCleared()) {
+  private onResetClick() {
+    if (this.draggedBeforeClick || this.reset) {
       return;
     }
+    this.reset = true;
     this.changeEvent.emit({
       left: 0,
       right: this.width
@@ -174,6 +175,7 @@ export class Brush {
       if (left === this.left && right === this.right) {
         return;
       }
+      this.reset = false;
       this.changeEvent.emit({left, right});
     }, (clientX) => {
       this.draggedBeforeClick = false;
@@ -182,7 +184,7 @@ export class Brush {
       sumDiffX = 0;
 
       behaviour = (
-        (startX < left - borderWidth || this.isCleared()) ? Behaviour.selectNew
+        (startX < left - borderWidth || this.reset) ? Behaviour.selectNew
           : (startX < left) ? Behaviour.resizeLeft
           : (startX < right) ? Behaviour.move
           : (startX < right + borderWidth) ? Behaviour.resizeRight

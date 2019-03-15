@@ -1,4 +1,4 @@
-import {LinearScale} from '../lib/linear-scale';
+import {Scale} from '../lib/scale';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
 
@@ -14,7 +14,7 @@ export enum AxisPosition {top, right, bottom, left};
 export class Axis {
   constructor (
     private position: AxisPosition,
-    readonly scale: LinearScale
+    readonly scale: Scale
   ) {}
 
   private displayLabels = true;

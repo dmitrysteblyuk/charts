@@ -1,5 +1,5 @@
 import {TimeChart} from './time-chart';
-import {TimeSeriesData} from './lib/time-series-data';
+import {SeriesData} from './lib/series-data';
 import {Selection} from './lib/selection';
 
 const timeChart = new TimeChart();
@@ -9,9 +9,9 @@ timeChart.setProps({
   helperHeight: 60
 });
 
-timeChart.addTimeSeries(new TimeSeriesData(
-  [0, 0.4, 0.5, 0.6, 1],
-  [0, 1, 0.5, 0.2, 0]
+timeChart.addSeries(new SeriesData(
+  [0, 0.4, 0.5, 0.6, 10, 20],
+  [0, 1, 50, 100, -80, 67]
 ));
 
 const svgSelection = new Selection(document.body)

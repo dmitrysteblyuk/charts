@@ -1,7 +1,12 @@
+/**
+  * Returns startIndex - 1 if length < 1 (i.e. startIndex >= endIndex)
+  * Returns endIndex if searched value is always greater[or equal]
+  * (i.e. isLessOrLessOrEqualThan always returns false)
+  */
 export function binarySearch(
   startIndex: number,
   endIndex: number,
-  isLessThan: (index: number) => boolean
+  isLessOrLessOrEqualThan: (index: number) => boolean
 ): number {
   if (startIndex < endIndex) {
     return search(startIndex, endIndex);
@@ -10,7 +15,7 @@ export function binarySearch(
 
   function search(start: number, end: number): number {
     const middle = Math.floor((end - start) / 2) + start;
-    if (isLessThan(middle)) {
+    if (isLessOrLessOrEqualThan(middle)) {
       if (middle === start) {
         return start;
       }
