@@ -39,8 +39,8 @@ export class TimeChart {
   private brushLeft = 0;
   private brushRight = 0;
 
-  private outerWidth = 0;
-  private outerHeight = 0;
+  private chartOuterWidth = 0;
+  private chartOuterHeight = 0;
   private helperHeight = 0;
 
   constructor() {
@@ -54,8 +54,8 @@ export class TimeChart {
   }
 
   setProps(props: {
-    outerWidth: number,
-    outerHeight: number,
+    chartOuterWidth: number,
+    chartOuterHeight: number,
     helperHeight: number
   }) {
     forEach(props, (value, key) => this[key] = value);
@@ -63,8 +63,8 @@ export class TimeChart {
 
   render(container: Selection) {
     const {
-      outerWidth,
-      outerHeight,
+      chartOuterWidth,
+      chartOuterHeight,
       helperHeight,
       brushLeft,
       brushRight
@@ -72,8 +72,8 @@ export class TimeChart {
 
     container.renderOne('g', 0, (selection) => {
       this.mainChart.setProps({
-        outerWidth,
-        outerHeight: outerHeight - helperHeight
+        chartOuterWidth,
+        chartOuterHeight: chartOuterHeight - helperHeight
       });
       this.mainChart.render(selection);
     });
@@ -81,11 +81,11 @@ export class TimeChart {
     const helperContainer = container.renderOne('g', 1, (selection) => {
       selection.attr(
         'transform',
-        `translate(0,${outerHeight - helperHeight})`
+        `translate(0,${chartOuterHeight - helperHeight})`
       );
       this.helperChart.setProps({
-        outerWidth,
-        outerHeight: helperHeight,
+        chartOuterWidth,
+        chartOuterHeight: helperHeight,
         forcedPaddings: [, , , this.mainChart.getPaddings()[3]]
       });
       this.helperChart.render(selection);

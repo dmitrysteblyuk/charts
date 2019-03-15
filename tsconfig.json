@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
-    "sourceMap": true,
+    "outDir": "./built",
+    "sourceMap": false,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "suppressImplicitAnyIndexErrors": false,
     "noFallthroughCasesInSwitch": true,
     "module": "commonjs",
+    "moduleResolution": "node",
     "target": "es5",
-    "jsx": "react",
     "typeRoots": [
       "./node_modules/@types"
     ],

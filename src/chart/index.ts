@@ -5,10 +5,10 @@ import {forEach, newArray, groupBy} from '../lib/utils';
 import {Series} from '../series';
 
 export class Chart {
-  private outerWidth = 0;
-  private outerHeight = 0;
-  private innerWidth = 0;
-  private innerHeight = 0;
+  private chartOuterWidth = 0;
+  private chartOuterHeight = 0;
+  private chartInnerWidth = 0;
+  private chartInnerHeight = 0;
   private forcedPaddings: (number | undefined)[] = [];
   private paddings: number[] = [0, 0, 0, 0];
 
@@ -19,8 +19,8 @@ export class Chart {
   ) {}
 
   setProps(props: {
-    outerWidth: number,
-    outerHeight: number,
+    chartOuterWidth: number,
+    chartOuterHeight: number,
     forcedPaddings?: (number | undefined)[]
   }) {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
@@ -41,11 +41,11 @@ export class Chart {
   }
 
   getInnerWidth() {
-    return this.innerWidth;
+    return this.chartInnerWidth;
   }
 
   getInnerHeight() {
-    return this.innerHeight;
+    return this.chartInnerHeight;
   }
 
   getPaddings() {
@@ -92,17 +92,19 @@ export class Chart {
     gridsContainer.renderAll('g', this.grids, (selection, grid) => {
       selection.attr('transform', this.getAxisTransform(grid));
       grid.setProps({
-        tickSize: -(grid.isVertical() ? this.innerWidth : this.innerHeight)
+        tickSize: -(
+          grid.isVertical() ? this.chartInnerWidth : this.chartInnerHeight
+        )
       });
       grid.render(selection);
     });
   }
 
   private renderAxes(axesContainer: Selection) {
-    const {outerWidth, outerHeight, forcedPaddings} = this;
+    const {chartOuterWidth, chartOuterHeight, forcedPaddings} = this;
     const paddings = newArray(4, (index) => forcedPaddings[index] || 0);
-    let innerWidth = outerWidth - paddings[1] - paddings[3];
-    let innerHeight = outerHeight - paddings[0] - paddings[2];
+    let chartInnerWidth = chartOuterWidth - paddings[1] - paddings[3];
+    let chartInnerHeight = chartOuterHeight - paddings[0] - paddings[2];
     let shouldRerender = false;
 
     axesContainer.renderAll('g', this.axes, (selection, axis) => {
@@ -120,9 +122,12 @@ export class Chart {
       shouldRerender = true;
     });
 
+    chartInnerWidth = chartOuterWidth - paddings[1] - paddings[3];
+    chartInnerHeight = chartOuterHeight - paddings[0] - paddings[2];
+
     this.paddings = paddings;
-    this.innerWidth = innerWidth = outerWidth - paddings[1] - paddings[3];
-    this.innerHeight = innerHeight = outerHeight - paddings[0] - paddings[2];
+    this.chartInnerWidth = chartInnerWidth;
+    this.chartInnerHeight = chartInnerHeight;
 
     axesContainer.renderAll('g', this.axes, (selection, axis) => {
       selection.attr('transform', this.getAxisTransform(axis));
@@ -134,21 +139,17 @@ export class Chart {
 
     function renderAxis(selection: Selection, axis: Axis) {
       axis.scale.setRange(
-        axis.isVertical() ? [innerHeight, 0] : [0, innerWidth]
+        axis.isVertical() ? [chartInnerHeight, 0] : [0, chartInnerWidth]
       );
       axis.render(selection);
     }
   }
 
-  private getAxisTransform(
-    axis: Axis,
-    horizontalOffset = this.innerWidth,
-    verticalOffset = this.innerHeight
-  ) {
+  private getAxisTransform(axis: Axis) {
     const position = axis.getPosition();
     const translate = (
-      position === AxisPosition.right ? [horizontalOffset, 0]
-        : position === AxisPosition.bottom ? [0, verticalOffset]
+      position === AxisPosition.right ? [this.chartInnerWidth, 0]
+        : position === AxisPosition.bottom ? [0, this.chartInnerHeight]
         : null
     );
     return translate && `translate(${translate})`;

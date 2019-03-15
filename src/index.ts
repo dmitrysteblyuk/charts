@@ -4,8 +4,8 @@ import {Selection} from './lib/selection';
 
 const timeChart = new TimeChart();
 timeChart.setProps({
-  outerWidth: 500,
-  outerHeight: 500,
+  chartOuterWidth: 500,
+  chartOuterHeight: 500,
   helperHeight: 60
 });
 
