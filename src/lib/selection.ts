@@ -1,4 +1,5 @@
 import {map} from './utils';
+import {detectChanges} from './detect-changes';
 
 const DATUM_PROPERTY = '__DATUM__';
 const BEING_REMOVED_PROPERTY = '__BEING_REMOVED__';
@@ -6,15 +7,42 @@ const SVG_URI = 'http://www.w3.org/2000/svg';
 const XHTML_URI = 'http://www.w3.org/1999/xhtml';
 
 type Primitive = string | boolean | number | null | undefined;
-type ElementRemover<E extends Element, D> = (
+type Selector = number | string;
+type Remover<E extends Element, D> = (
   (selection: Selection<E>, datum: D) => Promise<void> | void
+);
+type Updater<E extends Element> = (
+  (selection: Selection<E>, isNew: boolean) => void
 );
 
 export class Selection<EL extends Element = Element> {
-  constructor(private element: EL) {}
+  static countID = 0;
+  private selectionId: string;
 
-  getElement() {
-    return this.element;
+  constructor(private element: EL) {
+    if (element.hasAttribute('id')) {
+      this.selectionId = element.getAttribute('id') as string;
+      return;
+    }
+    this.selectionId = `el-${Selection.countID++}`;
+    element.setAttribute('id', this.selectionId);
+  }
+
+  selectOne<E extends Element>(selector: Selector) {
+    const element = (
+      typeof selector === 'number'
+        ? this.element.children.item(selector)
+        : this.element.children.namedItem(this.getChildId(selector))
+    ) as (E | null);
+
+    if (element === null || isBeingRemoved(element)) {
+      return null;
+    }
+    return new Selection(element);
+  }
+
+  getChanges<T>(data: T) {
+    return detectChanges(this.element, data);
   }
 
   getRect() {
@@ -55,31 +83,39 @@ export class Selection<EL extends Element = Element> {
     return this;
   }
 
-  removeOne<E extends Element, D>(
-    index: number,
-    remover?: ElementRemover<E, D>
-  ) {
-    const element = selectOne<E>(index, this.element);
-    if (element === null) {
-      return;
-    }
-    removeElement(element, remover);
-  }
-
   renderOne<E extends Element>(
-    index: number,
-    creator: string | ((parent: Element) => E),
-    updater?: (selection: Selection<E>, isNew: boolean) => void
-  ): Selection<E> {
-    let element = selectOne<E>(index, this.element);
-    let isNew = false;
+    tagName: string,
+    selector: Selector,
+    updater?: Updater<E>
+  ): Selection<E>;
+  renderOne<E extends Element, D>(
+    tagName: string,
+    selector: string,
+    updater?: Updater<E>,
+    toRemove?: boolean,
+    remover?: Remover<E, D>
+  ): Selection<E> | null;
+  renderOne<E extends Element, D>(
+    tagName: string,
+    selector: Selector,
+    updater?: Updater<E>,
+    toRemove?: boolean,
+    remover?: Remover<E, D>
+  ): Selection<E> | null {
+    let selection = this.selectOne<E>(selector);
+    if (toRemove) {
+      if (selection !== null) {
+        this.removeElement(selection.element, remover);
+      }
+      return null;
+    }
 
-    if (element === null) {
-      element = addElement(creator, this.element);
+    let isNew = false;
+    if (selection === null) {
+      selection = this.addChild<E>(tagName, selector);
       isNew = true;
     }
 
-    const selection = new Selection(element);
     if (updater) {
       updater(selection, isNew);
     }
@@ -87,30 +123,24 @@ export class Selection<EL extends Element = Element> {
   }
 
   renderAll<E extends Element, D>(
+    tagName: string,
     data: D[],
-    creator: string | ((parent: Element) => E),
     updater?: (
       selection: Selection<E>,
       datum: D,
       isNew: boolean,
       previousDatum?: D
     ) => void,
-    remover?: ElementRemover<E, D>,
-    selector?: string
+    remover?: Remover<E, D>
   ) {
-    const elements = (
-      selector === undefined
-        ? this.element.children
-        : this.element.querySelectorAll(selector)
-    );
-
-    const currentLength = elements.length;
+    const {children} = this.element;
+    const currentLength = children.length;
     const toUpdate: {element: E; datum: D; }[] = [];
     const toRemove: E[] = [];
     let usedDataIndex = 0;
 
     for (let index = 0; index < currentLength; index++) {
-      const element = elements.item(index) as E;
+      const element = children.item(index) as E;
       if (isBeingRemoved(element)) {
         continue;
       }
@@ -125,7 +155,7 @@ export class Selection<EL extends Element = Element> {
     const toAdd = data.slice(usedDataIndex);
 
     toRemove.forEach((element) => {
-      removeElement(element, remover);
+      this.removeElement(element, remover);
     });
 
     toUpdate.forEach(({element, datum}) => {
@@ -137,56 +167,59 @@ export class Selection<EL extends Element = Element> {
     });
 
     toAdd.forEach((datum) => {
-      const element = addElement(creator, this.element);
-      setDatum(element, datum);
+      const selection = this.addChild<E>(tagName);
+      setDatum(selection.element, datum);
       if (updater) {
-        updater(new Selection(element), datum, true);
+        updater(selection, datum, true);
       }
     });
   }
-}
 
-function removeElement<E extends Element, D>(
-  element: E,
-  remover?: ElementRemover<E, D>
-) {
-  startRemovingElement(element);
-  function done() {
-    if (element.parentElement === null) {
-      return;
+  private addChild<E extends Element>(
+    tagName: string,
+    selector?: Selector
+  ): Selection<E> {
+    console.log('add new', tagName, Selection.countID);
+
+    const parent = this.element;
+    const element = createChild<E>(tagName, parent);
+
+    if (typeof selector === 'string') {
+      element.setAttribute('id', this.getChildId(selector));
     }
-    element.parentElement.removeChild(element);
+    if (typeof selector === 'number') {
+      parent.insertBefore(element, parent.children.item(selector));
+    } else {
+      parent.appendChild(element);
+    }
+    return new Selection(element);
   }
 
-  const whenDone = remover && remover(
-    new Selection(element),
-    getDatum(element)
-  );
-  if (whenDone !== undefined) {
-    whenDone.then(done);
-  } else {
-    done();
-  }
-}
+  private removeElement<E extends Element, D>(
+    element: E,
+    remover?: Remover<E, D>
+  ) {
+    startRemovingElement(element);
+    const whenDone = (
+      remover && remover(new Selection(element), getDatum(element))
+    );
+    if (whenDone) {
+      whenDone.then(done);
+    } else {
+      done();
+    }
 
-function selectOne<E>(index: number, parent: Element): E | null {
-  return parent.children.item(index) as (E | null);
-}
-
-export function addElement<E extends Element = Element>(
-  creator: string | ((parent: Element) => E),
-  parent: Element
-): E {
-  console.log('add new', creator);
-  const newElement = (
-    typeof creator === 'string'
-      ? createOne<E>(creator, parent)
-      : creator(parent)
-  );
-  if (newElement.parentElement === null) {
-    parent.appendChild(newElement);
+    function done() {
+      if (element.parentElement === null) {
+        return;
+      }
+      element.parentElement.removeChild(element);
+    }
   }
-  return newElement;
+
+  private getChildId(selector: string) {
+    return `${this.selectionId}:${selector}`;
+  }
 }
 
 function getDatum<D>(element: Element): D {
@@ -202,25 +235,24 @@ function isBeingRemoved(element: Element): boolean {
 }
 
 function startRemovingElement(element: Element): void {
+  element.removeAttribute('id');
   (element as any)[BEING_REMOVED_PROPERTY] = true;
 }
 
-function createOne<E extends Element>(
-  name: string,
+function createChild<E extends Element>(
+  tagName: string,
   parent: Element
 ): E {
   const elementDocument = parent.ownerDocument as Document;
 
-  if (name === 'svg') {
-    return elementDocument.createElementNS(SVG_URI, name) as Element as E;
+  if (tagName === 'svg') {
+    return elementDocument.createElementNS(SVG_URI, tagName) as Element as E;
   }
-
   if (
     parent.namespaceURI === XHTML_URI &&
     elementDocument.documentElement.namespaceURI === XHTML_URI
   ) {
-    return elementDocument.createElement(name) as Element as E;
+    return elementDocument.createElement(tagName) as Element as E;
   }
-
-  return elementDocument.createElementNS(parent.namespaceURI, name) as E;
+  return elementDocument.createElementNS(parent.namespaceURI, tagName) as E;
 }

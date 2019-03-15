@@ -19,7 +19,7 @@ export class TimeSeries {
   render(container: Selection) {
     const {data, xScale, yScale, color} = this;
 
-    container.renderOne(0, 'path', (selection) => {
+    container.renderOne('path', 0, (selection) => {
       if (!data.size) {
         selection.attr('d', 'M-1,-1');
         return;

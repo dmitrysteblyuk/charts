@@ -8,7 +8,6 @@ export class Chart {
   private outerHeight = 0;
   private innerWidth = 0;
   private innerHeight = 0;
-  private transform: string | null = null;
   private forcedPaddings: (number | undefined)[] = [];
   private paddings: number[] = [0, 0, 0, 0];
 
@@ -21,22 +20,22 @@ export class Chart {
   setProps(props: {
     outerWidth: number,
     outerHeight: number,
-    transform: string | null,
     forcedPaddings?: (number | undefined)[]
   }) {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
   }
 
   render(container: Selection) {
-    const gridContainer = container.renderOne(0, 'g');
-    const axisContainer = container.renderOne(1, 'g');
-    const seriesContainer = container.renderOne(2, 'g');
+    const chartContainer = container.renderOne('g', 0);
+    const gridsContainer = chartContainer.renderOne('g', 0);
+    const axesContainer = chartContainer.renderOne('g', 1);
+    const seriesContainer = chartContainer.renderOne('g', 2);
 
-    this.renderAxes(axisContainer);
-    this.positionContainer(container);
-    this.renderGrids(gridContainer);
+    this.renderAxes(axesContainer);
+    this.positionContainer(chartContainer);
+    this.renderGrids(gridsContainer);
 
-    seriesContainer.renderAll(this.series, 'g', (selection, series) => {
+    seriesContainer.renderAll('g', this.series, (selection, series) => {
       series.render(selection);
     });
   }
@@ -53,61 +52,56 @@ export class Chart {
     return this.paddings;
   }
 
-  private renderGrids(gridContainer: Selection) {
-    gridContainer.renderAll(this.grids, 'g', (selection, grid) => {
+  private renderGrids(gridsContainer: Selection) {
+    gridsContainer.renderAll('g', this.grids, (selection, grid) => {
+      selection.attr('transform', this.getAxisTransform(grid));
       grid.setProps({
-        transform: this.getAxisTransform(grid),
         tickSize: -(grid.isVertical() ? this.innerWidth : this.innerHeight)
       });
       grid.render(selection);
     });
   }
 
-  private renderAxes(axisContainer: Selection) {
+  private renderAxes(axesContainer: Selection) {
     const {outerWidth, outerHeight, forcedPaddings} = this;
-    const initialPaddings = newArray(4, (index) => forcedPaddings[index] || 0);
-    let paddings = initialPaddings;
-    let {innerWidth, innerHeight} = this;
-    const numberOfIterations = 2;
+    const paddings = newArray(4, (index) => forcedPaddings[index] || 0);
+    let innerWidth = outerWidth - paddings[1] - paddings[3];
+    let innerHeight = outerHeight - paddings[0] - paddings[2];
+    let shouldRerender = false;
 
-    for (let iteration = 0; iteration < numberOfIterations + 1; iteration++) {
-      innerWidth = outerWidth - paddings[1] - paddings[3];
-      innerHeight = outerHeight - paddings[0] - paddings[2];
-      if (iteration === numberOfIterations) {
-        break;
+    axesContainer.renderAll('g', this.axes, (selection, axis) => {
+      renderAxis(selection, axis);
+
+      const size = axis.getSize();
+      const position = axis.getPosition();
+      if (
+        forcedPaddings[position] !== undefined ||
+        paddings[position] >= size
+      ) {
+        return;
       }
-      paddings = initialPaddings;
-      let shouldRedraw = false;
-
-      axisContainer.renderAll(this.axes, 'g', (selection, axis) => {
-        axis.scale.setRange(
-          axis.isVertical() ? [innerHeight, 0] : [0, innerWidth]
-        );
-        axis.setProps({
-          transform: this.getAxisTransform(axis, innerWidth, innerHeight)
-        });
-        axis.render(selection);
-
-        const size = axis.getSize();
-        const position = axis.getPosition();
-        if (
-          forcedPaddings[position] !== undefined ||
-          paddings[position] >= size
-        ) {
-          return;
-        }
-        paddings[position] = size;
-        shouldRedraw = true;
-      });
-
-      if (!shouldRedraw) {
-        break;
-      }
-    }
+      paddings[position] = size;
+      shouldRerender = true;
+    });
 
     this.paddings = paddings;
-    this.innerWidth = innerWidth;
-    this.innerHeight = innerHeight;
+    this.innerWidth = innerWidth = outerWidth - paddings[1] - paddings[3];
+    this.innerHeight = innerHeight = outerHeight - paddings[0] - paddings[2];
+
+    axesContainer.renderAll('g', this.axes, (selection, axis) => {
+      selection.attr('transform', this.getAxisTransform(axis));
+      if (!shouldRerender) {
+        return;
+      }
+      renderAxis(selection, axis);
+    });
+
+    function renderAxis(selection: Selection, axis: Axis) {
+      axis.scale.setRange(
+        axis.isVertical() ? [innerHeight, 0] : [0, innerWidth]
+      );
+      axis.render(selection);
+    }
   }
 
   private getAxisTransform(
@@ -124,10 +118,10 @@ export class Chart {
     return translate && `translate(${translate})`;
   }
 
-  private positionContainer(container: Selection) {
-    const {paddings} = this;
-    container.attr('transform', (
-      `${(this.transform || '')}translate(${paddings[3]}, ${paddings[0]})`
-    ));
+  private positionContainer(chartContainer: Selection) {
+    chartContainer.attr(
+      'transform',
+      `translate(${this.paddings[3]}, ${this.paddings[0]})`
+    );
   }
 }

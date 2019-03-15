@@ -1,6 +1,6 @@
 import {TimeChart} from './time-chart';
 import {TimeSeriesData} from './lib/time-series-data';
-import {Selection, addElement} from './lib/selection';
+import {Selection} from './lib/selection';
 
 const timeChart = new TimeChart();
 timeChart.setProps({
@@ -14,10 +14,11 @@ timeChart.addTimeSeries(new TimeSeriesData(
   [0, 1, 0.5, 0.2, 0]
 ));
 
-const svgSelection = new Selection(addElement('svg', document.body))
+const svgSelection = new Selection(document.body)
+  .renderOne('svg', 'container')
   .attr('width', window.innerWidth - 50)
   .attr('height', 600);
 
-const chartSelection = svgSelection.renderOne(0, 'g');
+const chartSelection = svgSelection.renderOne('g', 0);
 
 timeChart.render(chartSelection);

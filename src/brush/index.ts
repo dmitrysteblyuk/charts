@@ -1,4 +1,3 @@
-import {detectChanges} from '../lib/detect-changes';
 import {onDragEvents} from '../lib/drag';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
@@ -33,16 +32,11 @@ export class Brush {
 
   render(container: Selection, isInitial: boolean) {
     const {left, right, height, width} = this;
-    if (!detectChanges(container.getElement(), {
-      left,
-      right,
-      height,
-      width
-    })) {
+    if (!container.getChanges({left, right, height, width})) {
       return;
     }
 
-    container.renderOne(0, 'rect', (selection, isNew) => {
+    container.renderOne('rect', 0, (selection, isNew) => {
       selection
         .attr('width', left)
         .attr('height', height);
@@ -57,7 +51,7 @@ export class Brush {
         .on('click', () => this.onClearClick());
     });
 
-    container.renderOne(1, 'rect', (selection, isNew) => {
+    container.renderOne('rect', 1, (selection, isNew) => {
       selection
         .attr('x', right)
         .attr('width', width - right)
@@ -72,7 +66,7 @@ export class Brush {
         .on('click', () => this.onClearClick());
     });
 
-    container.renderOne(2, 'rect', (selection, isNew) => {
+    container.renderOne('rect', 2, (selection, isNew) => {
       selection
         .attr('x', left)
         .attr('width', right - left)
@@ -114,7 +108,7 @@ export class Brush {
     let sumDiffX = 0;
     let hasMoved = false;
 
-    onDragEvents(container.getElement(), (diffX) => {
+    onDragEvents(container, (diffX) => {
       this.draggedBeforeClick = true;
       if (diffX === 0) {
         return;

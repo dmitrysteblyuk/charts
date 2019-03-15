@@ -1,6 +1,14 @@
 import {forEach} from './utils';
 
 type ObjectChanges<T> = {[key in keyof T]?: boolean};
+type ValueChangesGetter<T, C> = (
+  (previousValue: T | undefined, nextValue: T) => C | null
+);
+type StoreValueGetter<T, S> = (store: S) => T | undefined;
+type StoreValueUpdater<T, S> = (
+  (store: S, previousValue: T | undefined, nextValue: T) => void
+);
+
 const DEFAULT_DATA_PROPERTY = '__DETECT_CHANGES_DATA__';
 
 export function detectChanges<
@@ -10,15 +18,9 @@ export function detectChanges<
 >(
   store: S,
   nextValue: T,
-  getValueChanges = getObjectChanges as (
-    (previousValue: T | undefined, nextValue: T) => C | null
-  ),
-  getValueFromStore = getValueFromStoreDefault as (
-    (store: S) => T | undefined
-  ),
-  updateValueInStore = updateObjectInStoreDefault as (
-    (store: S, previousValue: T | undefined, nextValue: T) => void
-  )
+  getValueChanges = getObjectChanges as ValueChangesGetter<T, C>,
+  getValueFromStore = getValueFromStoreDefault as StoreValueGetter<T, S>,
+  updateValueInStore = updateObjectInStoreDefault as StoreValueUpdater<T, S>
 ) {
   const previousValue = getValueFromStore(store);
   const changes = getValueChanges(previousValue, nextValue);

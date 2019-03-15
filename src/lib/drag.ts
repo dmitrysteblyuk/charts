@@ -1,18 +1,20 @@
+import {Selection} from './selection';
+
 export function onDragEvents(
-  target: Element,
+  target: Selection,
   onDragMove?: (diffX: number, diffY: number) => void,
-  onDragStart?: (startX: number, startY: number, target: Element) => void,
+  onDragStart?: (startX: number, startY: number, target: Selection) => void,
   onDragEnd?: () => void
 ) {
   let isDragging = false;
   let currentX = 0;
   let currentY = 0;
 
-  target.addEventListener('mousedown', onStart);
+  target
+    .on('mousedown', onStart)
+    .on('touchstart', onStart);
   window.addEventListener('mouseup', onEnd);
   window.addEventListener('mousemove', onMove);
-
-  target.addEventListener('touchstart', onStart);
   window.addEventListener('touchend', onEnd);
   window.addEventListener('touchcancel', onEnd);
   window.addEventListener('touchmove', onMove);
@@ -25,7 +27,7 @@ export function onDragEvents(
     if (!onDragStart) {
       return;
     }
-    onDragStart(currentX, currentY, event.target as Element);
+    onDragStart(currentX, currentY, new Selection(event.target as Element));
   }
 
   function onEnd() {
@@ -53,11 +55,11 @@ export function onDragEvents(
   }
 
   return (() => {
-    target.removeEventListener('mousedown', onStart);
+    target
+      .off('mousedown', onStart)
+      .off('touchstart', onStart);
     window.removeEventListener('mouseup', onEnd);
     window.removeEventListener('mousemove', onMove);
-
-    target.removeEventListener('touchstart', onStart);
     window.removeEventListener('touchend', onEnd);
     window.removeEventListener('touchcancel', onEnd);
     window.removeEventListener('touchmove', onMove);

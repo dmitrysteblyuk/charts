@@ -15,18 +15,14 @@ export class TimeChart {
   readonly helperValueScale = new LinearScale();
   readonly brush = new Brush();
 
-  private gridProps = {
-    displayText: false,
-    color: '#aaa'
-  };
   readonly mainChart = new Chart(
     [
       new Axis(AxisPosition.bottom, this.timeScale),
       new Axis(AxisPosition.left, this.valueScale)
     ],
     [
-      new Axis(AxisPosition.bottom, this.timeScale, false),
-      new Axis(AxisPosition.left, this.valueScale, false)
+      new Axis(AxisPosition.bottom, this.timeScale),
+      new Axis(AxisPosition.left, this.valueScale)
     ]
   );
   readonly helperChart = new Chart(
@@ -35,8 +31,8 @@ export class TimeChart {
       new Axis(AxisPosition.right, this.helperValueScale)
     ],
     [
-      new Axis(AxisPosition.top, this.helperTimeScale, false),
-      new Axis(AxisPosition.right, this.helperValueScale, false)
+      new Axis(AxisPosition.top, this.helperTimeScale),
+      new Axis(AxisPosition.right, this.helperValueScale)
     ]
   );
   private isBrushing = false;
@@ -48,9 +44,13 @@ export class TimeChart {
   private helperHeight = 0;
 
   constructor() {
-    this.mainChart.grids.concat(this.helperChart.grids).forEach(
-      (grid) => grid.setProps(this.gridProps)
-    );
+    (
+      this.mainChart.grids.concat(this.helperChart.grids)
+    ).forEach((grid) => grid.setProps({
+      displayLabels: false,
+      displayScale: false,
+      color: '#aaa'
+    }));
   }
 
   setProps(props: {
@@ -70,26 +70,29 @@ export class TimeChart {
       brushRight
     } = this;
 
-    container.renderOne(0, 'g', (selection) => {
+    container.renderOne('g', 0, (selection) => {
       this.mainChart.setProps({
         outerWidth,
-        outerHeight: outerHeight - helperHeight,
-        transform: null
+        outerHeight: outerHeight - helperHeight
       });
       this.mainChart.render(selection);
     });
 
-    const helperContainer = container.renderOne(1, 'g', (selection) => {
+    const helperContainer = container.renderOne('g', 1, (selection) => {
+      selection.attr(
+        'transform',
+        `translate(0,${outerHeight - helperHeight})`
+      );
       this.helperChart.setProps({
         outerWidth,
         outerHeight: helperHeight,
-        transform: `translate(0,${outerHeight - helperHeight})`,
         forcedPaddings: [, , , this.mainChart.getPaddings()[3]]
       });
       this.helperChart.render(selection);
     });
 
-    helperContainer.renderOne(3, 'g', (selection, isNew) => {
+    const helperChartContainer = helperContainer.selectOne(0) as Selection;
+    helperChartContainer.renderOne('g', 3, (selection, isNew) => {
       const brushWidth = this.helperChart.getInnerWidth();
       const brushHeight = this.helperChart.getInnerHeight();
       const brushExtent = (

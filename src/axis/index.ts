@@ -14,12 +14,12 @@ export enum AxisPosition {top, right, bottom, left};
 export class Axis {
   constructor (
     private position: AxisPosition,
-    readonly scale: LinearScale,
-    private displayScale = true,
+    readonly scale: LinearScale
   ) {}
 
-  private displayText = true;
-  private transform: string | null = null;
+  private displayLabels = true;
+  private displayLines = true;
+  private displayScale = true;
   private tickCount = 5;
   private tickPadding = 5;
   private rotateTicks = 0;
@@ -29,10 +29,11 @@ export class Axis {
   private resultHeight = 0;
 
   setProps(props: {
-    transform?: string | null,
     tickSize?: number,
     color?: string,
-    displayText?: boolean
+    displayLabels?: boolean,
+    displayLines?: boolean,
+    displayScale?: boolean
   }) {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
   }
@@ -46,48 +47,48 @@ export class Axis {
       color,
       rotateTicks,
       tickPadding,
-      transform,
-      displayText,
+      displayLabels,
+      displayLines,
       displayScale
     } = this;
     const range = scale.getRange();
     const matrix = axisTransformMatrix[position];
 
-    container.attr('transform', (
-      (transform || '') +
-      (matrix ? `matrix(${matrix[0]})` : '')
-    ) || null);
+    const axisContainer = container.renderOne('g', 0);
+    axisContainer.attr('transform', matrix ? `matrix(${matrix[0]})` : null);
 
-    if (displayScale) {
+    axisContainer.renderOne('path', 'axisScale', (selection) => {
       const pathAttr = `M${range[0]},${tickSize}V0H${range[1]}V${tickSize}`;
-      container.renderOne(0, 'path')
+      selection
         .attr('d', pathAttr)
         .attr('fill', 'none')
         .attr('stroke', color);
-    }
+    }, !displayScale);
 
-    const ticksContainer = container.renderOne(displayScale ? 1 : 0, 'g');
     const ticksData = scale.getTicks(tickCount, false);
-    ticksContainer.renderAll(ticksData, 'g', (selection, tick) => {
-      selection.attr('transform', `translate(${scale.scale(tick)})`)
-      selection.renderOne(0, 'line')
-        .attr('y2', tickSize)
-        .attr('stroke', color);
+    const ticksContainer = axisContainer.renderOne('g', 'axisTicks');
 
-      if (!displayText) {
-        selection.removeOne(1);
-        return;
-      }
-      const textAnchor = (
-        rotateTicks
-          ? (position === AxisPosition.top ? 'start' : 'end')
-          : null
-      );
-      selection.renderOne(1, 'text')
-        .attr('text-anchor', textAnchor)
-        .attr('dy', '1em')
-        .attr('y', tickPadding)
-        .text(tick);
+    ticksContainer.renderAll('g', ticksData, (tickSelection, tick) => {
+      tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
+
+      tickSelection.renderOne('line', 'tickLine', (selection) => {
+        selection
+          .attr('y2', tickSize)
+          .attr('stroke', color);
+      }, !displayLines);
+
+      tickSelection.renderOne('text', 'tickLabel', (selection) => {
+        const textAnchor = (
+          rotateTicks
+            ? (position === AxisPosition.top ? 'start' : 'end')
+            : null
+        );
+        selection
+          .attr('text-anchor', textAnchor)
+          .attr('dy', '1em')
+          .attr('y', tickPadding)
+          .text(tick);
+      }, !displayLabels);
     });
 
     const {width, height} = container.getRoundedRect();
