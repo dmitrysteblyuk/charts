@@ -33,3 +33,13 @@ export function groupBy<T>(array: T[], isSameGroup: (a: T, b: T) => boolean) {
     return result;
   }, []);
 }
+
+export function roundRange(min: number, max: number) {
+  const roundedMin = Math.round(min);
+  const roundedMax = Math.round(max);
+
+  if (roundedMin < roundedMax || !(min < max)) {
+    return [roundedMin, roundedMax];
+  }
+  return [Math.floor(min), Math.ceil(max)];
+}

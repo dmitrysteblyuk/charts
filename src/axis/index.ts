@@ -9,7 +9,7 @@ const axisTransformMatrix = [
   ['0,1,-1,0,0,0', '0,-1,1,0,0,0']
 ];
 
-export enum AxisPosition {top, right, bottom, left};
+export const enum AxisPosition {top, right, bottom, left};
 
 export class Axis {
   constructor (

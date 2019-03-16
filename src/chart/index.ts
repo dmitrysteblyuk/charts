@@ -2,7 +2,7 @@ import {Axis, AxisPosition} from '../axis';
 import {Selection} from '../lib/selection';
 import {Scale} from '../lib/scale';
 import {forEach, newArray, groupBy} from '../lib/utils';
-import {Series} from '../series';
+import {BaseSeries} from '../series';
 
 export class Chart {
   private chartOuterWidth = 0;
@@ -16,7 +16,7 @@ export class Chart {
   constructor(
     readonly axes: Axis[],
     readonly grids: Axis[] = [],
-    readonly series: Series[] = []
+    readonly series: BaseSeries[] = []
   ) {}
 
   setProps(props: Partial<{
@@ -59,9 +59,9 @@ export class Chart {
   }
 
   private setDomains(
-    getScale: (series: Series) => Scale,
+    getScale: (series: BaseSeries) => Scale,
     getDomainExtender: (
-      (series: Series) => (this: Series, domain: number[]) => number[]
+      (series: BaseSeries) => (this: BaseSeries, domain: number[]) => number[]
     )
   ) {
     const groupsByScale = (
@@ -72,9 +72,12 @@ export class Chart {
       if (scale.isFixed()) {
         return;
       }
+      const startDomain = (
+        scale.isExtendableOnly() ? scale.getDomain() : [Infinity, -Infinity]
+      );
       const domain = group.reduce(
         (result, series) => getDomainExtender(series).call(series, result),
-        [Infinity, -Infinity]
+        startDomain
       );
 
       if (domain[0] > domain[1]) {
@@ -118,9 +121,9 @@ export class Chart {
       }
       return 0;
     });
-    let chartInnerWidth = chartOuterWidth - paddings[1] - paddings[3];
-    let chartInnerHeight = chartOuterHeight - paddings[0] - paddings[2];
+    const that = this;
     let shouldRerender = false;
+    setInnerSize();
 
     axesContainer.renderAll('g', this.axes, (selection, axis) => {
       renderAxis(selection, axis);
@@ -137,12 +140,8 @@ export class Chart {
       shouldRerender = true;
     });
 
-    chartInnerWidth = chartOuterWidth - paddings[1] - paddings[3];
-    chartInnerHeight = chartOuterHeight - paddings[0] - paddings[2];
-
+    setInnerSize();
     this.paddings = paddings;
-    this.chartInnerWidth = chartInnerWidth;
-    this.chartInnerHeight = chartInnerHeight;
 
     axesContainer.renderAll('g', this.axes, (selection, axis) => {
       selection.attr('transform', this.getAxisTransform(axis));
@@ -154,9 +153,20 @@ export class Chart {
 
     function renderAxis(selection: Selection, axis: Axis) {
       axis.scale.setRange(
-        axis.isVertical() ? [chartInnerHeight, 0] : [0, chartInnerWidth]
+        axis.isVertical()
+          ? [that.chartInnerHeight, 0]
+          : [0, that.chartInnerWidth]
       );
       axis.render(selection);
+    }
+
+    function setInnerSize() {
+      that.chartInnerWidth = Math.max(
+        1, chartOuterWidth - paddings[1] - paddings[3]
+      );
+      that.chartInnerHeight = Math.max(
+        1, chartOuterHeight - paddings[0] - paddings[2]
+      );
     }
   }
 

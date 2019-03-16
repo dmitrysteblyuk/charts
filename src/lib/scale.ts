@@ -6,6 +6,7 @@ export class Scale {
   private domain = [0, 1];
   private range = [0, 1];
   private fixed = false;
+  private extendableOnly = false;
 
   scale(x: number) {
     return this.factor * x + this.offset;
@@ -40,6 +41,13 @@ export class Scale {
   }
   setFixed(fixed: boolean) {
     this.fixed = fixed;
+  }
+
+  isExtendableOnly() {
+    return this.extendableOnly;
+  }
+  setExtendableOnly(extendableOnly: boolean) {
+    this.extendableOnly = extendableOnly;
   }
 
   private rescale() {

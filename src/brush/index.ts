@@ -1,9 +1,10 @@
 import {onDragEvents} from '../lib/drag';
 import {Selection} from '../lib/selection';
-import {forEach} from '../lib/utils';
+import {forEach, roundRange} from '../lib/utils';
 import {EventEmitter} from '../lib/event-emitter';
 
-enum Behaviour {selectNew, resizeLeft, resizeRight, move};
+const enum Behaviour {selectNew, resizeLeft, resizeRight, move};
+const defaultFill = 'transparent';
 
 export class Brush {
   readonly changeEvent = new EventEmitter<{
@@ -36,6 +37,9 @@ export class Brush {
     if (!container.getChanges({left, right, height, width})) {
       return;
     }
+    if (left > 0 || right < width) {
+      this.reset = false;
+    }
 
     container.renderOne('rect', 0, (selection, isNew) => {
       selection
@@ -45,7 +49,7 @@ export class Brush {
         return;
       }
       selection
-        .attr('fill', this.fill)
+        .attr('fill', defaultFill)
         .attr('stroke', this.stroke)
         .attr('x', '0')
         .attr('y', '0')
@@ -61,7 +65,7 @@ export class Brush {
         return;
       }
       selection
-        .attr('fill', this.fill)
+        .attr('fill', defaultFill)
         .attr('stroke', this.stroke)
         .attr('y', '0')
         .on('click', () => this.onResetClick());
@@ -69,6 +73,7 @@ export class Brush {
 
     container.renderOne('rect', 2, (selection, isNew) => {
       selection
+        .attr('fill', this.reset ? defaultFill : this.fill)
         .attr('x', left)
         .attr('width', right - left)
         .attr('height', height);
@@ -76,14 +81,13 @@ export class Brush {
         return;
       }
       selection
-        .attr('fill', 'transparent')
         .attr('y', '0');
     });
 
     if (!isFirstRender) {
       return;
     }
-    this.initializeEvents(container);
+    this.initializeDragEvents(container);
   }
 
   isReset() {
@@ -105,7 +109,7 @@ export class Brush {
     });
   }
 
-  private initializeEvents(container: Selection) {
+  private initializeDragEvents(container: Selection) {
     let behaviour: Behaviour | undefined;
     let startLeft = 0;
     let startRight = 0;
@@ -123,14 +127,9 @@ export class Brush {
         const factor = this.width / width;
         width = this.width;
         sumDiffX = Math.round(sumDiffX * factor);
-
-        const notEmpty = startLeft < startRight;
-        startLeft = Math.round(startLeft * factor);
-        startRight = Math.round(startRight * factor);
-        if (notEmpty && startLeft >= startRight) {
-          startLeft = Math.floor(startLeft * factor);
-          startRight = Math.ceil(startRight * factor);
-        }
+        [startLeft, startRight] = (
+          roundRange(startLeft * factor, startRight * factor)
+        );
       }
 
       let {left, right} = this;
@@ -200,12 +199,19 @@ export class Brush {
       const startX = Math.round(clientX - container.getRect().left);
       sumDiffX = 0;
       width = this.width;
+      const innerBorderWidth = Math.min(
+        borderWidth, Math.round((right - left) / 4)
+      );
+      const leftBorderWidth = Math.min(borderWidth, Math.ceil(left / 2));
+      const rightBorderWidth = Math.min(
+        borderWidth, Math.ceil((width - right) / 2)
+      );
 
       behaviour = (
-        (startX < left - borderWidth || this.reset) ? Behaviour.selectNew
-          : (startX < left) ? Behaviour.resizeLeft
-          : (startX < right) ? Behaviour.move
-          : (startX < right + borderWidth) ? Behaviour.resizeRight
+        (startX < left - leftBorderWidth || this.reset) ? Behaviour.selectNew
+          : (startX < left + innerBorderWidth) ? Behaviour.resizeLeft
+          : (startX < right - innerBorderWidth) ? Behaviour.move
+          : (startX < right + rightBorderWidth) ? Behaviour.resizeRight
           : Behaviour.selectNew
       );
 

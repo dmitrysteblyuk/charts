@@ -7,12 +7,14 @@ import {Scale} from '../lib/scale';
 import {TimeScale} from '../lib/time-scale';
 import {LineSeries} from '../series/line-series';
 import {SeriesData} from '../lib/series-data';
+import {onDragEvents} from '../lib/drag';
+import {roundRange} from '../lib/utils';
 
 export class TimeChart {
   readonly timeScale = new TimeScale();
-  readonly helperTimeScale = new TimeScale();
+  readonly fullTimeScale = new TimeScale();
   readonly valueScale = new Scale();
-  readonly helperValueScale = new Scale();
+  readonly fullValueScale = new Scale();
   readonly brush = new Brush();
 
   readonly mainChart = new Chart(
@@ -27,12 +29,12 @@ export class TimeChart {
   );
   readonly helperChart = new Chart(
     [
-      new Axis(AxisPosition.top, this.helperTimeScale),
-      new Axis(AxisPosition.right, this.helperValueScale)
+      new Axis(AxisPosition.top, this.fullTimeScale),
+      new Axis(AxisPosition.right, this.fullValueScale)
     ],
     [
-      new Axis(AxisPosition.top, this.helperTimeScale),
-      new Axis(AxisPosition.right, this.helperValueScale)
+      new Axis(AxisPosition.top, this.fullTimeScale),
+      new Axis(AxisPosition.right, this.fullValueScale)
     ]
   );
   private isBrushing = false;
@@ -66,12 +68,10 @@ export class TimeChart {
     const {
       chartOuterWidth,
       chartOuterHeight,
-      helperHeight,
-      brushLeft,
-      brushRight
+      helperHeight
     } = this;
 
-    container.renderOne('g', 0, (selection) => {
+    const mainContainer = container.renderOne('g', 0, (selection) => {
       this.mainChart.setProps({
         chartOuterWidth,
         chartOuterHeight: chartOuterHeight - helperHeight
@@ -94,44 +94,12 @@ export class TimeChart {
 
     const helperChartContainer = helperContainer.selectOne(0) as Selection;
     helperChartContainer.renderOne('g', 3, (selection, isNew) => {
-      const brushWidth = this.helperChart.getInnerWidth();
-      const brushHeight = this.helperChart.getInnerHeight();
-      const brushExtent = (
-        this.isBrushing && this.brush.getWidth() === brushWidth
-          ? {width: brushWidth, left: brushLeft, right: brushRight}
-          : this.getBrushExtentFromTimeScale()
-      );
+      this.renderBrush(selection, isNew, container);
+    });
 
-      this.brush.setProps({
-        height: brushHeight,
-        ...brushExtent
-      });
-      this.brush.render(selection, isNew);
-
-      if (!isNew) {
-        return;
-      }
-
-      this.brush.activeEvent.on((isActive) => {
-        this.isBrushing = isActive;
-        if (isActive) {
-          return;
-        }
-        this.setInAction(false, container);
-        this.render(container);
-      });
-
-      this.brush.changeEvent.on(({left, right}) => {
-        this.brushLeft = left;
-        this.brushRight = right;
-        const reset = this.brush.isReset();
-        this.timeScale.setFixed(!reset);
-        if (!reset) {
-          this.setBrushExtentToTimeScale(left, right);
-        }
-        this.setInAction(!reset, container, null);
-        this.render(container);
-      });
+    const mainChartContainer = mainContainer.selectOne(0) as Selection;
+    mainChartContainer.renderOne('rect', 3, (selection, isNew) => {
+      this.renderRectForDragging(selection, isNew, container);
     });
   }
 
@@ -143,44 +111,145 @@ export class TimeChart {
     ));
 
     this.helperChart.series.push(new LineSeries(
-      this.helperTimeScale,
-      this.helperValueScale,
+      this.fullTimeScale,
+      this.fullValueScale,
       data
     ));
+  }
+
+  private renderRectForDragging(
+    rectSelection: Selection,
+    isFirstRender: boolean,
+    container: Selection
+  ) {
+    rectSelection
+      .attr('width', this.mainChart.getInnerWidth())
+      .attr('height', this.mainChart.getInnerHeight());
+
+    if (!isFirstRender) {
+      return;
+    }
+
+    rectSelection
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('fill', 'transparent');
+    this.initializeDragEvents(rectSelection, container);
+  }
+
+  private initializeDragEvents(
+    rectSelection: Selection,
+    container: Selection
+  ) {
+    onDragEvents(rectSelection, (diffX) => {
+      if (diffX === 0) {
+        return;
+      }
+
+      const width = this.mainChart.getInnerWidth();
+      let [startTime, endTime] = this.timeScale.getDomain();
+      let [minTime, maxTime] = this.fullTimeScale.getDomain();
+      const diffTime = (startTime - endTime) * diffX / width;
+
+      startTime += diffTime;
+      endTime += diffTime;
+
+      const fullTimeScaleExtended = (
+        minTime > startTime && (minTime = startTime, true) ||
+        maxTime < endTime && (maxTime = endTime, true)
+      );
+
+      this.timeScale.setFixed(true);
+      this.timeScale.setDomain([startTime, endTime]);
+
+      if (fullTimeScaleExtended) {
+        this.fullTimeScale.setExtendableOnly(true);
+        this.fullTimeScale.setDomain([minTime, maxTime]);
+      }
+      this.render(container);
+    });
+  }
+
+  private renderBrush(
+    brushContainer: Selection,
+    isFirstRender: boolean,
+    timeChartContainer: Selection
+  ) {
+    const {brushLeft, brushRight} = this;
+    const brushWidth = this.helperChart.getInnerWidth();
+    const brushHeight = this.helperChart.getInnerHeight();
+    const brushExtent = (
+      this.isBrushing && this.brush.getWidth() === brushWidth
+        ? {width: brushWidth, left: brushLeft, right: brushRight}
+        : this.getBrushExtentFromTimeScale()
+    );
+
+    this.brush.setProps({
+      height: brushHeight,
+      ...brushExtent
+    });
+    this.brush.render(brushContainer, isFirstRender);
+
+    if (!isFirstRender) {
+      return;
+    }
+
+    this.brush.activeEvent.on((isActive) => {
+      this.isBrushing = isActive;
+      if (isActive) {
+        return;
+      }
+      this.setInAction(false, timeChartContainer);
+      this.render(timeChartContainer);
+    });
+
+    this.brush.changeEvent.on(({left, right}) => {
+      this.brushLeft = left;
+      this.brushRight = right;
+      const reset = this.brush.isReset();
+      this.timeScale.setFixed(!reset);
+
+      if (reset) {
+        this.fullTimeScale.setExtendableOnly(false);
+      } else {
+        this.setBrushExtentToTimeScale(left, right);
+      }
+
+      this.setInAction(!reset, timeChartContainer, null);
+      this.render(timeChartContainer);
+    });
   }
 
   private setBrushExtentToTimeScale(left: number, right: number) {
     if (!(left < right)) {
       return;
     }
-    const [minDate, maxDate] = this.helperTimeScale.getDomain();
+    const [minTime, maxTime] = this.fullTimeScale.getDomain();
     const width = this.helperChart.getInnerWidth();
-    const dateSpan = maxDate - minDate;
+    const dateSpan = maxTime - minTime;
 
-    const startDate = minDate + dateSpan * left / width;
-    const endDate = minDate + dateSpan * right / width;
+    const startTime = minTime + dateSpan * left / width;
+    const endTime = minTime + dateSpan * right / width;
 
-    this.timeScale.setDomain([startDate, endDate]);
+    this.timeScale.setDomain([startTime, endTime]);
   }
 
   private getBrushExtentFromTimeScale() {
-    const [startDate, endDate] = this.timeScale.getDomain();
-    const [minDate, maxDate] = this.helperTimeScale.getDomain();
+    const [startTime, endTime] = this.timeScale.getDomain();
+    const [minTime, maxTime] = this.fullTimeScale.getDomain();
     const width = this.helperChart.getInnerWidth();
-    const dateSpan = maxDate - minDate;
+    const dateSpan = maxTime - minTime;
 
     if (!(dateSpan > 0)) {
       return {width, left: 0, right: 0};
     }
 
-    const left = Math.max(0, Math.min(
-      Math.round(width * (startDate - minDate) / dateSpan),
-      width
-    ));
-    const right = Math.max(left, Math.min(
-      Math.round(width * (endDate - minDate) / dateSpan),
-      width
-    ));
+    let [left, right] = roundRange(
+      width * (startTime - minTime) / dateSpan,
+      width * (endTime - minTime) / dateSpan
+    );
+    left = Math.max(0, Math.min(left, width));
+    right = Math.max(left, Math.min(right, width));
 
     return {width, left, right};
   }

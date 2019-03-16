@@ -1,9 +1,9 @@
 import {Selection} from '../lib/selection';
 import {newArray} from '../lib/utils';
 import {SeriesData} from '../lib/series-data';
-import {Series} from './index';
+import {BaseSeries} from './index';
 
-export class LineSeries extends Series {
+export class LineSeries extends BaseSeries {
   render(container: Selection) {
     const {data, xScale, yScale, color} = this;
 
