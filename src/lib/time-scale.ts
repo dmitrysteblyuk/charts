@@ -9,7 +9,7 @@ export class TimeScale extends Scale {
 
 interface DateUnit {
   duration: number;
-  periods: number[];
+  periods: NumberRange;
   offset: number;
   get: (this: Date) => number;
   set: (this: Date, value: number, ...rest: number[]) => number;
@@ -91,9 +91,9 @@ const intervals = units.reduce((result, unit, index) => {
 
 function getTimeTicks(
   count: number,
-  domain: number[],
+  domain: NumberRange,
   // utc: boolean
-): number[] {
+): NumberRange {
   const step = (domain[1] - domain[0]) / (count - 1);
   if (!(step > 0) || !isFinite(step)) {
     return [];

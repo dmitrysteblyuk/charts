@@ -17,6 +17,10 @@ timeChart.addSeries(new SeriesData(
 
 const svgSelection = new Selection(document.body)
   .renderOne('svg', 'container')
+  .attr(
+    'style',
+    'touch-action: manipulation; -webkit-tap-highlight-color: rgba(0,0,0,0)'
+  )
   .attr('width', width)
   .attr('height', 700);
 

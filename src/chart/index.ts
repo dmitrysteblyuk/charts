@@ -11,7 +11,7 @@ export class Chart {
   private chartInnerHeight = 0;
   private fixedPaddings: (number | undefined)[] = [];
   private inAction = false;
-  private paddings: number[] = [0, 0, 0, 0];
+  private paddings: NumberRange = [0, 0, 0, 0];
 
   constructor(
     readonly axes: Axis[],
@@ -60,8 +60,8 @@ export class Chart {
 
   private setDomains(
     getScale: (series: BaseSeries) => Scale,
-    getDomainExtender: (
-      (series: BaseSeries) => (this: BaseSeries, domain: number[]) => number[]
+    getDomainExtender: (series: BaseSeries) => (
+      (this: BaseSeries, domain: NumberRange) => NumberRange
     )
   ) {
     const groupsByScale = (
@@ -72,10 +72,12 @@ export class Chart {
       if (scale.isFixed()) {
         return;
       }
-      const startDomain = (
-        scale.isExtendableOnly() ? scale.getDomain() : [Infinity, -Infinity]
+      const startDomain: NumberRange = (
+        scale.isExtendableOnly()
+          ? [...scale.getDomain()]
+          : [Infinity, -Infinity]
       );
-      const domain = group.reduce(
+      let domain = group.reduce(
         (result, series) => getDomainExtender(series).call(series, result),
         startDomain
       );
@@ -84,8 +86,7 @@ export class Chart {
         return;
       }
       if (!(domain[0] < domain[1])) {
-        domain[0] -= 1;
-        domain[1] += 1;
+        domain = [domain[0] - 1, domain[1] + 1];
       }
       scale.setDomain(domain);
     });

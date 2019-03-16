@@ -19,7 +19,7 @@ export abstract class BaseSeries {
 
   abstract render(container: Selection, isFirstRender: boolean): void;
 
-  extendXDomain(xDomain: number[]) {
+  extendXDomain(xDomain: NumberRange): NumberRange {
     const x = this.data.x;
     if (!x.length) {
       return xDomain;
@@ -30,7 +30,7 @@ export abstract class BaseSeries {
     ];
   }
 
-  extendYDomain(yDomain: number[]) {
+  extendYDomain(yDomain: NumberRange): NumberRange {
     const {x, y, size} = this.data;
     if (!size) {
       return yDomain;

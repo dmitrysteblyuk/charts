@@ -1,4 +1,4 @@
-import {onDragEvents} from '../lib/drag';
+import {onZoomEvents, ZoomMode} from '../lib/zoom';
 import {Selection} from '../lib/selection';
 import {forEach, roundRange} from '../lib/utils';
 import {EventEmitter} from '../lib/event-emitter';
@@ -114,11 +114,17 @@ export class Brush {
     let startLeft = 0;
     let startRight = 0;
     let sumDiffX = 0;
-    let hasMoved = false;
+    let hasChanged: boolean;
     let {width} = this;
+    let currentX = 0;
 
-    onDragEvents(container, (diffX) => {
+    onZoomEvents(container, ([[nextX]], mode) => {
+      if (mode !== ZoomMode.Drag) {
+        return;
+      }
       this.draggedBeforeClick = true;
+      const diffX = nextX - currentX;
+      currentX = nextX;
       if (diffX === 0) {
         return;
       }
@@ -133,8 +139,8 @@ export class Brush {
       }
 
       let {left, right} = this;
-      if (!hasMoved) {
-        hasMoved = true;
+      if (!hasChanged) {
+        hasChanged = true;
         left = startLeft;
         right = startRight;
         this.activeEvent.emit(true);
@@ -193,10 +199,15 @@ export class Brush {
       }
       this.reset = false;
       this.changeEvent.emit({left, right});
-    }, (clientX) => {
+    }, ([[initialX]], mode) => {
+      if (mode !== ZoomMode.Drag) {
+        return;
+      }
+
+      currentX = initialX;
       this.draggedBeforeClick = false;
       const {left, right, borderWidth} = this;
-      const startX = Math.round(clientX - container.getRect().left);
+      const startX = Math.round(initialX - container.getRect().left);
       sumDiffX = 0;
       width = this.width;
       const innerBorderWidth = Math.min(
@@ -222,10 +233,10 @@ export class Brush {
       startLeft = left;
       startRight = right;
     }, () => {
-      if (!hasMoved) {
+      if (!hasChanged) {
         return;
       }
-      hasMoved = false;
+      hasChanged = false;
       this.activeEvent.emit(false);
     });
 

@@ -16,21 +16,10 @@ type Updater<E extends Element> = (
 );
 
 export class Selection<EL extends Element = Element> {
-  static countID = 0;
-  private selectionId: string;
+  private static countID = 0;
+  private selectionId?: string;
 
-  constructor(private element: EL) {
-    if (element.hasAttribute('id')) {
-      this.selectionId = element.getAttribute('id') as string;
-      return;
-    }
-    this.selectionId = `el-${Selection.countID++}`;
-    element.setAttribute('id', this.selectionId);
-  }
-
-  isTouchable() {
-    return 'ontouchstart' in this.element;
-  }
+  constructor(private element: EL) {}
 
   selectOne<E extends Element>(selector: Selector) {
     const element = (
@@ -58,6 +47,10 @@ export class Selection<EL extends Element = Element> {
     return map(this.getRect(), Math.round);
   }
 
+  // isTouchable() {
+  //   return 'ontouchstart' in this.element;
+  // }
+
   // text(): string | null;
   text(text: Primitive): this/*;
   text(text?: Primitive): string | null | this*/ {
@@ -84,11 +77,13 @@ export class Selection<EL extends Element = Element> {
 
   on<E extends Event = Event>(
     eventName: string,
-    listener: (event: E) => void
+    listener: (event: E) => void,
+    options?: boolean | AddEventListenerOptions
   ): this {
     this.element.addEventListener(
       eventName,
-      listener as (event: Event) => void
+      listener as (event: Event) => void,
+      options
     );
     return this;
   }
@@ -145,7 +140,7 @@ export class Selection<EL extends Element = Element> {
 
   renderAll<E extends Element, D>(
     tagName: string,
-    data: D[],
+    data: ReadonlyArray<D>,
     updater?: (
       selection: Selection<E>,
       datum: D,
@@ -239,7 +234,17 @@ export class Selection<EL extends Element = Element> {
   }
 
   private getChildId(selector: string) {
-    return `${this.selectionId}:${selector}`;
+    const {selectionId = (this.selectionId = this.getSelectionId())} = this;
+    return `${selectionId}:${selector}`;
+  }
+
+  private getSelectionId() {
+    if (this.element.hasAttribute('id')) {
+      return this.element.getAttribute('id') as string;
+    }
+    const newId = `el-${Selection.countID++}`;
+    this.element.setAttribute('id', newId);
+    return newId;
   }
 }
 

@@ -3,8 +3,8 @@ export class Scale {
   private offset = 0;
   private invertFactor = 1;
   private invertOffset = 0;
-  private domain = [0, 1];
-  private range = [0, 1];
+  private domain: NumberRange = [0, 1];
+  private range: NumberRange = [0, 1];
   private fixed = false;
   private extendableOnly = false;
 
@@ -20,7 +20,7 @@ export class Scale {
     return getDecimalTicks(count, this.domain, extended);
   }
 
-  setDomain(domain: number[]) {
+  setDomain(domain: NumberRange) {
     this.domain = domain;
     this.rescale();
   }
@@ -28,7 +28,7 @@ export class Scale {
     return this.domain;
   }
 
-  setRange(range: number[]) {
+  setRange(range: NumberRange) {
     this.range = range;
     this.rescale();
   }
@@ -69,9 +69,9 @@ export class Scale {
 
 export function getDecimalTicks(
   count: number,
-  domain: number[],
+  domain: NumberRange,
   extended: boolean
-): number[] {
+): NumberRange {
   function isPositive(x: number) {
     return x > 0 && isFinite(x);
   }

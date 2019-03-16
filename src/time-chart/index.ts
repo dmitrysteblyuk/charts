@@ -7,8 +7,9 @@ import {Scale} from '../lib/scale';
 import {TimeScale} from '../lib/time-scale';
 import {LineSeries} from '../series/line-series';
 import {SeriesData} from '../lib/series-data';
-import {onDragEvents} from '../lib/drag';
+import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
 import {roundRange} from '../lib/utils';
+import {getZoomFactorAndOffset} from './zoom-transform';
 
 export class TimeChart {
   readonly timeScale = new TimeScale();
@@ -134,40 +135,68 @@ export class TimeChart {
       .attr('x', 0)
       .attr('y', 0)
       .attr('fill', 'transparent');
-    this.initializeDragEvents(rectSelection, container);
-  }
 
-  private initializeDragEvents(
-    rectSelection: Selection,
-    container: Selection
-  ) {
-    onDragEvents(rectSelection, (diffX) => {
-      if (diffX === 0) {
+    let startWidth: number;
+    let startDomain: NumberRange;
+    let startPositions: ZoomPositions;
+    let hasChanged: boolean;
+
+    onZoomEvents(rectSelection, (positions, mode) => {
+      if (!hasChanged) {
+        hasChanged = true;
+        this.setInAction(true, container, mode === ZoomMode.Wheel);
+      }
+      const [factor, offset] = getZoomFactorAndOffset(
+        startPositions,
+        positions,
+        mode,
+        startDomain,
+        startWidth
+      );
+      this.zoomMainChart(startDomain, factor, offset, container);
+    }, (positions) => {
+      startDomain = this.timeScale.getDomain();
+      startPositions = positions;
+      startWidth = this.mainChart.getInnerWidth();
+    }, (mode) => {
+      if (!hasChanged) {
         return;
       }
-
-      const width = this.mainChart.getInnerWidth();
-      let [startTime, endTime] = this.timeScale.getDomain();
-      let [minTime, maxTime] = this.fullTimeScale.getDomain();
-      const diffTime = (startTime - endTime) * diffX / width;
-
-      startTime += diffTime;
-      endTime += diffTime;
-
-      const fullTimeScaleExtended = (
-        minTime > startTime && (minTime = startTime, true) ||
-        maxTime < endTime && (maxTime = endTime, true)
-      );
-
-      this.timeScale.setFixed(true);
-      this.timeScale.setDomain([startTime, endTime]);
-
-      if (fullTimeScaleExtended) {
-        this.fullTimeScale.setExtendableOnly(true);
-        this.fullTimeScale.setDomain([minTime, maxTime]);
+      hasChanged = false;
+      if (mode === ZoomMode.Wheel) {
+        return;
       }
-      this.render(container);
+      this.setInAction(false, container);
     });
+  }
+
+  private zoomMainChart(
+    [startTime, endTime]: NumberRange,
+    factor: number,
+    offset: number,
+    container: Selection
+  ) {
+    if (factor === 1 && offset === 0) {
+      return;
+    }
+    let [minTime, maxTime] = this.fullTimeScale.getDomain();
+
+    startTime = factor * startTime + offset;
+    endTime = factor * endTime + offset;
+
+    const fullTimeScaleExtended = (
+      minTime > startTime && (minTime = startTime, true) ||
+      maxTime < endTime && (maxTime = endTime, true)
+    );
+
+    this.timeScale.setFixed(true);
+    this.timeScale.setDomain([startTime, endTime]);
+
+    if (fullTimeScaleExtended) {
+      this.fullTimeScale.setExtendableOnly(true);
+      this.fullTimeScale.setDomain([minTime, maxTime]);
+    }
+    this.render(container);
   }
 
   private renderBrush(
@@ -215,7 +244,7 @@ export class TimeChart {
         this.setBrushExtentToTimeScale(left, right);
       }
 
-      this.setInAction(!reset, timeChartContainer, null);
+      this.setInAction(!reset, timeChartContainer);
       this.render(timeChartContainer);
     });
   }
@@ -257,7 +286,7 @@ export class TimeChart {
   private setInAction(
     inAction: boolean,
     container: Selection,
-    timeout: number | null = 500
+    timeout?: boolean
   ) {
     if (this.actionTimerId !== null) {
       clearTimeout(this.actionTimerId);
@@ -273,7 +302,7 @@ export class TimeChart {
       }
     }
 
-    if (timeout === null) {
+    if (!timeout) {
       return;
     }
 
@@ -281,6 +310,6 @@ export class TimeChart {
       this.mainChart.setProps({inAction: false});
       this.helperChart.setProps({inAction: false});
       this.render(container);
-    }, timeout);
+    }, 500);
   }
 }
