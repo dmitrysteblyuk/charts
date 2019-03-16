@@ -90,6 +90,10 @@ export class Brush {
     return this.reset;
   }
 
+  getWidth() {
+    return this.width;
+  }
+
   private onResetClick() {
     if (this.draggedBeforeClick || this.reset) {
       return;
@@ -102,17 +106,31 @@ export class Brush {
   }
 
   private initializeEvents(container: Selection) {
-    const limit = (x: number) => Math.max(0, Math.min(x, this.width));
     let behaviour: Behaviour | undefined;
     let startLeft = 0;
     let startRight = 0;
     let sumDiffX = 0;
     let hasMoved = false;
+    let {width} = this;
 
     onDragEvents(container, (diffX) => {
       this.draggedBeforeClick = true;
       if (diffX === 0) {
         return;
+      }
+
+      if (width !== this.width) {
+        const factor = this.width / width;
+        width = this.width;
+        sumDiffX = Math.round(sumDiffX * factor);
+
+        const notEmpty = startLeft < startRight;
+        startLeft = Math.round(startLeft * factor);
+        startRight = Math.round(startRight * factor);
+        if (notEmpty && startLeft >= startRight) {
+          startLeft = Math.floor(startLeft * factor);
+          startRight = Math.ceil(startRight * factor);
+        }
       }
 
       let {left, right} = this;
@@ -142,7 +160,6 @@ export class Brush {
           right = limit(startRight + sumDiffX);
           break;
         case Behaviour.move:
-          const {width} = this;
           right = startRight + sumDiffX;
           if (right > width) {
             right = width;
@@ -182,6 +199,7 @@ export class Brush {
       const {left, right, borderWidth} = this;
       const startX = Math.round(clientX - container.getRect().left);
       sumDiffX = 0;
+      width = this.width;
 
       behaviour = (
         (startX < left - borderWidth || this.reset) ? Behaviour.selectNew
@@ -204,5 +222,9 @@ export class Brush {
       hasMoved = false;
       this.activeEvent.emit(false);
     });
+
+    function limit(x: number) {
+      return Math.max(0, Math.min(x, width));
+    }
   }
 }

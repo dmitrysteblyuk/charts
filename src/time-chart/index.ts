@@ -97,13 +97,12 @@ export class TimeChart {
       const brushWidth = this.helperChart.getInnerWidth();
       const brushHeight = this.helperChart.getInnerHeight();
       const brushExtent = (
-        this.isBrushing
+        this.isBrushing && this.brush.getWidth() === brushWidth
           ? {width: brushWidth, left: brushLeft, right: brushRight}
           : this.getBrushExtentFromTimeScale()
       );
 
       this.brush.setProps({
-        width: brushWidth,
         height: brushHeight,
         ...brushExtent
       });
@@ -115,6 +114,11 @@ export class TimeChart {
 
       this.brush.activeEvent.on((isActive) => {
         this.isBrushing = isActive;
+        if (isActive) {
+          return;
+        }
+        this.setInAction(false, container);
+        this.render(container);
       });
 
       this.brush.changeEvent.on(({left, right}) => {
@@ -125,7 +129,7 @@ export class TimeChart {
         if (!reset) {
           this.setBrushExtentToTimeScale(left, right);
         }
-        this.setInAction(!reset, container);
+        this.setInAction(!reset, container, null);
         this.render(container);
       });
     });
@@ -181,13 +185,26 @@ export class TimeChart {
     return {width, left, right};
   }
 
-  private setInAction(inAction: boolean, container: Selection) {
+  private setInAction(
+    inAction: boolean,
+    container: Selection,
+    timeout: number | null = 500
+  ) {
     if (this.actionTimerId !== null) {
       clearTimeout(this.actionTimerId);
     }
-    this.mainChart.setProps({inAction});
-    this.helperChart.setProps({inAction});
-    if (!inAction) {
+
+    if (this.mainChart.isInAction() !== inAction) {
+      this.mainChart.setProps({inAction});
+      this.helperChart.setProps({inAction});
+
+      if (!inAction) {
+        this.render(container);
+        return;
+      }
+    }
+
+    if (timeout === null) {
       return;
     }
 
@@ -195,6 +212,6 @@ export class TimeChart {
       this.mainChart.setProps({inAction: false});
       this.helperChart.setProps({inAction: false});
       this.render(container);
-    }, 500);
+    }, timeout);
   }
 }

@@ -54,6 +54,10 @@ export class Chart {
     return this.paddings;
   }
 
+  isInAction() {
+    return this.inAction;
+  }
+
   private setDomains(
     getScale: (series: Series) => Scale,
     getDomainExtender: (
