@@ -2,8 +2,8 @@ import {Scale, getDecimalTicks} from './scale';
 import {binarySearch} from './binary-search';
 
 export class TimeScale extends Scale {
-  getTicks(count: number, utc: boolean) {
-    return getTimeTicks(count, this.getDomain(), utc);
+  getTicks(count: number/*, utc: boolean*/) {
+    return getTimeTicks(count, this.getDomain()/*, utc*/);
   }
 }
 
@@ -13,8 +13,8 @@ interface DateUnit {
   offset: number;
   get: (this: Date) => number;
   set: (this: Date, value: number, ...rest: number[]) => number;
-  getUTC: (this: Date) => number;
-  setUTC: (this: Date, value: number, ...rest: number[]) => number;
+  // getUTC: (this: Date) => number;
+  // setUTC: (this: Date, value: number, ...rest: number[]) => number;
 }
 
 const millisecond: DateUnit = {
@@ -23,8 +23,8 @@ const millisecond: DateUnit = {
   offset: 0,
   get: Date.prototype.getMilliseconds,
   set: Date.prototype.setMilliseconds,
-  getUTC: Date.prototype.getUTCMilliseconds,
-  setUTC: Date.prototype.setUTCMilliseconds
+  // getUTC: Date.prototype.getUTCMilliseconds,
+  // setUTC: Date.prototype.setUTCMilliseconds
 };
 const second: DateUnit = {
   duration: 1000,
@@ -32,8 +32,8 @@ const second: DateUnit = {
   offset: 0,
   get: Date.prototype.getSeconds,
   set: Date.prototype.setSeconds,
-  getUTC: Date.prototype.getUTCSeconds,
-  setUTC: Date.prototype.setUTCSeconds
+  // getUTC: Date.prototype.getUTCSeconds,
+  // setUTC: Date.prototype.setUTCSeconds
 };
 const minute: DateUnit = {
   duration: second.duration * 60,
@@ -41,8 +41,8 @@ const minute: DateUnit = {
   offset: 0,
   get: Date.prototype.getMinutes,
   set: Date.prototype.setMinutes,
-  getUTC: Date.prototype.getUTCMinutes,
-  setUTC: Date.prototype.setUTCMinutes
+  // getUTC: Date.prototype.getUTCMinutes,
+  // setUTC: Date.prototype.setUTCMinutes
 };
 const hour: DateUnit = {
   duration: minute.duration * 60,
@@ -50,8 +50,8 @@ const hour: DateUnit = {
   offset: 0,
   get: Date.prototype.getHours,
   set: Date.prototype.setHours,
-  getUTC: Date.prototype.getUTCHours,
-  setUTC: Date.prototype.setUTCHours
+  // getUTC: Date.prototype.getUTCHours,
+  // setUTC: Date.prototype.setUTCHours
 };
 const day: DateUnit = {
   duration: hour.duration * 24,
@@ -59,8 +59,8 @@ const day: DateUnit = {
   offset: 1,
   get: Date.prototype.getDate,
   set: Date.prototype.setDate,
-  getUTC: Date.prototype.getUTCDate,
-  setUTC: Date.prototype.setUTCDate
+  // getUTC: Date.prototype.getUTCDate,
+  // setUTC: Date.prototype.setUTCDate
 };
 const month: DateUnit = {
   duration: day.duration * 30,
@@ -68,8 +68,8 @@ const month: DateUnit = {
   offset: 0,
   get: Date.prototype.getMonth,
   set: Date.prototype.setMonth,
-  getUTC: Date.prototype.getUTCMonth,
-  setUTC: Date.prototype.setUTCMonth
+  // getUTC: Date.prototype.getUTCMonth,
+  // setUTC: Date.prototype.setUTCMonth
 };
 const year: DateUnit = {
   duration: day.duration * 365,
@@ -77,8 +77,8 @@ const year: DateUnit = {
   offset: 0,
   get: Date.prototype.getFullYear,
   set: Date.prototype.setFullYear,
-  getUTC: Date.prototype.getUTCFullYear,
-  setUTC: Date.prototype.setUTCFullYear
+  // getUTC: Date.prototype.getUTCFullYear,
+  // setUTC: Date.prototype.setUTCFullYear
 };
 
 const units = [millisecond, second, minute, hour, day, month, year];
@@ -92,7 +92,7 @@ const intervals = units.reduce((result, unit, index) => {
 function getTimeTicks(
   count: number,
   domain: number[],
-  utc: boolean
+  // utc: boolean
 ): number[] {
   const step = (domain[1] - domain[0]) / (count - 1);
   if (!(step > 0) || !isFinite(step)) {
@@ -122,8 +122,8 @@ function getTimeTicks(
 
   const date = new Date(domain[0]);
   for (let index = 0; index < unitIndex; index++) {
-    const {setUTC, set, offset} = units[index];
-    (utc ? setUTC : set).call(date, offset);
+    const {/*setUTC, */set, offset} = units[index];
+    (/*utc ? setUTC : */set).call(date, offset);
   }
   floorDate();
 
@@ -133,9 +133,9 @@ function getTimeTicks(
   }
 
   for (;;) {
-    (utc ? unit.setUTC : unit.set).call(
+    (/*utc ? unit.setUTC : */unit.set).call(
       date,
-      (utc ? unit.getUTC : unit.get).call(date) + period
+      (/*utc ? unit.getUTC : */unit.get).call(date) + period
     );
     floorDate();
 
@@ -152,11 +152,11 @@ function getTimeTicks(
     if (period === 1 || unit === year) {
       return;
     }
-    const value = (utc ? unit.getUTC : unit.get).call(date) - unit.offset;
+    const value = (/*utc ? unit.getUTC : */unit.get).call(date) - unit.offset;
     const diff = value % period;
     if (diff === 0) {
       return;
     }
-    (utc ? unit.setUTC : unit.set).call(date, value - diff + unit.offset);
+    (/*utc ? unit.setUTC : */unit.set).call(date, value - diff + unit.offset);
   }
 }

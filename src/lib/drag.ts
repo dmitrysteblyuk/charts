@@ -54,17 +54,6 @@ export function onDragEvents(
     onDragMove(diffX, diffY);
   }
 
-  return (() => {
-    target
-      .off('mousedown', onStart)
-      .off('touchstart', onStart);
-    window.removeEventListener('mouseup', onEnd);
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('touchend', onEnd);
-    window.removeEventListener('touchcancel', onEnd);
-    window.removeEventListener('touchmove', onMove);
-  });
-
   function getPosition(event: Event) {
     const {clientX: nextX, clientY: nextY} = (
       (
@@ -76,4 +65,15 @@ export function onDragEvents(
     );
     return {nextX, nextY};
   }
+
+  // return (() => {
+  //   target
+  //     .off('mousedown', onStart)
+  //     .off('touchstart', onStart);
+  //   window.removeEventListener('mouseup', onEnd);
+  //   window.removeEventListener('mousemove', onMove);
+  //   window.removeEventListener('touchend', onEnd);
+  //   window.removeEventListener('touchcancel', onEnd);
+  //   window.removeEventListener('touchmove', onMove);
+  // });
 }

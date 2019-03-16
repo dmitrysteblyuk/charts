@@ -2,15 +2,15 @@ import {map} from './utils';
 import {detectChanges} from './detect-changes';
 
 const DATUM_PROPERTY = '__DATUM__';
-const BEING_REMOVED_PROPERTY = '__BEING_REMOVED__';
+// const BEING_REMOVED_PROPERTY = '__BEING_REMOVED__';
 const SVG_URI = 'http://www.w3.org/2000/svg';
 const XHTML_URI = 'http://www.w3.org/1999/xhtml';
 
 type Primitive = string | boolean | number | null | undefined;
 type Selector = number | string;
-type Remover<E extends Element, D> = (
-  (selection: Selection<E>, datum: D) => Promise<void> | void
-);
+// type Remover<E extends Element, D> = (
+//   (selection: Selection<E>, datum: D) => Promise<void> | void
+// );
 type Updater<E extends Element> = (
   (selection: Selection<E>, isNew: boolean) => void
 );
@@ -28,6 +28,10 @@ export class Selection<EL extends Element = Element> {
     element.setAttribute('id', this.selectionId);
   }
 
+  isTouchable() {
+    return 'ontouchstart' in this.element;
+  }
+
   selectOne<E extends Element>(selector: Selector) {
     const element = (
       typeof selector === 'number'
@@ -35,7 +39,7 @@ export class Selection<EL extends Element = Element> {
         : this.element.children.namedItem(this.getChildId(selector))
     ) as (E | null);
 
-    if (element === null || isBeingRemoved(element)) {
+    if (element === null/* || isBeingRemoved(element)*/) {
       return null;
     }
     return new Selection(element);
@@ -54,22 +58,22 @@ export class Selection<EL extends Element = Element> {
     return map(this.getRect(), Math.round);
   }
 
-  text(): string | null;
-  text(text: Primitive): this;
-  text(text?: Primitive): string | null | this {
-    if (!arguments.length) {
-      return this.element.textContent;
-    }
+  // text(): string | null;
+  text(text: Primitive): this/*;
+  text(text?: Primitive): string | null | this*/ {
+    // if (!arguments.length) {
+    //   return this.element.textContent;
+    // }
     this.element.textContent = text === null ? null : String(text);
     return this;
   }
 
-  attr(name: string): string | null;
-  attr(name: string, value: Primitive): this;
-  attr(name: string, value?: Primitive): this | string | null {
-    if (arguments.length < 2) {
-      return this.element.getAttribute(name);
-    }
+  // attr(name: string): string | null;
+  attr(name: string, value: Primitive): this/*;
+  attr(name: string, value?: Primitive): this | string | null*/ {
+    // if (arguments.length < 2) {
+    //   return this.element.getAttribute(name);
+    // }
     if (value == null) {
       this.element.removeAttribute(name);
     } else {
@@ -78,39 +82,51 @@ export class Selection<EL extends Element = Element> {
     return this;
   }
 
-  on(eventName: string, listener: (event: Event) => void): this {
-    this.element.addEventListener(eventName, listener);
+  on<E extends Event = Event>(
+    eventName: string,
+    listener: (event: E) => void
+  ): this {
+    this.element.addEventListener(
+      eventName,
+      listener as (event: Event) => void
+    );
     return this;
   }
 
-  off(eventName: string, listener: (event: Event) => void): this {
-    this.element.removeEventListener(eventName, listener);
-    return this;
-  }
+  // off<E extends Event = Event>(
+  //   eventName: string,
+  //   listener: (event: E) => void
+  // ): this {
+  //   this.element.removeEventListener(
+  //     eventName,
+  //     listener as (event: Event) => void
+  //   );
+  //   return this;
+  // }
 
   renderOne<E extends Element>(
     tagName: string,
     selector: Selector,
     updater?: Updater<E>
   ): Selection<E>;
-  renderOne<E extends Element, D>(
+  renderOne<E extends Element/*, D*/>(
     tagName: string,
     selector: string,
     updater?: Updater<E>,
     toRemove?: boolean,
-    remover?: Remover<E, D>
+    // remover?: Remover<E, D>
   ): Selection<E> | null;
-  renderOne<E extends Element, D>(
+  renderOne<E extends Element/*, D*/>(
     tagName: string,
     selector: Selector,
     updater?: Updater<E>,
     toRemove?: boolean,
-    remover?: Remover<E, D>
+    // remover?: Remover<E, D>
   ): Selection<E> | null {
     let selection = this.selectOne<E>(selector);
     if (toRemove) {
       if (selection !== null) {
-        this.removeElement(selection.element, remover);
+        this.removeElement(selection.element/*, remover*/);
       }
       return null;
     }
@@ -136,7 +152,7 @@ export class Selection<EL extends Element = Element> {
       isNew: boolean,
       previousDatum?: D
     ) => void,
-    remover?: Remover<E, D>
+    // remover?: Remover<E, D>
   ) {
     const {children} = this.element;
     const currentLength = children.length;
@@ -146,9 +162,9 @@ export class Selection<EL extends Element = Element> {
 
     for (let index = 0; index < currentLength; index++) {
       const element = children.item(index) as E;
-      if (isBeingRemoved(element)) {
-        continue;
-      }
+      // if (isBeingRemoved(element)) {
+      //   continue;
+      // }
 
       if (usedDataIndex < data.length) {
         const datum = data[usedDataIndex++];
@@ -160,7 +176,7 @@ export class Selection<EL extends Element = Element> {
     const toAdd = data.slice(usedDataIndex);
 
     toRemove.forEach((element) => {
-      this.removeElement(element, remover);
+      this.removeElement(element/*, remover*/);
     });
 
     toUpdate.forEach(({element, datum}) => {
@@ -200,26 +216,26 @@ export class Selection<EL extends Element = Element> {
     return new Selection(element);
   }
 
-  private removeElement<E extends Element, D>(
+  private removeElement<E extends Element/*, D*/>(
     element: E,
-    remover?: Remover<E, D>
+    // remover?: Remover<E, D>
   ) {
-    startRemovingElement(element);
-    const whenDone = (
-      remover && remover(new Selection(element), getDatum(element))
-    );
-    if (whenDone) {
-      whenDone.then(done);
-    } else {
-      done();
-    }
+    // startRemovingElement(element);
+    // const whenDone = (
+    //   remover && remover(new Selection(element), getDatum(element))
+    // );
+    // if (whenDone) {
+    //   whenDone.then(done);
+    // } else {
+    //   done();
+    // }
 
-    function done() {
-      if (element.parentElement === null) {
-        return;
-      }
-      element.parentElement.removeChild(element);
+    // function done() {
+    if (element.parentElement === null) {
+      return;
     }
+    element.parentElement.removeChild(element);
+    // }
   }
 
   private getChildId(selector: string) {
@@ -235,14 +251,14 @@ function setDatum<D>(element: Element, datum: D): void {
   (element as any)[DATUM_PROPERTY] = datum;
 }
 
-function isBeingRemoved(element: Element): boolean {
-  return Boolean((element as any)[BEING_REMOVED_PROPERTY]);
-}
+// function isBeingRemoved(element: Element): boolean {
+//   return Boolean((element as any)[BEING_REMOVED_PROPERTY]);
+// }
 
-function startRemovingElement(element: Element): void {
-  element.removeAttribute('id');
-  (element as any)[BEING_REMOVED_PROPERTY] = true;
-}
+// function startRemovingElement(element: Element): void {
+//   element.removeAttribute('id');
+//   (element as any)[BEING_REMOVED_PROPERTY] = true;
+// }
 
 function createChild<E extends Element>(
   tagName: string,

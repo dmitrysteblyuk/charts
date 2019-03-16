@@ -60,12 +60,12 @@ export class Scale {
   }
 }
 
-export function arrayIsEqual<T>(a: T[], b: T[]): boolean {
-  return (
-    a.length === b.length &&
-    a.every((item, index) => item === b[index])
-  );
-}
+// export function arrayIsEqual<T>(a: T[], b: T[]): boolean {
+//   return (
+//     a.length === b.length &&
+//     a.every((item, index) => item === b[index])
+//   );
+// }
 
 export function getDecimalTicks(
   count: number,
