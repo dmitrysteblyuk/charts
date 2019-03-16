@@ -2,9 +2,10 @@ import {TimeChart} from './time-chart';
 import {SeriesData} from './lib/series-data';
 import {Selection} from './lib/selection';
 
+const width = window.innerWidth - 50;
 const timeChart = new TimeChart();
 timeChart.setProps({
-  chartOuterWidth: 500,
+  chartOuterWidth: width,
   chartOuterHeight: 700,
   helperHeight: 350
 });
@@ -16,9 +17,8 @@ timeChart.addSeries(new SeriesData(
 
 const svgSelection = new Selection(document.body)
   .renderOne('svg', 'container')
-  .attr('width', window.innerWidth - 50)
+  .attr('width', width)
   .attr('height', 700);
 
 const chartSelection = svgSelection.renderOne('g', 0);
-
 timeChart.render(chartSelection);

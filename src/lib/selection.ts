@@ -54,8 +54,13 @@ export class Selection<EL extends Element = Element> {
     return map(this.getRect(), Math.round);
   }
 
-  text(text: Primitive): this {
-    this.element.textContent = text == null ? null : String(text);
+  text(): string | null;
+  text(text: Primitive): this;
+  text(text?: Primitive): string | null | this {
+    if (!arguments.length) {
+      return this.element.textContent;
+    }
+    this.element.textContent = text === null ? null : String(text);
     return this;
   }
 

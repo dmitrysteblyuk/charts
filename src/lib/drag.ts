@@ -67,8 +67,11 @@ export function onDragEvents(
 
   function getPosition(event: Event) {
     const {clientX: nextX, clientY: nextY} = (
-      event.type === 'touchmove'
-        ? (event as TouchEvent).touches[0]
+      (
+        event.type === 'touchstart' ||
+        event.type === 'touchmove'
+      )
+        ? (event as TouchEvent).changedTouches[0]
         : event as MouseEvent
     );
     return {nextX, nextY};
