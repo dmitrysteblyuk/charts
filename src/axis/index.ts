@@ -1,6 +1,7 @@
 import {Scale} from '../lib/scale';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
+// import './index.css';
 
 const axisTransformMatrix = [
   ['1,0,0,-1,0,0', '1,0,0,-1,0,0'],
@@ -12,10 +13,8 @@ const axisTransformMatrix = [
 export const enum AxisPosition {top, right, bottom, left};
 
 export class Axis {
-  constructor (
-    private position: AxisPosition,
-    readonly scale: Scale
-  ) {}
+  private readonly transitionScale = new Scale();
+  private readonly transitioningTicks: Selection[] = [];
 
   private displayLabels = true;
   private displayLines = true;
@@ -24,31 +23,29 @@ export class Axis {
   private tickPadding = 5;
   private tickSize = 5;
   private color = '#444';
-  private resultWidth = 0;
-  private resultHeight = 0;
+  private tickFormat: (tick: number) => string = String;
+  private animated = true;
+
+  constructor (
+    private position: AxisPosition,
+    readonly scale: Scale
+  ) {}
 
   setProps(props: {
     tickSize?: number,
     color?: string,
     displayLabels?: boolean,
     displayLines?: boolean,
-    displayScale?: boolean
-  }) {
+    displayScale?: boolean,
+    animated?: boolean,
+    tickFormat?: (value: number) => string
+  }): this {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
+    return this;
   }
 
   render(container: Selection) {
-    const {
-      tickSize,
-      position,
-      scale,
-      tickCount,
-      color,
-      tickPadding,
-      displayLabels,
-      displayLines,
-      displayScale
-    } = this;
+    const {tickSize, position, scale, color, displayScale} = this;
     const range = scale.getRange();
     const matrix = axisTransformMatrix[position];
 
@@ -63,11 +60,91 @@ export class Axis {
         .attr('stroke', color);
     }, !displayScale);
 
-    const ticksData = scale.getTicks(tickCount, false);
+    this.renderTicks(axisContainer);
+  }
+
+  isVertical() {
+    return (
+      this.position === AxisPosition.left ||
+      this.position === AxisPosition.right
+    );
+  }
+
+  getPosition() {
+    return this.position;
+  }
+
+  private renderTicks(axisContainer: Selection) {
+    const {
+      scale,
+      tickCount,
+      tickPadding,
+      displayLabels,
+      displayLines,
+      position,
+      color,
+      tickSize,
+      tickFormat,
+      animated,
+      transitioningTicks
+    } = this;
+    const range = scale.getRange();
+
+    const {changes, previous} = axisContainer.getDataChanges({
+      domain: scale.getDomain(),
+      range,
+      tickCount,
+      tickPadding,
+      displayLabels,
+      displayLines,
+      position,
+      color,
+      tickSize
+    });
+    if (!changes) {
+      return;
+    }
+
+    const {transitionScale} = this;
+    const vertical = this.isVertical();
+    const fromDomain = previous.domain;
+    const matrix = axisTransformMatrix[position];
+
+    transitionScale.setRange(range);
     const ticksContainer = axisContainer.renderOne('g', 'axisTicks');
 
-    ticksContainer.renderAll('g', ticksData, (tickSelection, tick) => {
-      tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
+    if (!changes.domain && !changes.tickCount) {
+      ticksContainer.updateAll(updateTick);
+    } else {
+      const ticksData = scale.getTicks(tickCount, false);
+      ticksContainer.renderAll('g', ticksData, updateTick, (
+        selection,
+        tick,
+        removeCallback
+      ) => {
+        updateTick(selection, tick, undefined, undefined, removeCallback);
+      }, String);
+    }
+
+    const toFlush = transitioningTicks.length - tickCount * 2;
+    if (toFlush > 0) {
+      transitioningTicks.splice(0, toFlush).forEach((selection) => {
+        selection.flushAttrTransition('transform')
+          .flushAttrTransition('style');
+      });
+    }
+
+    function updateTick(
+      tickSelection: Selection,
+      tick: number,
+      isNew?: boolean,
+      _previousTick?: number,
+      removeCallback?: () => void
+    ) {
+      if (!animated && removeCallback) {
+        removeCallback();
+        return;
+      }
 
       tickSelection.renderOne('line', 'tickLine', (selection) => {
         selection
@@ -96,32 +173,53 @@ export class Axis {
           .attr('transform', matrix ? `matrix(${matrix[1]})` : null)
           .attr('text-anchor', textAnchor)
           .attr('dominant-baseline', dominantBaseline)
-          .attr('x', this.isVertical() ? -indent : 0)
-          .attr('y', this.isVertical() ? 0 : indent)
-          .text(tick);
+          .attr('x', vertical ? -indent : 0)
+          .attr('y', vertical ? 0 : indent)
+          .text(tickFormat(tick));
       }, !displayLabels);
-    });
 
-    const {width, height} = container.getRoundedRect();
-    this.resultWidth = width;
-    this.resultHeight = height;
-  }
+      const isTransitioning = tickSelection.isTransitioning('transform');
+      if (!animated || !fromDomain) {
+        if (!isTransitioning) {
+          tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
+        }
+        return;
+      }
 
-  isVertical() {
-    return (
-      this.position === AxisPosition.left ||
-      this.position === AxisPosition.right
-    );
-  }
+      if (isNew || removeCallback) {
+        // tickSelection.attr('class', isNew ? 'appear' : 'fade');
+        tickSelection.attrTransition('style', (progress: number) => {
+          const opacity = isNew ? progress : 1 - progress;
+          return `opacity: ${opacity}`;
+        });
+      }
 
-  getSize() {
-    if (this.isVertical()) {
-      return this.resultWidth;
+      tickSelection.attrTransition('transform', (progress: number) => {
+        switch (progress) {
+          case 0:
+            if (!isTransitioning) {
+              transitioningTicks.push(tickSelection);
+            }
+            break;
+          case 1:
+            const index = transitioningTicks.findIndex(
+              (selection) => tickSelection.isEqual(selection)
+            );
+            if (index !== -1) {
+              transitioningTicks.splice(index, 1);
+            }
+            if (removeCallback) {
+              removeCallback();
+            }
+        }
+
+        const domain = scale.getDomain();
+        transitionScale.setDomain([
+          fromDomain[0] + (domain[0] - fromDomain[0]) * progress,
+          fromDomain[1] + (domain[1] - fromDomain[1]) * progress
+        ]);
+        return `translate(${transitionScale.scale(tick)})`;
+      });
     }
-    return this.resultHeight;
-  }
-
-  getPosition() {
-    return this.position;
   }
 }

@@ -1,6 +1,8 @@
 const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
 
 module.exports = {
   entry: {
@@ -23,7 +25,22 @@ module.exports = {
       {
         test: /\.ts$/,
         loader: 'awesome-typescript-loader'
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader
+          },
+          'css-loader'
+        ]
       }
+    ]
+  },
+
+  optimization: {
+    minimizer: [
+      new OptimizeCSSAssetsPlugin({})
     ]
   },
 
@@ -31,6 +48,10 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './public/index.html',
       filename: './index.html'
+    }),
+
+    new MiniCssExtractPlugin({
+      filename: 'styles.css'
     })
   ]
 };

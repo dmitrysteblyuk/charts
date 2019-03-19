@@ -1,0 +1,19 @@
+.fade {
+  animation: fade 0.2s linear forwards;
+}
+.appear {
+  opacity: 0;
+  animation: appear 0.2s linear forwards;
+}
+
+@keyframes fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}

@@ -1,19 +1,34 @@
 export class Scale {
   private factor = 1;
   private offset = 0;
-  private invertFactor = 1;
-  private invertOffset = 0;
-  private domain: NumberRange = [0, 1];
-  private range: NumberRange = [0, 1];
   private fixed = false;
   private extendableOnly = false;
+  // private inverted: Scale | null = null;
+
+  constructor(
+    private domain: NumberRange = [0, 1],
+    private range: NumberRange = [0, 1]
+  ) {
+    this.rescale();
+  }
 
   scale(x: number) {
     return this.factor * x + this.offset;
   }
 
-  invertScale(x: number) {
-    return this.invertFactor * x + this.invertOffset;
+  // copy() {
+  //   return new Scale(this.domain, this.range);
+  // }
+
+  // invert() {
+  //   if (!this.inverted) {
+  //     this.inverted = new Scale(this.range, this.domain);
+  //   }
+  //   return this.inverted;
+  // }
+
+  getFactor() {
+    return this.factor;
   }
 
   getTicks(count: number, extended: boolean) {
@@ -21,6 +36,9 @@ export class Scale {
   }
 
   setDomain(domain: NumberRange) {
+    if (arrayIsEqual(this.domain, domain)) {
+      return;
+    }
     this.domain = domain;
     this.rescale();
   }
@@ -29,6 +47,9 @@ export class Scale {
   }
 
   setRange(range: NumberRange) {
+    if (arrayIsEqual(this.range, range)) {
+      return;
+    }
     this.range = range;
     this.rescale();
   }
@@ -54,18 +75,20 @@ export class Scale {
     const {domain, range} = this;
     this.factor = (range[1] - range[0]) / (domain[1] - domain[0]);
     this.offset = range[1] - domain[1] * this.factor;
-
-    this.invertFactor = (domain[1] - domain[0]) / (range[1] - range[0]);
-    this.invertOffset = domain[1] - range[1] * this.invertFactor;
+    // this.inverted = null;
   }
 }
 
-// export function arrayIsEqual<T>(a: T[], b: T[]): boolean {
-//   return (
-//     a.length === b.length &&
-//     a.every((item, index) => item === b[index])
-//   );
-// }
+export function arrayIsEqual<T>(
+  a: ReadonlyArray<T>,
+  b: ReadonlyArray<T>
+): boolean {
+  return (
+    a === b ||
+    a.length === b.length &&
+    a.every((item, index) => item === b[index])
+  );
+}
 
 export function getDecimalTicks(
   count: number,

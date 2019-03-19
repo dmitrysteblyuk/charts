@@ -81,8 +81,8 @@ const year: DateUnit = {
   // setUTC: Date.prototype.setUTCFullYear
 };
 
-const units = [millisecond, second, minute, hour, day, month, year];
-const intervals = units.reduce((result, unit, index) => {
+const dateUnits = [millisecond, second, minute, hour, day, month, year];
+const intervals = dateUnits.reduce((result, unit, index) => {
   return result.concat(unit.periods.map((period) => {
     const value = period * unit.duration;
     return {unit, index, period, value};
@@ -122,7 +122,7 @@ function getTimeTicks(
 
   const date = new Date(domain[0]);
   for (let index = 0; index < unitIndex; index++) {
-    const {/*setUTC, */set, offset} = units[index];
+    const {/*setUTC, */set, offset} = dateUnits[index];
     (/*utc ? setUTC : */set).call(date, offset);
   }
   floorDate();

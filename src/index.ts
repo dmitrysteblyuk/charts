@@ -11,7 +11,7 @@ timeChart.setProps({
 });
 
 timeChart.addSeries(new SeriesData(
-  [0, 1, 2, 3, 4, 5],
+  [10, 11, 12, 13, 14, 15].map((date) => +new Date(`2019-03-${date}`)),
   [0, -1000, 500, 10000, -3800, 607]
 ));
 

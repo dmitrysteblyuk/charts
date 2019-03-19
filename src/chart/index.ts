@@ -72,9 +72,9 @@ export class Chart {
       if (scale.isFixed()) {
         return;
       }
-      const startDomain: NumberRange = (
+      const startDomain = (
         scale.isExtendableOnly()
-          ? [...scale.getDomain()]
+          ? scale.getDomain()
           : [Infinity, -Infinity]
       );
       let domain = group.reduce(
@@ -99,14 +99,15 @@ export class Chart {
   }
 
   private renderGrids(gridsContainer: Selection) {
-    gridsContainer.renderAll('g', this.grids, (selection, grid) => {
+    gridsContainer.renderAll('g', this.grids, (selection, grid, isNew) => {
       selection.attr('transform', this.getAxisTransform(grid));
       grid.setProps({
         tickSize: -(
           grid.isVertical() ? this.chartInnerWidth : this.chartInnerHeight
-        )
-      });
-      grid.render(selection);
+        ),
+        animated: !isNew
+      })
+        .render(selection);
     });
   }
 
@@ -123,13 +124,15 @@ export class Chart {
       return 0;
     });
     const that = this;
-    let shouldRerender = false;
     setInnerSize();
 
-    axesContainer.renderAll('g', this.axes, (selection, axis) => {
-      renderAxis(selection, axis);
+    const containerForAxesAdjusting = axesContainer.renderOne('g',  0)
+      .attr('style', 'visibility: hidden');
+    containerForAxesAdjusting.renderAll('g', this.axes, (selection, axis) => {
+      renderAxis(selection, axis, false);
 
-      const size = axis.getSize();
+      const {width, height} = selection.getRoundedRect();
+      const size = axis.isVertical() ? width : height;
       const position = axis.getPosition();
       if (
         fixedPaddings[position] !== undefined ||
@@ -138,27 +141,25 @@ export class Chart {
         return;
       }
       paddings[position] = size;
-      shouldRerender = true;
     });
 
     setInnerSize();
     this.paddings = paddings;
 
-    axesContainer.renderAll('g', this.axes, (selection, axis) => {
+    const visibleContainer = axesContainer.renderOne('g', 1);
+    visibleContainer.renderAll('g', this.axes, (selection, axis, isNew) => {
       selection.attr('transform', this.getAxisTransform(axis));
-      if (!shouldRerender) {
-        return;
-      }
-      renderAxis(selection, axis);
+      renderAxis(selection, axis, !isNew);
     });
 
-    function renderAxis(selection: Selection, axis: Axis) {
+    function renderAxis(selection: Selection, axis: Axis, animated: boolean) {
       axis.scale.setRange(
         axis.isVertical()
           ? [that.chartInnerHeight, 0]
           : [0, that.chartInnerWidth]
       );
-      axis.render(selection);
+      axis.setProps({animated})
+        .render(selection);
     }
 
     function setInnerSize() {

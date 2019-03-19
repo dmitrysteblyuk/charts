@@ -10,6 +10,7 @@ import {SeriesData} from '../lib/series-data';
 import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
 import {roundRange} from '../lib/utils';
 import {getZoomFactorAndOffset} from './zoom-transform';
+import {axisTimeFormat} from '../lib/time-format';
 
 export class TimeChart {
   readonly timeScale = new TimeScale();
@@ -20,7 +21,9 @@ export class TimeChart {
 
   readonly mainChart = new Chart(
     [
-      new Axis(AxisPosition.bottom, this.timeScale),
+      new Axis(AxisPosition.bottom, this.timeScale).setProps({
+        tickFormat: axisTimeFormat
+      }),
       new Axis(AxisPosition.left, this.valueScale)
     ],
     [
@@ -30,7 +33,9 @@ export class TimeChart {
   );
   readonly helperChart = new Chart(
     [
-      new Axis(AxisPosition.top, this.fullTimeScale),
+      new Axis(AxisPosition.top, this.fullTimeScale).setProps({
+        tickFormat: axisTimeFormat
+      }),
       new Axis(AxisPosition.right, this.fullValueScale)
     ],
     [

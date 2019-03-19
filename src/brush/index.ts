@@ -34,7 +34,8 @@ export class Brush {
 
   render(container: Selection, isFirstRender: boolean) {
     const {left, right, height, width} = this;
-    if (!container.getChanges({left, right, height, width})) {
+    const {changes} = container.getDataChanges({left, right, height, width});
+    if (!changes) {
       return;
     }
     if (left > 0 || right < width) {

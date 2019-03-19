@@ -24,10 +24,24 @@ export abstract class BaseSeries {
     if (!x.length) {
       return xDomain;
     }
-    return [
-      Math.min(xDomain[0], x[0]),
-      Math.max(xDomain[1], x[x.length - 1])
-    ];
+    const x0 = x[0];
+    const x1 = x[x.length - 1];
+    let [minX, maxX] = xDomain;
+    let isExtended: true | undefined;
+
+    if (minX > x0) {
+      minX = x0;
+      isExtended = true;
+    }
+    if (maxX < x1) {
+      maxX = x1;
+      isExtended = true;
+    }
+
+    if (isExtended) {
+      return [minX, maxX];
+    }
+    return xDomain;
   }
 
   extendYDomain(yDomain: NumberRange): NumberRange {
@@ -46,10 +60,22 @@ export abstract class BaseSeries {
     );
 
     let [minY, maxY] = yDomain;
+    let isExtended: true | undefined;
+
     for (let index = startIndex; index < endIndex; index++) {
-      minY = Math.min(minY, y[index]);
-      maxY = Math.max(maxY, y[index]);
+      if (minY > y[index]) {
+        minY = y[index];
+        isExtended = true;
+      }
+      if (maxY < y[index]) {
+        maxY = y[index];
+        isExtended = true;
+      }
     }
-    return [minY, maxY];
+
+    if (isExtended) {
+      return [minY, maxY];
+    }
+    return yDomain;
   }
 }

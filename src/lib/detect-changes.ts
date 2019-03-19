@@ -1,12 +1,15 @@
 import {forEach} from './utils';
 
-type ObjectChanges<T> = {[key in keyof T]?: boolean};
+interface ObjectChanges<T> {
+  changes: {readonly [key in keyof T]?: boolean} | null,
+  previous: Readonly<Partial<T>>
+}
 type ValueChangesGetter<T, C> = (
-  (previousValue: T | undefined, nextValue: T) => C | null
+  (value: T | undefined, nextValue: T) => C
 );
 type StoreValueGetter<T, S> = (store: S) => T | undefined;
 type StoreValueUpdater<T, S> = (
-  (store: S, previousValue: T | undefined, nextValue: T) => void
+  (store: S, value: T | undefined, nextValue: T) => void
 );
 
 const DEFAULT_DATA_PROPERTY = '__DETECT_CHANGES_DATA__';
@@ -14,7 +17,7 @@ const DEFAULT_DATA_PROPERTY = '__DETECT_CHANGES_DATA__';
 export function detectChanges<
   T,
   S extends Dictionary<any> = Dictionary<any>,
-  C = ObjectChanges<T>
+  C extends {changes?: {} | null, previous?: {}} = ObjectChanges<T>
 >(
   store: S,
   nextValue: T,
@@ -22,12 +25,12 @@ export function detectChanges<
   getValueFromStore = getValueFromStoreDefault as StoreValueGetter<T, S>,
   updateValueInStore = updateObjectInStoreDefault as StoreValueUpdater<T, S>
 ) {
-  const previousValue = getValueFromStore(store);
-  const changes = getValueChanges(previousValue, nextValue);
-  if (changes !== null) {
-    updateValueInStore(store, previousValue, nextValue);
+  const value = getValueFromStore(store);
+  const result = getValueChanges(value, nextValue);
+  if (result.changes !== null) {
+    updateValueInStore(store, value, nextValue);
   }
-  return changes;
+  return result;
 }
 
 function getValueFromStoreDefault<
@@ -44,37 +47,43 @@ function updateObjectInStoreDefault<
   S extends Dictionary<any> = Dictionary<any>
 >(
   store: S,
-  previousValue: T | undefined,
+  value: T | undefined,
   nextValue: T
 ): void {
-  if (previousValue === undefined) {
+  if (value === undefined) {
     store[DEFAULT_DATA_PROPERTY] = nextValue;
     return;
   }
-  forEach(nextValue, (value, key) => {
-    previousValue[key] = value;
+  forEach(nextValue, (property, key) => {
+    value[key] = property;
   });
 }
 
 function getObjectChanges<T>(
-  previousValue: T | undefined,
+  value: T | undefined,
   nextValue: T
-): ObjectChanges<T> | null {
-  if (previousValue === nextValue) {
-    return null;
+): ObjectChanges<T> {
+  const previous: Partial<T> = {};
+  if (value === nextValue) {
+    return {
+      changes: null,
+      previous
+    };
   }
-  const changes: ObjectChanges<T> = {};
-  let isChanged = previousValue === undefined;
 
-  forEach(nextValue, (value, key) => {
-    if (previousValue !== undefined && value === previousValue[key]) {
+  const changes: {[key in keyof T]?: boolean} = {};
+  let isChanged = value === undefined;
+
+  forEach(nextValue, (property, key) => {
+    if (value !== undefined && value[key] === property) {
       return;
     }
     changes[key] = isChanged = true;
+    previous[key] = value && value[key];
   });
 
-  if (!isChanged) {
-    return null;
-  }
-  return changes;
+  return {
+    changes: isChanged ? changes : null,
+    previous
+  };
 }
