@@ -1,11 +1,5 @@
-import {Scale, getDecimalTicks} from './scale';
+import {getDecimalScaleTicks} from './decimal-scale-ticks';
 import {binarySearch} from './binary-search';
-
-export class TimeScale extends Scale {
-  getTicks(count: number/*, utc: boolean*/) {
-    return getTimeTicks(count, this.getDomain()/*, utc*/);
-  }
-}
 
 interface DateUnit {
   duration: number;
@@ -89,7 +83,7 @@ const intervals = dateUnits.reduce((result, unit, index) => {
   }));
 }, [] as {unit: DateUnit, index: number, period: number, value: number}[]);
 
-function getTimeTicks(
+export function getTimeScaleTicks(
   count: number,
   domain: NumberRange,
   // utc: boolean
@@ -106,7 +100,7 @@ function getTimeTicks(
   ) - 1;
 
   if (intervalIndex < 1) {
-    return getDecimalTicks(count, domain, false);
+    return getDecimalScaleTicks(count, domain);
   }
 
   const intervalData = intervals[intervalIndex];

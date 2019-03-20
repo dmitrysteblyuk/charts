@@ -1,6 +1,6 @@
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
-import {Scale} from '../lib/scale';
+import {ChartScale} from '../chart/chart-scale';
 import {SeriesData} from '../lib/series-data';
 import {binarySearch} from '../lib/binary-search';
 
@@ -8,8 +8,8 @@ export abstract class BaseSeries {
   protected color = 'steelblue';
 
   constructor(
-    readonly xScale: Scale,
-    readonly yScale: Scale,
+    readonly xScale: ChartScale,
+    readonly yScale: ChartScale,
     protected data: SeriesData
   ) {}
 

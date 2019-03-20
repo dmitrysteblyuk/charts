@@ -1,6 +1,6 @@
 import {Axis, AxisPosition} from '../axis';
 import {Selection} from '../lib/selection';
-import {Scale} from '../lib/scale';
+import {ChartScale} from './chart-scale';
 import {forEach, newArray, groupBy} from '../lib/utils';
 import {BaseSeries} from '../series';
 
@@ -59,7 +59,7 @@ export class Chart {
   }
 
   private setDomains(
-    getScale: (series: BaseSeries) => Scale,
+    getScale: (series: BaseSeries) => ChartScale,
     getDomainExtender: (series: BaseSeries) => (
       (this: BaseSeries, domain: NumberRange) => NumberRange
     )
@@ -129,7 +129,8 @@ export class Chart {
     const containerForAxesAdjusting = axesContainer.renderOne('g',  0)
       .attr('style', 'visibility: hidden');
     containerForAxesAdjusting.renderAll('g', this.axes, (selection, axis) => {
-      renderAxis(selection, axis, false);
+      axis.setProps({animated: false, hideCollidedTicks: true});
+      renderAxis(selection, axis);
 
       const {width, height} = selection.getRoundedRect();
       const size = axis.isVertical() ? width : height;
@@ -149,17 +150,17 @@ export class Chart {
     const visibleContainer = axesContainer.renderOne('g', 1);
     visibleContainer.renderAll('g', this.axes, (selection, axis, isNew) => {
       selection.attr('transform', this.getAxisTransform(axis));
-      renderAxis(selection, axis, !isNew);
+      axis.setProps({animated: !isNew, hideCollidedTicks: false});
+      renderAxis(selection, axis);
     });
 
-    function renderAxis(selection: Selection, axis: Axis, animated: boolean) {
+    function renderAxis(selection: Selection, axis: Axis) {
       axis.scale.setRange(
         axis.isVertical()
           ? [that.chartInnerHeight, 0]
           : [0, that.chartInnerWidth]
       );
-      axis.setProps({animated})
-        .render(selection);
+      axis.render(selection);
     }
 
     function setInnerSize() {

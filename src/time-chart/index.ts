@@ -3,8 +3,7 @@ import {Axis, AxisPosition} from '../axis';
 import {Brush} from '../brush';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
-import {Scale} from '../lib/scale';
-import {TimeScale} from '../lib/time-scale';
+import {ValueScale, TimeScale} from '../chart/chart-scale';
 import {LineSeries} from '../series/line-series';
 import {SeriesData} from '../lib/series-data';
 import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
@@ -15,8 +14,8 @@ import {axisTimeFormat} from '../lib/time-format';
 export class TimeChart {
   readonly timeScale = new TimeScale();
   readonly fullTimeScale = new TimeScale();
-  readonly valueScale = new Scale();
-  readonly fullValueScale = new Scale();
+  readonly valueScale = new ValueScale();
+  readonly fullValueScale = new ValueScale();
   readonly brush = new Brush();
 
   readonly mainChart = new Chart(

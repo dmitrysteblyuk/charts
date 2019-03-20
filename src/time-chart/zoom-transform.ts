@@ -23,9 +23,11 @@ export function getZoomFactorAndOffset(
   const dnx = xn1 - xn0;
   const dny = yn1 - yn0;
 
-  const a = (dnx * dx + dny * dy) / (dx ** 2 + dy ** 2);
-  // const b = (-dnx * dy + dny * dx) / (dx ** 2 + dy ** 2);
-  const c = xn0 - a * x0/* + b * y0*/;
+  const a = (dnx * dx + dny * dy) / (dx * dx + dy * dy);
+  const b = (-dnx * dy + dny * dx) / (dx * dx + dy * dy);
+  // Instead of `a` use square root of matrix determinant to prevent rotation.
+  const factor = Math.sqrt(a * a + b * b);
+  const c = xn0 - factor * x0/* + b * y0*/;
   // const d = yn0 - b * x0 - a * y0;
 
   const offset = (1 - a) * startTime + c * (endTime - startTime) / startWidth;

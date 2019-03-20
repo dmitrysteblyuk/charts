@@ -1,7 +1,8 @@
 import {Scale} from '../lib/scale';
+import {ChartScale} from '../chart/chart-scale';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
-// import './index.css';
+import './index.css';
 
 const axisTransformMatrix = [
   ['1,0,0,-1,0,0', '1,0,0,-1,0,0'],
@@ -25,10 +26,11 @@ export class Axis {
   private color = '#444';
   private tickFormat: (tick: number) => string = String;
   private animated = true;
+  private hideCollidedTicks = false;
 
   constructor (
     private position: AxisPosition,
-    readonly scale: Scale
+    readonly scale: ChartScale
   ) {}
 
   setProps(props: {
@@ -38,6 +40,7 @@ export class Axis {
     displayLines?: boolean,
     displayScale?: boolean,
     animated?: boolean,
+    hideCollidedTicks?: boolean,
     tickFormat?: (value: number) => string
   }): this {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
@@ -105,33 +108,71 @@ export class Axis {
       return;
     }
 
-    const {transitionScale} = this;
+    const isAppearanceChanged = (
+      changes.tickPadding ||
+      changes.displayLabels ||
+      changes.displayLines ||
+      changes.position ||
+      changes.color ||
+      changes.tickSize
+    );
+
+    const {transitionScale, hideCollidedTicks} = this;
     const vertical = this.isVertical();
     const fromDomain = previous.domain;
     const matrix = axisTransformMatrix[position];
 
+    if (hideCollidedTicks) {
+      scale.resetTicks();
+    }
+    const tickData = scale.getTicks(tickCount);
     transitionScale.setRange(range);
     const ticksContainer = axisContainer.renderOne('g', 'axisTicks');
 
-    if (!changes.domain && !changes.tickCount) {
-      ticksContainer.updateAll(updateTick);
-    } else {
-      const ticksData = scale.getTicks(tickCount, false);
-      ticksContainer.renderAll('g', ticksData, updateTick, (
+    if (axisContainer.getDataChanges({tickData}).changes) {
+      ticksContainer.renderAll('g', tickData, updateTick, (
         selection,
         tick,
         removeCallback
       ) => {
         updateTick(selection, tick, undefined, undefined, removeCallback);
       }, String);
+    } else {
+      ticksContainer.updateAll(updateTick);
     }
 
-    const toFlush = transitioningTicks.length - tickCount * 2;
-    if (toFlush > 0) {
-      transitioningTicks.splice(0, toFlush).forEach((selection) => {
-        selection.flushAttrTransition('transform')
-          .flushAttrTransition('style');
-      });
+    if (animated) {
+      const toFlush = transitioningTicks.length - tickCount * 2;
+      if (toFlush > 0) {
+        transitioningTicks.splice(0, toFlush).forEach((selection) => {
+          selection.flushAttrTransition('transform')/*
+            .flushAttrTransition('style')*/;
+        });
+      }
+    }
+
+    if (!hideCollidedTicks) {
+      return;
+    }
+
+    let previousRect: Rect | undefined;
+    let isSomeRemoved: boolean | undefined;
+    const nextTickData: number[] = [];
+    const tickIndent = vertical ? 3 : 10;
+    ticksContainer.updateAll((selection, tick: number) => {
+      const rect = selection.getRect();
+
+      if (previousRect && rectIsCollided(rect, previousRect, tickIndent)) {
+        selection.destroy();
+        isSomeRemoved = true;
+        return;
+      }
+      previousRect = rect;
+      nextTickData.unshift(tick);
+    });
+
+    if (isSomeRemoved) {
+      scale.resetTicks(nextTickData, tickCount);
     }
 
     function updateTick(
@@ -146,37 +187,47 @@ export class Axis {
         return;
       }
 
-      tickSelection.renderOne('line', 'tickLine', (selection) => {
-        selection
-          .attr('y2', tickSize)
-          .attr('stroke', color);
-      }, !displayLines);
+      if (isNew || isAppearanceChanged) {
+        tickSelection.renderOne('line', 'tickLine', (selection) => {
+          selection
+            .attr('y2', tickSize)
+            .attr('stroke', color);
+        }, !displayLines);
 
-      tickSelection.renderOne('text', 'tickLabel', (selection) => {
-        const textAnchor = (
-          position === AxisPosition.left ? 'end'
-            : position === AxisPosition.right ? null
-            : 'middle'
-        );
-        const dominantBaseline = (
-          position === AxisPosition.top ? null
-            : position === AxisPosition.bottom ? 'hanging'
-            : 'central'
-        );
-        const indent = (tickPadding + tickSize) * (
-          position === AxisPosition.left ||
-          position === AxisPosition.bottom
-            ? 1 : -1
-        );
+        tickSelection.renderOne('text', 'tickLabel', (selection) => {
+          const textAnchor = (
+            position === AxisPosition.left ? 'end'
+              : position === AxisPosition.right ? null
+              : 'middle'
+          );
+          const dominantBaseline = (
+            position === AxisPosition.top ? null
+              : position === AxisPosition.bottom ? 'hanging'
+              : 'central'
+          );
+          const indent = (tickPadding + tickSize) * (
+            position === AxisPosition.left ||
+            position === AxisPosition.bottom
+              ? 1 : -1
+          );
 
-        selection
-          .attr('transform', matrix ? `matrix(${matrix[1]})` : null)
-          .attr('text-anchor', textAnchor)
-          .attr('dominant-baseline', dominantBaseline)
-          .attr('x', vertical ? -indent : 0)
-          .attr('y', vertical ? 0 : indent)
-          .text(tickFormat(tick));
-      }, !displayLabels);
+          selection
+            .attr('transform', matrix ? `matrix(${matrix[1]})` : null)
+            .attr('text-anchor', textAnchor)
+            .attr('dominant-baseline', dominantBaseline)
+            .attr('x', vertical ? -indent : 0)
+            .attr('y', vertical ? 0 : indent)
+            .text(tickFormat(tick));
+        }, !displayLabels);
+      }
+
+      if (animated && (isNew || removeCallback)) {
+        tickSelection.attr('class', isNew ? 'appear' : 'fade');
+        // tickSelection.attrTransition('style', (progress: number) => {
+        //   const opacity = isNew ? progress : 1 - progress;
+        //   return `opacity: ${opacity}`;
+        // });
+      }
 
       const isTransitioning = tickSelection.isTransitioning('transform');
       if (!animated || !fromDomain) {
@@ -184,14 +235,6 @@ export class Axis {
           tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
         }
         return;
-      }
-
-      if (isNew || removeCallback) {
-        // tickSelection.attr('class', isNew ? 'appear' : 'fade');
-        tickSelection.attrTransition('style', (progress: number) => {
-          const opacity = isNew ? progress : 1 - progress;
-          return `opacity: ${opacity}`;
-        });
       }
 
       tickSelection.attrTransition('transform', (progress: number) => {
@@ -222,4 +265,16 @@ export class Axis {
       });
     }
   }
+}
+
+function rectIsCollided(a: Rect, b: Rect, indent: number): boolean {
+  const ax0 = a.left - indent;
+  const ax1 = ax0 + a.width + 2 * indent;
+  const ay0 = a.top - indent;
+  const ay1 = ay0 + a.height + 2 * indent;
+  const bx0 = b.left;
+  const bx1 = bx0 + b.width;
+  const by0 = b.top;
+  const by1 = by0 + b.height;
+  return ax1 >= bx0 && bx1 >= ax0 && ay1 >= by0 && by1 >= ay0;
 }

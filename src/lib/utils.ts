@@ -43,3 +43,14 @@ export function roundRange(min: number, max: number) {
   }
   return [Math.floor(min), Math.ceil(max)];
 }
+
+export function arrayIsEqual<T>(
+  a: ReadonlyArray<T>,
+  b: ReadonlyArray<T>
+): boolean {
+  return (
+    a === b ||
+    a.length === b.length &&
+    a.every((item, index) => item === b[index])
+  );
+}

@@ -1,5 +1,5 @@
 import 'jasmine';
 
-describe('TimeScale', () => {
+describe('TimeScaleTicks', () => {
   it('all good', () => {});
 });

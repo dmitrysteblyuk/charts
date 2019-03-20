@@ -46,16 +46,26 @@ export class Selection<EL extends Element = Element> {
     return new Selection(element);
   }
 
+  destroy<D>(remover?: Remover<EL, D>) {
+    const {element} = this;
+    if (!remover) {
+      removeElement(element);
+      return;
+    }
+    startRemovingElement(element);
+    remover(this, getDatum(element), () => removeElement(element));
+  }
+
   getDataChanges<T>(data: T) {
     return detectChanges(this.element, data);
   }
 
-  getRect() {
+  getRect(): Rect {
     const {width, height, left, top} = this.element.getBoundingClientRect();
     return {width, height, left, top};
   }
 
-  getRoundedRect() {
+  getRoundedRect(): Rect {
     return map(this.getRect(), Math.round);
   }
 
@@ -87,20 +97,19 @@ export class Selection<EL extends Element = Element> {
     return this;
   }
 
-  isTransitioning(name: string) {
+  isTransitioning(name: string): boolean {
     return isBeingTransitioned(this.element, name);
   }
 
-  flushAttrTransition(name: string): this {
+  flushAttrTransition(name: string): void {
     flushTransition(this.element, name);
-    return this;
   }
 
   attrTransition(
     name: string,
     interpolator: (progress: number) => string,
     duration = DEFAULT_TRANSITION_DURATION
-  ) {
+  ): void {
     startTransition(this.element, name, interpolator, duration);
   }
 
@@ -150,14 +159,19 @@ export class Selection<EL extends Element = Element> {
     let selection = this.selectOne<E>(selector);
     if (toRemove) {
       if (selection !== null) {
-        this.removeElement(selection.element, remover);
+        selection.destroy(remover);
       }
       return null;
     }
 
     let isNew = false;
     if (selection === null) {
-      selection = this.addChild<E>(tagName, selector);
+      const childId = (
+        typeof selector === 'string'
+          ? this.getChildId(selector)
+          : undefined
+      );
+      selection = this.addChild<E>(tagName, childId);
       isNew = true;
     }
 
@@ -171,14 +185,11 @@ export class Selection<EL extends Element = Element> {
     updater: (selection: Selection<E>, datum: D) => void
   ): void {
     const {children} = this.element;
-    const childLength = children.length;
-
-    for (let index = 0; index < childLength; index++) {
+    for (let index = children.length; index-- > 0; ) {
       const element = children.item(index) as E;
       if (isBeingRemoved(element)) {
         continue;
       }
-
       updater(new Selection(element), getDatum<D>(element));
     }
   }
@@ -199,13 +210,16 @@ export class Selection<EL extends Element = Element> {
     const childLength = children.length;
     const toUpdate: {element: E; datum: D; }[] = [];
     const toRemove: E[] = [];
-    let toAdd: {datum: D, keyId?: string}[] = [];
+    let toAdd: {datum: D, childId?: string, nextChildId?: string}[] = [];
     let usedDataIndex = 0;
 
-    const dataByKey = getKey && data.reduce((result, datum, index) => {
-      result[this.getChildId(getKey(datum, index))] = datum;
+    let lastChildId: string | undefined;
+    const dataById = getKey && data.reduceRight((result, datum, index) => {
+      const childId = this.getChildId(getKey(datum, index));
+      result[childId] = {datum, nextChildId: lastChildId};
+      lastChildId = childId;
       return result;
-    }, {} as Dictionary<D>);
+    }, {} as Dictionary<{datum: D, nextChildId: string | undefined}>);
 
     for (let index = 0; index < childLength; index++) {
       const element = children[index] as E;
@@ -213,7 +227,7 @@ export class Selection<EL extends Element = Element> {
         continue;
       }
 
-      if (!dataByKey) {
+      if (!dataById) {
         if (usedDataIndex < data.length) {
           const datum = data[usedDataIndex++];
           toUpdate.push({element, datum});
@@ -223,27 +237,31 @@ export class Selection<EL extends Element = Element> {
         continue;
       }
 
-      const keyId = element.getAttribute('id');
-      if (keyId !== null && dataByKey.hasOwnProperty(keyId)) {
-        const datum = dataByKey[keyId];
-        delete dataByKey[keyId];
+      const childId = element.getAttribute('id');
+      if (childId !== null && dataById.hasOwnProperty(childId)) {
+        const {datum} = dataById[childId];
+        delete dataById[childId];
         toUpdate.push({element, datum});
       } else {
         toRemove.push(element);
       }
     }
 
-    if (dataByKey) {
-      toAdd = Object.keys(dataByKey).map((keyId) => {
-        const datum = dataByKey[keyId];
-        return {datum, keyId};
+    if (dataById) {
+      toAdd = Object.keys(dataById).map((childId) => {
+        const {datum, nextChildId} = dataById[childId];
+        return {datum, childId, nextChildId};
       });
     } else {
       toAdd = data.slice(usedDataIndex).map((datum) => ({datum}));
     }
 
     toRemove.forEach((element) => {
-      this.removeElement(element, remover);
+      if (!remover) {
+        removeElement(element);
+        return;
+      }
+      new Selection(element).destroy(remover);
     });
 
     toUpdate.forEach(({element, datum}) => {
@@ -254,8 +272,8 @@ export class Selection<EL extends Element = Element> {
       }
     });
 
-    toAdd.forEach(({datum, keyId}) => {
-      const selection = this.addChild<E>(tagName, keyId, true);
+    toAdd.forEach(({datum, childId, nextChildId}) => {
+      const selection = this.addChild<E>(tagName, childId, nextChildId);
       setDatum(selection.element, datum);
       if (updater) {
         updater(selection, datum, true);
@@ -265,41 +283,21 @@ export class Selection<EL extends Element = Element> {
 
   private addChild<E extends Element>(
     tagName: string,
-    selector?: Selector,
-    isChildId?: boolean
+    childId?: string,
+    nextChildId?: string
   ): Selection<E> {
     const parent = this.element;
     const element = createChild<E>(tagName, parent);
 
-    if (typeof selector === 'string') {
-      const childId = isChildId ? selector : this.getChildId(selector);
+    if (childId !== undefined) {
       element.setAttribute('id', childId);
     }
-    if (typeof selector === 'number') {
-      parent.insertBefore(element, parent.children.item(selector));
-    } else {
+    if (nextChildId === undefined) {
       parent.appendChild(element);
+    } else {
+      parent.insertBefore(element, parent.children.namedItem(nextChildId));
     }
     return new Selection(element);
-  }
-
-  private removeElement<E extends Element, D>(
-    element: E,
-    remover?: Remover<E, D>
-  ) {
-    function done() {
-      if (element.parentElement === null) {
-        return;
-      }
-      element.parentElement.removeChild(element);
-    }
-
-    startRemovingElement(element);
-    if (!remover) {
-      done();
-      return;
-    }
-    remover(new Selection(element), getDatum(element), done);
   }
 
   private getChildId(selector: string) {
@@ -319,6 +317,13 @@ export class Selection<EL extends Element = Element> {
   }
 }
 
+function removeElement(element: Element) {
+  if (!element.parentElement) {
+    return;
+  }
+  element.parentElement.removeChild(element);
+}
+
 function getDatum<D>(element: Element): D {
   return (element as any)[DATUM_PROPERTY];
 }
@@ -329,12 +334,12 @@ function setDatum<D>(element: Element, datum: D): void {
 
 function isBeingTransitioned(element: Element, name: string) {
   const activeTransitions = getActiveTransitions(element);
-  return activeTransitions && activeTransitions[name] !== undefined;
+  return Boolean(activeTransitions && activeTransitions[name]);
 }
 
 function flushTransition(element: Element, name: string) {
-  const activeTransitions = getActiveTransitions(element, true);
-  const transition = activeTransitions[name];
+  const activeTransitions = getActiveTransitions(element);
+  const transition = activeTransitions && activeTransitions[name];
   if (!transition) {
     return;
   }
