@@ -1,3 +1,4 @@
+
 import {Selection} from '../lib/selection';
 import {newArray} from '../lib/utils';
 import {SeriesData} from '../lib/series-data';
@@ -13,22 +14,25 @@ export class LineSeries extends BaseSeries {
         return;
       }
 
-      selection.attr('d', drawPath(
+      const line = drawLine(
         (x) => Math.round(xScale.scale(x)),
         (y) => Math.round(yScale.scale(y)),
         data,
         newArray(data.size, (index) => index),
         0,
         data.size
-      ))
-        .attr('stroke', color)
-        .attr('stroke-width', 1)
-        .attr('fill', 'none');
+      );
+      selection.attr({
+        'stroke': color,
+        'stroke-width': 1,
+        'fill': 'none',
+        'd': line
+      });
     });
   }
 }
 
-function drawPath(
+function drawLine(
   scaleX: (x: number) => number,
   scaleY: (y: number) => number,
   data: SeriesData,

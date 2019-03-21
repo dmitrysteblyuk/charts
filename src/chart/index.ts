@@ -178,7 +178,7 @@ export class Chart {
     const translate = (
       position === AxisPosition.right ? [this.chartInnerWidth, 0]
         : position === AxisPosition.bottom ? [0, this.chartInnerHeight]
-        : null
+        : undefined
     );
     return translate && `translate(${translate})`;
   }

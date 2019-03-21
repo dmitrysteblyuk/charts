@@ -31,7 +31,8 @@ function setSize() {
     helperHeight: 250
   });
 
-  svgSelection
-    .attr('width', width)
-    .attr('height', height);
+  svgSelection.attr({
+    'width': width,
+    'height': height
+  });
 }

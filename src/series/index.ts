@@ -17,7 +17,7 @@ export abstract class BaseSeries {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
   }
 
-  abstract render(container: Selection, isFirstRender: boolean): void;
+  abstract render(container: Selection, isFirstRender?: boolean): void;
 
   extendXDomain(xDomain: NumberRange): NumberRange {
     const x = this.data.x;

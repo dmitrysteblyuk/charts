@@ -1,5 +1,4 @@
-import {map} from './utils';
-import {detectChanges} from './detect-changes';
+import {map, forEach, arrayIsEqual} from './utils';
 
 const DATUM_PROPERTY = '__DATUM__';
 const ACTIVE_TRANSITIONS_PROPERTY = '__ACTIVE_TRANSITIONS__';
@@ -7,8 +6,10 @@ const DEFAULT_TRANSITION_DURATION = 200;
 const BEING_REMOVED_PROPERTY = '__BEING_REMOVED__';
 const SVG_URI = 'http://www.w3.org/2000/svg';
 const XHTML_URI = 'http://www.w3.org/1999/xhtml';
+const DATA_CHANGES_PROPERTY = '__DATA_CHANGES__';
 
-type Primitive = string | boolean | number | null | undefined;
+type Primitive = string | boolean | number | undefined;
+type TrackData = Dictionary<Primitive | ReadonlyArray<Primitive | {}>>;
 type Selector = number | string;
 type Remover<E extends Element, D> = (
   (selection: Selection<E>, datum: D, callback: () => void) => void
@@ -56,10 +57,6 @@ export class Selection<EL extends Element = Element> {
     remover(this, getDatum(element), () => removeElement(element));
   }
 
-  getDataChanges<T>(data: T) {
-    return detectChanges(this.element, data);
-  }
-
   getRect(): Rect {
     const {width, height, left, top} = this.element.getBoundingClientRect();
     return {width, height, left, top};
@@ -73,31 +70,48 @@ export class Selection<EL extends Element = Element> {
   //   return 'ontouchstart' in this.element;
   // }
 
-  // text(): string | null;
-  text(text: Primitive): this/*;
-  text(text?: Primitive): string | null | this*/ {
-    // if (!arguments.length) {
-    //   return this.element.textContent;
-    // }
+  text(text: Primitive): this {
+    if (!detectChanges(this.element, {children: text})) {
+      return this;
+    }
     this.element.textContent = text === null ? null : String(text);
     return this;
   }
 
-  // attr(name: string): string | null;
-  attr(name: string, value: Primitive): this/*;
-  attr(name: string, value?: Primitive): this | string | null*/ {
-    // if (arguments.length < 2) {
-    //   return this.element.getAttribute(name);
-    // }
-    if (value == null) {
-      this.element.removeAttribute(name);
-    } else {
-      this.element.setAttribute(name, String(value));
+  getPreviousData<D extends TrackData>(nextData: D) {
+    const data = getElementData<D>(this.element);
+    const result = map(nextData, (_, key) => data && data[key]) as Partial<D>;
+    detectChanges(this.element, nextData);
+    return result;
+  }
+
+  attr(data: Dictionary<Primitive>): this;
+  attr(name: string, value: Primitive): this;
+  attr(
+    nameOrData: string | Dictionary<Primitive>,
+    attrValue?: Primitive
+  ): this {
+    const data = (
+      typeof nameOrData === 'string' ? {[nameOrData]: attrValue}
+        : nameOrData
+    );
+    const changes = detectChanges(this.element, data);
+    if (!changes) {
+      return this;
     }
+    forEach(changes, (_, name) => {
+      const value = data[name];
+      // console.log('update attr', name, value);
+      if (value === undefined) {
+        this.element.removeAttribute(name);
+      } else {
+        this.element.setAttribute(name, String(value));
+      }
+    });
     return this;
   }
 
-  isTransitioning(name: string): boolean {
+  isAttrTransitioning(name: string): boolean {
     return isBeingTransitioned(this.element, name);
   }
 
@@ -197,15 +211,19 @@ export class Selection<EL extends Element = Element> {
   renderAll<E extends Element, D>(
     tagName: string,
     data: ReadonlyArray<D>,
-    updater?: (
+    updater: (
       selection: Selection<E>,
       datum: D,
-      isNew: boolean,
+      isNew?: boolean,
       previousDatum?: D
     ) => void,
     remover?: Remover<E, D>,
     getKey?: (datum: D, index: number) => string
   ): void {
+    if (!detectChanges(this.element, {children: data})) {
+      this.updateAll(updater);
+      return;
+    }
     const {children} = this.element;
     const childLength = children.length;
     const toUpdate: {element: E; datum: D; }[] = [];
@@ -214,7 +232,7 @@ export class Selection<EL extends Element = Element> {
     let usedDataIndex = 0;
 
     let lastChildId: string | undefined;
-    const dataById = getKey && data.reduceRight((result, datum, index) => {
+    const byId = getKey && data.reduceRight((result, datum, index) => {
       const childId = this.getChildId(getKey(datum, index));
       result[childId] = {datum, nextChildId: lastChildId};
       lastChildId = childId;
@@ -227,7 +245,7 @@ export class Selection<EL extends Element = Element> {
         continue;
       }
 
-      if (!dataById) {
+      if (!byId) {
         if (usedDataIndex < data.length) {
           const datum = data[usedDataIndex++];
           toUpdate.push({element, datum});
@@ -238,18 +256,18 @@ export class Selection<EL extends Element = Element> {
       }
 
       const childId = element.getAttribute('id');
-      if (childId !== null && dataById.hasOwnProperty(childId)) {
-        const {datum} = dataById[childId];
-        delete dataById[childId];
+      if (childId !== null && byId.hasOwnProperty(childId)) {
+        const {datum} = byId[childId];
+        delete byId[childId];
         toUpdate.push({element, datum});
       } else {
         toRemove.push(element);
       }
     }
 
-    if (dataById) {
-      toAdd = Object.keys(dataById).map((childId) => {
-        const {datum, nextChildId} = dataById[childId];
+    if (byId) {
+      toAdd = Object.keys(byId).map((childId) => {
+        const {datum, nextChildId} = byId[childId];
         return {datum, childId, nextChildId};
       });
     } else {
@@ -267,17 +285,13 @@ export class Selection<EL extends Element = Element> {
     toUpdate.forEach(({element, datum}) => {
       const previousDatum = getDatum<D>(element);
       setDatum(element, datum);
-      if (updater) {
-        updater(new Selection(element), datum, false, previousDatum);
-      }
+      updater(new Selection(element), datum, false, previousDatum);
     });
 
     toAdd.forEach(({datum, childId, nextChildId}) => {
       const selection = this.addChild<E>(tagName, childId, nextChildId);
       setDatum(selection.element, datum);
-      if (updater) {
-        updater(selection, datum, true);
-      }
+      updater(selection, datum, true);
     });
   }
 
@@ -419,6 +433,45 @@ function isBeingRemoved(element: Element): boolean {
 function startRemovingElement(element: Element): void {
   element.removeAttribute('id');
   (element as any)[BEING_REMOVED_PROPERTY] = true;
+}
+
+function detectChanges(element: Element, nextData: TrackData) {
+  const data = getElementData(element);
+  if (!data) {
+    (element as any)[DATA_CHANGES_PROPERTY] = map(nextData, value => value);
+    return map(nextData, () => true);
+  }
+  if (data === nextData) {
+    return null;
+  }
+
+  const changes: {[key: string]: boolean} = {};
+  let isChanged: boolean | undefined;
+
+  forEach(nextData, (nextValue, key) => {
+    const value = data[key];
+    if (value === nextValue) {
+      return;
+    }
+    data[key] = nextValue;
+    if (
+      Array.isArray(value) &&
+      Array.isArray(nextValue) &&
+      arrayIsEqual(value, nextValue)
+    ) {
+      return;
+    }
+    changes[key] = isChanged = true;
+  });
+
+  if (!isChanged) {
+    return null;
+  }
+  return changes;
+}
+
+function getElementData<D extends TrackData>(element: Element): D | undefined {
+  return (element as any)[DATA_CHANGES_PROPERTY];
 }
 
 function createChild<E extends Element>(

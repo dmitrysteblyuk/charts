@@ -32,57 +32,55 @@ export class Brush {
     forEach(props, (value, key) => this[key] = value);
   }
 
-  render(container: Selection, isFirstRender: boolean) {
+  render(container: Selection, isFirstRender?: boolean) {
     const {left, right, height, width} = this;
-    const {changes} = container.getDataChanges({left, right, height, width});
-    if (!changes) {
-      return;
-    }
     if (left > 0 || right < width) {
       this.reset = false;
     }
 
     container.renderOne('rect', 0, (selection, isNew) => {
-      selection
-        .attr('width', left)
-        .attr('height', height);
+      selection.attr({
+        'width': left,
+        'height': height
+      });
       if (!isNew) {
         return;
       }
-      selection
-        .attr('fill', defaultFill)
-        .attr('stroke', this.stroke)
-        .attr('x', '0')
-        .attr('y', '0')
-        .on('click', () => this.onResetClick());
+      selection.on('click', () => this.onResetClick()).attr({
+        'fill': defaultFill,
+        'stroke': this.stroke,
+        'x': '0',
+        'y': '0'
+      });
     });
 
     container.renderOne('rect', 1, (selection, isNew) => {
-      selection
-        .attr('x', right)
-        .attr('width', width - right)
-        .attr('height', height);
+      selection.attr({
+        'x': right,
+        'width': width - right,
+        'height': height
+      });
       if (!isNew) {
         return;
       }
-      selection
-        .attr('fill', defaultFill)
-        .attr('stroke', this.stroke)
-        .attr('y', '0')
-        .on('click', () => this.onResetClick());
+      selection.on('click', () => this.onResetClick()).attr({
+        'fill': defaultFill,
+        'stroke': this.stroke,
+        'y': '0'
+      });
     });
 
     container.renderOne('rect', 2, (selection, isNew) => {
-      selection
-        .attr('fill', this.reset ? defaultFill : this.fill)
-        .attr('x', left)
-        .attr('width', right - left)
-        .attr('height', height);
+      selection.attr({
+        'fill': this.reset ? defaultFill : this.fill,
+        'x': left,
+        'width': right - left,
+        'height': height
+      });
       if (!isNew) {
         return;
       }
-      selection
-        .attr('y', '0');
+      selection.attr('y', '0');
     });
 
     if (!isFirstRender) {

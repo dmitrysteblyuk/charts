@@ -127,18 +127,20 @@ export class TimeChart {
     isFirstRender: boolean,
     container: Selection
   ) {
-    rectSelection
-      .attr('width', this.mainChart.getInnerWidth())
-      .attr('height', this.mainChart.getInnerHeight());
+    rectSelection.attr({
+      'width': this.mainChart.getInnerWidth(),
+      'height': this.mainChart.getInnerHeight()
+    });
 
     if (!isFirstRender) {
       return;
     }
 
-    rectSelection
-      .attr('x', 0)
-      .attr('y', 0)
-      .attr('fill', 'transparent');
+    rectSelection.attr({
+      'x': 0,
+      'y': 0,
+      'fill': 'transparent'
+    });
 
     let startWidth: number;
     let startDomain: NumberRange;

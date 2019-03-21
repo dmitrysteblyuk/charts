@@ -7,7 +7,7 @@ import './index.css';
 const axisTransformMatrix = [
   ['1,0,0,-1,0,0', '1,0,0,-1,0,0'],
   ['0,1,1,0,0,0', '0,1,1,0,0,0'],
-  null,
+  undefined,
   ['0,1,-1,0,0,0', '0,-1,1,0,0,0']
 ];
 
@@ -53,14 +53,15 @@ export class Axis {
     const matrix = axisTransformMatrix[position];
 
     const axisContainer = container.renderOne('g', 0);
-    axisContainer.attr('transform', matrix ? `matrix(${matrix[0]})` : null);
+    axisContainer.attr('transform', matrix && `matrix(${matrix[0]})`);
 
     axisContainer.renderOne('path', 'axisScale', (selection) => {
       const pathAttr = `M${range[0]},${tickSize}V0H${range[1]}V${tickSize}`;
-      selection
-        .attr('d', pathAttr)
-        .attr('fill', 'none')
-        .attr('stroke', color);
+      selection.attr({
+        'd': pathAttr,
+        'fill': 'none',
+        'stroke': color
+      });
     }, !displayScale);
 
     this.renderTicks(axisContainer);
@@ -92,54 +93,28 @@ export class Axis {
       transitioningTicks
     } = this;
     const range = scale.getRange();
-
-    const {changes, previous} = axisContainer.getDataChanges({
-      domain: scale.getDomain(),
-      range,
-      tickCount,
-      tickPadding,
-      displayLabels,
-      displayLines,
-      position,
-      color,
-      tickSize
-    });
-    if (!changes) {
-      return;
-    }
-
-    const isAppearanceChanged = (
-      changes.tickPadding ||
-      changes.displayLabels ||
-      changes.displayLines ||
-      changes.position ||
-      changes.color ||
-      changes.tickSize
-    );
-
     const {transitionScale, hideCollidedTicks} = this;
     const vertical = this.isVertical();
-    const fromDomain = previous.domain;
     const matrix = axisTransformMatrix[position];
+    const fromDomain = axisContainer.getPreviousData({
+      domain: scale.getDomain()
+    }).domain;
+
+    transitionScale.setRange(range);
 
     if (hideCollidedTicks) {
       scale.resetTicks();
     }
     const tickData = scale.getTicks(tickCount);
-    transitionScale.setRange(range);
     const ticksContainer = axisContainer.renderOne('g', 'axisTicks');
 
-    if (axisContainer.getDataChanges({tickData}).changes) {
-      ticksContainer.renderAll('g', tickData, updateTick, (
-        selection,
-        tick,
-        removeCallback
-      ) => {
-        updateTick(selection, tick, undefined, undefined, removeCallback);
-      }, String);
-    } else {
-      ticksContainer.updateAll(updateTick);
-    }
+    ticksContainer.renderAll('g', tickData, updateTick, (
+      selection,
+      tick,
+      removeCallback
+    ) => {
+      updateTick(selection, tick, undefined, undefined, removeCallback);
+    }, String);
 
     if (animated) {
       const toFlush = transitioningTicks.length - tickCount * 2;
@@ -171,9 +146,11 @@ export class Axis {
       nextTickData.unshift(tick);
     });
 
-    if (isSomeRemoved) {
-      scale.resetTicks(nextTickData, tickCount);
+    if (!isSomeRemoved) {
+      return;
     }
+    scale.resetTicks(nextTickData, tickCount);
+    ticksContainer.getPreviousData({children: nextTickData});
 
     function updateTick(
       tickSelection: Selection,
@@ -187,39 +164,38 @@ export class Axis {
         return;
       }
 
-      if (isNew || isAppearanceChanged) {
-        tickSelection.renderOne('line', 'tickLine', (selection) => {
-          selection
-            .attr('y2', tickSize)
-            .attr('stroke', color);
-        }, !displayLines);
+      tickSelection.renderOne('line', 'tickLine', (selection) => {
+        selection.attr({
+          'y2': tickSize,
+          'stroke': color
+        });
+      }, !displayLines);
 
-        tickSelection.renderOne('text', 'tickLabel', (selection) => {
-          const textAnchor = (
-            position === AxisPosition.left ? 'end'
-              : position === AxisPosition.right ? null
-              : 'middle'
-          );
-          const dominantBaseline = (
-            position === AxisPosition.top ? null
-              : position === AxisPosition.bottom ? 'hanging'
-              : 'central'
-          );
-          const indent = (tickPadding + tickSize) * (
-            position === AxisPosition.left ||
-            position === AxisPosition.bottom
-              ? 1 : -1
-          );
+      tickSelection.renderOne('text', 'tickLabel', (selection) => {
+        const textAnchor = (
+          position === AxisPosition.left ? 'end'
+            : position === AxisPosition.right ? undefined
+            : 'middle'
+        );
+        const dominantBaseline = (
+          position === AxisPosition.top ? undefined
+            : position === AxisPosition.bottom ? 'hanging'
+            : 'central'
+        );
+        const indent = (tickPadding + tickSize) * (
+          position === AxisPosition.left ||
+          position === AxisPosition.bottom
+            ? 1 : -1
+        );
 
-          selection
-            .attr('transform', matrix ? `matrix(${matrix[1]})` : null)
-            .attr('text-anchor', textAnchor)
-            .attr('dominant-baseline', dominantBaseline)
-            .attr('x', vertical ? -indent : 0)
-            .attr('y', vertical ? 0 : indent)
-            .text(tickFormat(tick));
-        }, !displayLabels);
-      }
+        selection.text(tickFormat(tick)).attr({
+          'transform': matrix && `matrix(${matrix[1]})`,
+          'text-anchor': textAnchor,
+          'dominant-baseline': dominantBaseline,
+          'x': vertical ? -indent : 0,
+          'y': vertical ? 0 : indent
+        });
+      }, !displayLabels);
 
       if (animated && (isNew || removeCallback)) {
         tickSelection.attr('class', isNew ? 'appear' : 'fade');
@@ -229,7 +205,7 @@ export class Axis {
         // });
       }
 
-      const isTransitioning = tickSelection.isTransitioning('transform');
+      const isTransitioning = tickSelection.isAttrTransitioning('transform');
       if (!animated || !fromDomain) {
         if (!isTransitioning) {
           tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
