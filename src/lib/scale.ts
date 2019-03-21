@@ -31,6 +31,10 @@ export class Scale {
     return this.factor;
   }
 
+  getOffset() {
+    return this.offset;
+  }
+
   setDomain(domain: NumberRange) {
     if (arrayIsEqual(this.domain, domain)) {
       return false;

@@ -206,10 +206,11 @@ export class Axis {
       }
 
       const isTransitioning = tickSelection.isAttrTransitioning('transform');
+      if (isTransitioning && (!removeCallback || !animated)) {
+        return;
+      }
       if (!animated || !fromDomain) {
-        if (!isTransitioning) {
-          tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
-        }
+        tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
         return;
       }
 

@@ -1,10 +1,12 @@
-
 import {Selection} from '../lib/selection';
 import {newArray} from '../lib/utils';
+import {Scale} from '../lib/scale';
 import {SeriesData} from '../lib/series-data';
 import {BaseSeries} from './index';
 
 export class LineSeries extends BaseSeries {
+  private readonly transitionYScale = new Scale();
+
   render(container: Selection) {
     const {data, xScale, yScale, color} = this;
 
@@ -13,6 +15,8 @@ export class LineSeries extends BaseSeries {
         selection.attr('d', 'M-1,-1');
         return;
       }
+      const {transitionYScale} = this;
+      transitionYScale.setRange(yScale.getRange());
 
       const line = drawLine(
         (x) => Math.round(xScale.scale(x)),
@@ -28,8 +32,42 @@ export class LineSeries extends BaseSeries {
         'fill': 'none',
         'd': line
       });
+
+      const {yDomain} = selection.getPreviousData({
+        yDomain: yScale.getDomain()
+      });
+
+      if (!yDomain || selection.isAttrTransitioning('transform')) {
+        return;
+      }
+      selection.attrTransition('transform', (progress: number) => {
+        if (progress === 1) {
+          return '';
+        }
+        const [
+          yFactor,
+          yOffset
+        ] = getTransform(transitionYScale, yScale, yDomain, progress);
+        return `scale(1,${yFactor})translate(0,${yOffset})`;
+      });
     });
   }
+}
+
+function getTransform(
+  transitionScale: Scale,
+  scale: Scale,
+  fromDomain: NumberRange,
+  progress: number
+) {
+  const domain = scale.getDomain();
+  transitionScale.setDomain([
+    fromDomain[0] + (domain[0] - fromDomain[0]) * progress,
+    fromDomain[1] + (domain[1] - fromDomain[1]) * progress
+  ]);
+  const factor = transitionScale.getFactor() / scale.getFactor();
+  const offset = transitionScale.getOffset() - scale.getOffset();
+  return [factor, offset];
 }
 
 function drawLine(
