@@ -4,6 +4,7 @@ import {Brush} from '../brush';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
 import {ValueScale, TimeScale} from '../chart/chart-scale';
+import {BaseSeries} from '../series';
 import {LineSeries} from '../series/line-series';
 import {SeriesData} from '../lib/series-data';
 import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
@@ -122,6 +123,15 @@ export class TimeChart {
     ));
   }
 
+  setEnableTransitions(enableTransitions: boolean) {
+    [this.mainChart, this.helperChart].forEach(({axes, series, grids}) => {
+      (axes as (BaseSeries | Axis)[])
+        .concat(grids)
+        .concat(series)
+        .forEach((item) => item.setProps({enableTransitions}));
+    });
+  }
+
   private renderRectForDragging(
     rectSelection: Selection,
     isFirstRender: boolean,
@@ -157,7 +167,8 @@ export class TimeChart {
         positions,
         mode,
         startDomain,
-        startWidth
+        startWidth,
+        rectSelection
       );
       this.zoomMainChart(startDomain, factor, offset, container);
     }, (positions) => {
@@ -185,18 +196,23 @@ export class TimeChart {
     if (factor === 1 && offset === 0) {
       return;
     }
-    let [minTime, maxTime] = this.fullTimeScale.getDomain();
-
     startTime = factor * startTime + offset;
     endTime = factor * endTime + offset;
 
-    const fullTimeScaleExtended = (
-      minTime > startTime && (minTime = startTime, true) ||
-      maxTime < endTime && (maxTime = endTime, true)
-    );
-
     this.timeScale.setFixed(true);
     this.timeScale.setDomain([startTime, endTime]);
+
+    let [minTime, maxTime] = this.fullTimeScale.getDomain();
+    let fullTimeScaleExtended: boolean | undefined;
+
+    if (minTime > startTime) {
+      minTime = startTime;
+      fullTimeScaleExtended = true;
+    }
+    if (maxTime < endTime) {
+      maxTime = endTime;
+      fullTimeScaleExtended = true;
+    }
 
     if (fullTimeScaleExtended) {
       this.fullTimeScale.setExtendableOnly(true);

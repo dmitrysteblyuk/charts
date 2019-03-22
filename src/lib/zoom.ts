@@ -5,7 +5,7 @@ export type ZoomPositions = ReadonlyArray<ReadonlyArray<number>>;
 export const enum ZoomMode {Drag, Wheel, Pinch};
 
 export function onZoomEvents(
-  target: Selection,
+  selection: Selection,
   onZoomChange: (
     positions: ZoomPositions,
     mode: ZoomMode
@@ -13,7 +13,7 @@ export function onZoomEvents(
   onZoomStart: (
     initialPositions: ZoomPositions,
     mode: ZoomMode,
-    // target: Selection
+    target: Selection
   ) => void,
   onZoomEnd?: (mode: ZoomMode) => void
 ) {
@@ -21,10 +21,10 @@ export function onZoomEvents(
   let mode: ZoomMode | undefined;
   const windowSelection = new Selection(window as any);
 
-  target
+  selection
     .on('mousedown', onStart)
-    .on('touchstart', onStart)
-    .on('wheel', onStart);
+    .on('touchstart', onStart, {passive: true})
+    .on('wheel', onStart, {passive: true});
   windowSelection
     .on('mouseup', onEnd)
     .on('mousemove', onChange)
@@ -37,10 +37,10 @@ export function onZoomEvents(
       const initialPositions = getMousePositions(event);
 
       if (!isWheelEvent(event)) {
-        startZoom(initialPositions, ZoomMode.Drag/*, target*/);
+        startZoom(initialPositions, ZoomMode.Drag, event);
         return;
       }
-      startZoom(initialPositions, ZoomMode.Wheel/*, target*/);
+      startZoom(initialPositions, ZoomMode.Wheel, event);
 
       const {deltaX, deltaY} = event;
       const [[x, y]] = initialPositions;
@@ -88,7 +88,7 @@ export function onZoomEvents(
       // Drag becomes pinch when one touch is added.
       endZoom();
     }
-    startZoom(nextPositions, nextMode);
+    startZoom(nextPositions, nextMode, event);
   }
 
   function onChange(event: ZoomEvent) {
@@ -143,11 +143,16 @@ export function onZoomEvents(
     }
     // Pinch becomes drag when one touch is removed.
     endZoom();
-    startZoom(nextPositions, ZoomMode.Drag);
+    startZoom(nextPositions, ZoomMode.Drag, event);
   }
 
-  function startZoom(initialPositions: ZoomPositions, nextMode: ZoomMode) {
-    onZoomStart(positions = initialPositions, mode = nextMode);
+  function startZoom(
+    initialPositions: ZoomPositions,
+    nextMode: ZoomMode,
+    event: Event
+  ) {
+    const target = new Selection(event.target as any);
+    onZoomStart(positions = initialPositions, mode = nextMode, target);
   }
 
   function endZoom() {
@@ -184,7 +189,7 @@ export function onZoomEvents(
   }
 
   // return (() => {
-  //   target
+  //   selection
   //     .off('mousedown', onStart)
   //     .off('touchstart', onStart)
   //     .off('wheel', onStart);

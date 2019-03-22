@@ -47,6 +47,12 @@ export class Selection<EL extends Element = Element> {
     return new Selection(element);
   }
 
+  findIndex(selection: Selection) {
+    return Array.from(this.element.children).findIndex(
+      (childElement) => childElement === selection.element
+    );
+  }
+
   destroy<D>(remover?: Remover<EL, D>) {
     const {element} = this;
     if (!remover) {

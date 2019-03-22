@@ -33,11 +33,15 @@ export class LineSeries extends BaseSeries {
         'd': line
       });
 
-      const {yDomain} = selection.getPreviousData({
-        yDomain: yScale.getDomain()
+      const {fromYDomain} = selection.getPreviousData({
+        fromYDomain: yScale.getDomain()
       });
 
-      if (!yDomain || selection.isAttrTransitioning('transform')) {
+      if (
+        !fromYDomain ||
+        !this.enableTransitions ||
+        selection.isAttrTransitioning('transform')
+      ) {
         return;
       }
       selection.attrTransition('transform', (progress: number) => {
@@ -47,7 +51,7 @@ export class LineSeries extends BaseSeries {
         const [
           yFactor,
           yOffset
-        ] = getTransform(transitionYScale, yScale, yDomain, progress);
+        ] = getTransform(transitionYScale, yScale, fromYDomain, progress);
         return `scale(1,${yFactor})translate(0,${yOffset})`;
       });
     });

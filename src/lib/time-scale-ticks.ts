@@ -134,7 +134,11 @@ export function getTimeScaleTicks(
     floorDate();
 
     const nextTick = date.getTime();
-    if (nextTick > domain[1]) {
+    if (
+      nextTick > domain[1] ||
+      ticks.length &&
+      !(nextTick > ticks[ticks.length - 1])
+    ) {
       break;
     }
     ticks.push(nextTick);

@@ -33,7 +33,7 @@ export class Brush {
   }
 
   render(container: Selection, isFirstRender?: boolean) {
-    const {left, right, height, width} = this;
+    const {left, right, height, width, borderWidth} = this;
     if (left > 0 || right < width) {
       this.reset = false;
     }
@@ -70,17 +70,34 @@ export class Brush {
       });
     });
 
-    container.renderOne('rect', 2, (selection, isNew) => {
+    container.renderOne('rect', 2, (selection) => {
       selection.attr({
         'fill': this.reset ? defaultFill : this.fill,
         'x': left,
         'width': right - left,
-        'height': height
+        'height': height,
+        'y': 0
       });
-      if (!isNew) {
-        return;
-      }
-      selection.attr('y', '0');
+    });
+
+    container.renderOne('rect', 3, (selection) => {
+      selection.attr({
+        'fill': defaultFill,
+        'x': left - borderWidth,
+        'width': borderWidth * 2,
+        'height': height,
+        'y': 0
+      });
+    });
+
+    container.renderOne('rect', 4, (selection) => {
+      selection.attr({
+        'fill': defaultFill,
+        'x': right - borderWidth,
+        'width': borderWidth * 2,
+        'height': height,
+        'y': 0
+      });
     });
 
     if (!isFirstRender) {
@@ -198,37 +215,31 @@ export class Brush {
       }
       this.reset = false;
       this.changeEvent.emit({left, right});
-    }, ([[initialX]], mode) => {
+    }, ([[initialX]], mode, target) => {
       if (mode !== ZoomMode.Drag) {
         return;
       }
-
       currentX = initialX;
       this.draggedBeforeClick = false;
-      const {left, right, borderWidth} = this;
-      const startX = Math.round(initialX - container.getRect().left);
       sumDiffX = 0;
       width = this.width;
-      const innerBorderWidth = Math.min(
-        borderWidth, Math.round((right - left) / 4)
-      );
-      const leftBorderWidth = Math.min(borderWidth, Math.ceil(left / 2));
-      const rightBorderWidth = Math.min(
-        borderWidth, Math.ceil((width - right) / 2)
-      );
+      const index = container.findIndex(target);
 
       behaviour = (
-        (startX < left - leftBorderWidth || this.reset) ? Behaviour.selectNew
-          : (startX < left + innerBorderWidth) ? Behaviour.resizeLeft
-          : (startX < right - innerBorderWidth) ? Behaviour.move
-          : (startX < right + rightBorderWidth) ? Behaviour.resizeRight
+        this.reset ? Behaviour.selectNew
+          : index === 2 ? Behaviour.move
+          : index === 3 ? Behaviour.resizeLeft
+          : index === 4 ? Behaviour.resizeRight
           : Behaviour.selectNew
       );
 
       if (behaviour === Behaviour.selectNew) {
+        const startX = Math.round(initialX - container.getRect().left);
         startLeft = startRight = limit(startX);
         return;
       }
+
+      const {left, right} = this;
       startLeft = left;
       startRight = right;
     }, () => {

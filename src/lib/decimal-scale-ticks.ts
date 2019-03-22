@@ -35,8 +35,11 @@ export function getDecimalScaleTicks(
     step *= 10;
   }
 
-  for (let index = startIndex; index <= endIndex; index++) {
+  for (let index = startIndex; index <= endIndex; ) {
     ticks.push(index * step / precision);
+    if (!(index < ++index)) {
+      break;
+    }
   }
   return ticks;
 }

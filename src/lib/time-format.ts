@@ -6,7 +6,8 @@ export function axisTimeFormat(
   const date = new Date(time);
   const milliseconds = date.getMilliseconds();
   if (milliseconds) {
-    return `.${padding(milliseconds, 3)}`;
+    const fraction = time % 1 && String(time).split('.')[1] || '';
+    return `.${padding(milliseconds, 3)}${fraction}`;
   }
 
   const seconds = date.getSeconds();

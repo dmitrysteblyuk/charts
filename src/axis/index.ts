@@ -25,7 +25,8 @@ export class Axis {
   private tickSize = 5;
   private color = '#444';
   private tickFormat: (tick: number) => string = String;
-  private animated = true;
+  private animated = false;
+  private enableTransitions = true;
   private hideCollidedTicks = false;
 
   constructor (
@@ -40,6 +41,7 @@ export class Axis {
     displayLines?: boolean,
     displayScale?: boolean,
     animated?: boolean,
+    enableTransitions?: boolean,
     hideCollidedTicks?: boolean,
     tickFormat?: (value: number) => string
   }): this {
@@ -90,6 +92,7 @@ export class Axis {
       tickSize,
       tickFormat,
       animated,
+      enableTransitions,
       transitioningTicks
     } = this;
     const range = scale.getRange();
@@ -99,6 +102,7 @@ export class Axis {
     const fromDomain = axisContainer.getPreviousData({
       domain: scale.getDomain()
     }).domain;
+    const useTransitions = animated && enableTransitions;
 
     transitionScale.setRange(range);
 
@@ -116,7 +120,7 @@ export class Axis {
       updateTick(selection, tick, undefined, undefined, removeCallback);
     }, String);
 
-    if (animated) {
+    if (useTransitions) {
       const toFlush = transitioningTicks.length - tickCount * 2;
       if (toFlush > 0) {
         transitioningTicks.splice(0, toFlush).forEach((selection) => {
@@ -159,9 +163,14 @@ export class Axis {
       _previousTick?: number,
       removeCallback?: () => void
     ) {
-      if (!animated && removeCallback) {
-        removeCallback();
-        return;
+      if (removeCallback) {
+        if (!animated) {
+          removeCallback();
+          return;
+        }
+        if (!useTransitions) {
+          setTimeout(removeCallback, 200);
+        }
       }
 
       tickSelection.renderOne('line', 'tickLine', (selection) => {
@@ -206,10 +215,10 @@ export class Axis {
       }
 
       const isTransitioning = tickSelection.isAttrTransitioning('transform');
-      if (isTransitioning && (!removeCallback || !animated)) {
+      if (isTransitioning && (!removeCallback || !useTransitions)) {
         return;
       }
-      if (!animated || !fromDomain) {
+      if (!useTransitions || !fromDomain) {
         tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
         return;
       }
@@ -253,5 +262,5 @@ function rectIsCollided(a: Rect, b: Rect, indent: number): boolean {
   const bx1 = bx0 + b.width;
   const by0 = b.top;
   const by1 = by0 + b.height;
-  return ax1 >= bx0 && bx1 >= ax0 && ay1 >= by0 && by1 >= ay0;
+  return ax1 > bx0 && bx1 > ax0 && ay1 > by0 && by1 > ay0;
 }

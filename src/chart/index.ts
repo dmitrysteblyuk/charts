@@ -106,8 +106,7 @@ export class Chart {
           grid.isVertical() ? this.chartInnerWidth : this.chartInnerHeight
         ),
         animated: !isNew
-      })
-        .render(selection);
+      }).render(selection);
     });
   }
 
@@ -155,11 +154,7 @@ export class Chart {
     });
 
     function renderAxis(selection: Selection, axis: Axis) {
-      axis.scale.setRange(
-        axis.isVertical()
-          ? [that.chartInnerHeight, 0]
-          : [0, that.chartInnerWidth]
-      );
+      that.setScaleRange(axis.scale, axis.isVertical());
       axis.render(selection);
     }
 
@@ -171,6 +166,11 @@ export class Chart {
         1, chartOuterHeight - paddings[0] - paddings[2]
       );
     }
+  }
+
+  private setScaleRange(scale: ChartScale, vertical: boolean) {
+    const {chartInnerHeight, chartInnerWidth} = this;
+    scale.setRange(vertical ? [chartInnerHeight, 0] : [0, chartInnerWidth]);
   }
 
   private getAxisTransform(axis: Axis) {

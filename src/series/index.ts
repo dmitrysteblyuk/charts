@@ -6,6 +6,7 @@ import {binarySearch} from '../lib/binary-search';
 
 export abstract class BaseSeries {
   protected color = 'steelblue';
+  protected enableTransitions = true;
 
   constructor(
     readonly xScale: ChartScale,
@@ -13,7 +14,10 @@ export abstract class BaseSeries {
     protected data: SeriesData
   ) {}
 
-  setProps(props: {}) {
+  setProps(props: {
+    color?: boolean,
+    enableTransitions?: boolean
+  }) {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
   }
 

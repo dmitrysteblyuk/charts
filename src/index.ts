@@ -18,7 +18,9 @@ const chartSelection = svgSelection.renderOne('g', 0);
 
 (window.onresize = () => {
   setSize();
+  timeChart.setEnableTransitions(false);
   timeChart.render(chartSelection);
+  timeChart.setEnableTransitions(true);
 })();
 
 function setSize() {
