@@ -4,8 +4,17 @@ import {ChartScale} from '../chart/chart-scale';
 import {SeriesData} from '../lib/series-data';
 import {binarySearch} from '../lib/binary-search';
 
+export interface SeriesProps {
+  color: string;
+  label: string;
+  enableTransitions?: boolean;
+  hidden?: boolean;
+}
+
 export abstract class BaseSeries {
-  protected color = 'steelblue';
+  protected color = '';
+  protected label = '';
+  protected hidden = false;
   protected enableTransitions = true;
 
   constructor(
@@ -14,11 +23,21 @@ export abstract class BaseSeries {
     protected data: SeriesData
   ) {}
 
-  setProps(props: {
-    color?: boolean,
-    enableTransitions?: boolean
-  }) {
+  setProps(props: Partial<SeriesProps>): this {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
+    return this;
+  }
+
+  getColor() {
+    return this.color;
+  }
+
+  getLabel() {
+    return this.label;
+  }
+
+  isHidden() {
+    return this.hidden;
   }
 
   abstract render(container: Selection, isFirstRender?: boolean): void;

@@ -54,3 +54,7 @@ export function arrayIsEqual<T>(
     a.every((item, index) => item === b[index])
   );
 }
+
+export function isPositive(x: number): boolean {
+  return x > 0 && isFinite(x);
+}

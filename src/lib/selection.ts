@@ -47,9 +47,9 @@ export class Selection<EL extends Element = Element> {
     return new Selection(element);
   }
 
-  findIndex(selection: Selection) {
+  getChildIndex({element}: Selection) {
     return Array.from(this.element.children).findIndex(
-      (childElement) => childElement === selection.element
+      (childElement) => childElement === element
     );
   }
 
@@ -85,9 +85,15 @@ export class Selection<EL extends Element = Element> {
   }
 
   getPreviousData<D extends TrackData>(nextData: D) {
-    const data = getElementData<D>(this.element);
-    const result = map(nextData, (_, key) => data && data[key]) as Partial<D>;
-    detectChanges(this.element, nextData);
+    const data = map(getElementData<D>(this.element), (value) => value);
+    const changes = detectChanges<D>(this.element, nextData);
+    const result = map(nextData, (value, key) => {
+      if (!changes || !changes[key]) {
+        return value;
+      }
+      return data && data[key];
+    }) as Partial<D>;
+
     return result;
   }
 
@@ -164,7 +170,7 @@ export class Selection<EL extends Element = Element> {
   ): Selection<E>;
   renderOne<E extends Element, D>(
     tagName: string,
-    selector: string,
+    selector: Selector,
     updater?: Updater<E>,
     toRemove?: boolean,
     remover?: Remover<E, D>
@@ -204,14 +210,12 @@ export class Selection<EL extends Element = Element> {
   updateAll<E extends Element, D>(
     updater: (selection: Selection<E>, datum: D) => void
   ): void {
-    const {children} = this.element;
-    for (let index = children.length; index-- > 0; ) {
-      const element = children.item(index) as E;
+    Array.from(this.element.children).forEach((element) => {
       if (isBeingRemoved(element)) {
-        continue;
+        return;
       }
-      updater(new Selection(element), getDatum<D>(element));
-    }
+      updater(new Selection(element as E), getDatum<D>(element));
+    });
   }
 
   renderAll<E extends Element, D>(
@@ -441,8 +445,11 @@ function startRemovingElement(element: Element): void {
   (element as any)[BEING_REMOVED_PROPERTY] = true;
 }
 
-function detectChanges(element: Element, nextData: TrackData) {
-  const data = getElementData(element);
+function detectChanges<D extends TrackData>(
+  element: Element,
+  nextData: D
+): {[key in keyof D]?: boolean} | null {
+  const data = getElementData<D>(element);
   if (!data) {
     (element as any)[DATA_CHANGES_PROPERTY] = map(nextData, value => value);
     return map(nextData, () => true);
@@ -451,7 +458,7 @@ function detectChanges(element: Element, nextData: TrackData) {
     return null;
   }
 
-  const changes: {[key: string]: boolean} = {};
+  const changes: {[key in keyof D]?: boolean} = {};
   let isChanged: boolean | undefined;
 
   forEach(nextData, (nextValue, key) => {

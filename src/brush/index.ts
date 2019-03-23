@@ -28,8 +28,9 @@ export class Brush {
     height: number;
     left: number;
     right: number;
-  }) {
+  }): this {
     forEach(props, (value, key) => this[key] = value);
+    return this;
   }
 
   render(container: Selection, isFirstRender?: boolean) {
@@ -223,7 +224,7 @@ export class Brush {
       this.draggedBeforeClick = false;
       sumDiffX = 0;
       width = this.width;
-      const index = container.findIndex(target);
+      const index = container.getChildIndex(target);
 
       behaviour = (
         this.reset ? Behaviour.selectNew

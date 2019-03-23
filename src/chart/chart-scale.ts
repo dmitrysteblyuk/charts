@@ -9,11 +9,12 @@ export abstract class ChartScale extends Scale {
   private ticks: ReadonlyArray<number> | undefined;
 
   setDomain(domain: NumberRange) {
-    const isChanged = super.setDomain(domain);
-    if (isChanged) {
-      this.ticks = undefined;
+    const previousDomain = this.getDomain();
+    super.setDomain(domain);
+    if (previousDomain === this.getDomain()) {
+      return;
     }
-    return isChanged;
+    this.ticks = undefined;
   }
 
   getTicks(count: number): ReadonlyArray<number> {

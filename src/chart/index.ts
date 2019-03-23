@@ -24,8 +24,9 @@ export class Chart {
     chartOuterHeight: number,
     inAction: boolean,
     fixedPaddings: (number | undefined)[]
-  }>) {
+  }>): this {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
+    return this;
   }
 
   render(container: Selection) {
@@ -64,8 +65,9 @@ export class Chart {
       (this: BaseSeries, domain: NumberRange) => NumberRange
     )
   ) {
-    const groupsByScale = (
-      groupBy(this.series, (a, b) => getScale(a) === getScale(b))
+    const groupsByScale = groupBy(
+      this.series.filter((series) => !series.isHidden()),
+      (a, b) => getScale(a) === getScale(b)
     );
     groupsByScale.forEach(group => {
       const scale = getScale(group[0]);
@@ -106,7 +108,8 @@ export class Chart {
           grid.isVertical() ? this.chartInnerWidth : this.chartInnerHeight
         ),
         animated: !isNew
-      }).render(selection);
+      })
+        .render(selection);
     });
   }
 
@@ -128,11 +131,10 @@ export class Chart {
     const containerForAxesAdjusting = axesContainer.renderOne('g',  0)
       .attr('style', 'visibility: hidden');
     containerForAxesAdjusting.renderAll('g', this.axes, (selection, axis) => {
-      axis.setProps({animated: false, hideCollidedTicks: true});
+      axis.setProps({animated: false, hideOverlappingTicks: true});
       renderAxis(selection, axis);
 
-      const {width, height} = selection.getRoundedRect();
-      const size = axis.isVertical() ? width : height;
+      const size = axis.getOutsideSize();
       const position = axis.getPosition();
       if (
         fixedPaddings[position] !== undefined ||
@@ -149,7 +151,7 @@ export class Chart {
     const visibleContainer = axesContainer.renderOne('g', 1);
     visibleContainer.renderAll('g', this.axes, (selection, axis, isNew) => {
       selection.attr('transform', this.getAxisTransform(axis));
-      axis.setProps({animated: !isNew, hideCollidedTicks: false});
+      axis.setProps({animated: !isNew, hideOverlappingTicks: false});
       renderAxis(selection, axis);
     });
 

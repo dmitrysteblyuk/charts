@@ -27,7 +27,8 @@ export class Axis {
   private tickFormat: (tick: number) => string = String;
   private animated = false;
   private enableTransitions = true;
-  private hideCollidedTicks = false;
+  private hideOverlappingTicks = false;
+  private outsideSize = 0;
 
   constructor (
     private position: AxisPosition,
@@ -42,11 +43,15 @@ export class Axis {
     displayScale?: boolean,
     animated?: boolean,
     enableTransitions?: boolean,
-    hideCollidedTicks?: boolean,
+    hideOverlappingTicks?: boolean,
     tickFormat?: (value: number) => string
   }): this {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
     return this;
+  }
+
+  getOutsideSize() {
+    return this.outsideSize;
   }
 
   render(container: Selection) {
@@ -96,83 +101,28 @@ export class Axis {
       transitioningTicks
     } = this;
     const range = scale.getRange();
-    const {transitionScale, hideCollidedTicks} = this;
+    const {transitionScale, hideOverlappingTicks} = this;
     const vertical = this.isVertical();
     const matrix = axisTransformMatrix[position];
     const fromDomain = axisContainer.getPreviousData({
       domain: scale.getDomain()
-    }).domain;
-    const useTransitions = animated && enableTransitions;
+    }).domain as NumberRange;
+    const useTransitions = fromDomain && animated && enableTransitions;
+    const checkTicksForOverlapping = hideOverlappingTicks && displayLabels;
 
     transitionScale.setRange(range);
 
-    if (hideCollidedTicks) {
+    if (checkTicksForOverlapping) {
       scale.resetTicks();
     }
     const tickData = scale.getTicks(tickCount);
     const ticksContainer = axisContainer.renderOne('g', 'axisTicks');
 
-    ticksContainer.renderAll('g', tickData, updateTick, (
-      selection,
-      tick,
-      removeCallback
-    ) => {
-      updateTick(selection, tick, undefined, undefined, removeCallback);
-    }, String);
-
-    if (useTransitions) {
-      const toFlush = transitioningTicks.length - tickCount * 2;
-      if (toFlush > 0) {
-        transitioningTicks.splice(0, toFlush).forEach((selection) => {
-          selection.flushAttrTransition('transform')/*
-            .flushAttrTransition('style')*/;
-        });
-      }
-    }
-
-    if (!hideCollidedTicks) {
-      return;
-    }
-
-    let previousRect: Rect | undefined;
-    let isSomeRemoved: boolean | undefined;
-    const nextTickData: number[] = [];
-    const tickIndent = vertical ? 3 : 10;
-    ticksContainer.updateAll((selection, tick: number) => {
-      const rect = selection.getRect();
-
-      if (previousRect && rectIsCollided(rect, previousRect, tickIndent)) {
-        selection.destroy();
-        isSomeRemoved = true;
-        return;
-      }
-      previousRect = rect;
-      nextTickData.unshift(tick);
-    });
-
-    if (!isSomeRemoved) {
-      return;
-    }
-    scale.resetTicks(nextTickData, tickCount);
-    ticksContainer.getPreviousData({children: nextTickData});
-
-    function updateTick(
+    ticksContainer.renderAll('g', tickData, (
       tickSelection: Selection,
       tick: number,
-      isNew?: boolean,
-      _previousTick?: number,
-      removeCallback?: () => void
-    ) {
-      if (removeCallback) {
-        if (!animated) {
-          removeCallback();
-          return;
-        }
-        if (!useTransitions) {
-          setTimeout(removeCallback, 200);
-        }
-      }
-
+      isNew?: boolean
+    ) => {
       tickSelection.renderOne('line', 'tickLine', (selection) => {
         selection.attr({
           'y2': tickSize,
@@ -206,33 +156,95 @@ export class Axis {
         });
       }, !displayLabels);
 
-      if (animated && (isNew || removeCallback)) {
-        tickSelection.attr('class', isNew ? 'appear' : 'fade');
-        // tickSelection.attrTransition('style', (progress: number) => {
-        //   const opacity = isNew ? progress : 1 - progress;
-        //   return `opacity: ${opacity}`;
-        // });
+      if (animated && isNew) {
+        tickSelection.attr('class', 'appear');
       }
 
-      const isTransitioning = tickSelection.isAttrTransitioning('transform');
-      if (isTransitioning && (!removeCallback || !useTransitions)) {
+      if (tickSelection.isAttrTransitioning('transform')) {
         return;
       }
-      if (!useTransitions || !fromDomain) {
-        tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
+      if (useTransitions) {
+        transitionTick(tickSelection, tick, isNew);
         return;
       }
+      tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
+    }, (tickSelection, tick, removeCallback) => {
+      if (!animated) {
+        removeCallback();
+        return;
+      }
+      tickSelection.attr('class', 'fade');
+      if (!useTransitions) {
+        setTimeout(removeCallback, 200);
+        return;
+      }
+      transitionTick(tickSelection, tick, false, removeCallback);
+    }, String);
 
+    if (useTransitions) {
+      const toFlush = transitioningTicks.length - tickCount * 2;
+      if (toFlush > 0) {
+        transitioningTicks.splice(0, toFlush).forEach((selection) => {
+          selection.flushAttrTransition('transform');
+        });
+      }
+    }
+
+    if (!checkTicksForOverlapping) {
+      return;
+    }
+
+    const visibleRects: Rect[] = [];
+    const nextTickData: number[] = [];
+    const tickSpace = vertical ? 3 : 10;
+    let isSomeRemoved: boolean | undefined;
+
+    ticksContainer.updateAll((selection, tick: number) => {
+      const labelSelection = selection.selectOne('tickLabel');
+      if (!labelSelection) {
+        return;
+      }
+      const rect = labelSelection.getRoundedRect();
+      const previousRect = (
+        visibleRects.length &&
+        visibleRects[visibleRects.length - 1]
+      );
+
+      if (previousRect && doRectsOverlap(rect, previousRect, tickSpace)) {
+        selection.destroy();
+        isSomeRemoved = true;
+        return;
+      }
+      visibleRects.push(rect);
+      nextTickData.unshift(tick);
+    });
+
+    const maxTickSize = visibleRects.reduce((maxSize, rect) => {
+      return Math.max(maxSize, vertical ? rect.width : rect.height);
+    }, 0);
+
+    this.outsideSize = maxTickSize + tickPadding + tickSize;
+
+    if (!isSomeRemoved) {
+      return;
+    }
+    scale.resetTicks(nextTickData, tickCount);
+    ticksContainer.getPreviousData({children: nextTickData});
+
+    function transitionTick(
+      tickSelection: Selection,
+      tick: number,
+      _isNew?: boolean,
+      removeCallback?: () => void
+    ) {
       tickSelection.attrTransition('transform', (progress: number) => {
         switch (progress) {
           case 0:
-            if (!isTransitioning) {
-              transitioningTicks.push(tickSelection);
-            }
+            transitioningTicks.push(tickSelection);
             break;
           case 1:
             const index = transitioningTicks.findIndex(
-              (selection) => tickSelection.isEqual(selection)
+              (selection) => selection.isEqual(selection)
             );
             if (index !== -1) {
               transitioningTicks.splice(index, 1);
@@ -241,6 +253,11 @@ export class Axis {
               removeCallback();
             }
         }
+
+        // if (isNew || removeCallback) {
+        //   const opacity = isNew ? progress : 1 - progress;
+        //   tickSelection.attr('style', `opacity: ${opacity}`);
+        // }
 
         const domain = scale.getDomain();
         transitionScale.setDomain([
@@ -253,11 +270,11 @@ export class Axis {
   }
 }
 
-function rectIsCollided(a: Rect, b: Rect, indent: number): boolean {
-  const ax0 = a.left - indent;
-  const ax1 = ax0 + a.width + 2 * indent;
-  const ay0 = a.top - indent;
-  const ay1 = ay0 + a.height + 2 * indent;
+function doRectsOverlap(a: Rect, b: Rect, space: number): boolean {
+  const ax0 = a.left - space;
+  const ax1 = ax0 + a.width + 2 * space;
+  const ay0 = a.top - space;
+  const ay1 = ay0 + a.height + 2 * space;
   const bx0 = b.left;
   const bx1 = bx0 + b.width;
   const by0 = b.top;

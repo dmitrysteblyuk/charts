@@ -54,7 +54,7 @@ export class LineSeries extends BaseSeries {
         ] = getTransform(transitionYScale, yScale, fromYDomain, progress);
         return `scale(1,${yFactor})translate(0,${yOffset})`;
       });
-    });
+    }, this.hidden);
   }
 }
 

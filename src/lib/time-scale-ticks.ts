@@ -1,5 +1,6 @@
 import {getDecimalScaleTicks} from './decimal-scale-ticks';
 import {binarySearch} from './binary-search';
+import {isPositive} from './utils';
 
 interface DateUnit {
   duration: number;
@@ -89,7 +90,7 @@ export function getTimeScaleTicks(
   // utc: boolean
 ): NumberRange {
   const step = (domain[1] - domain[0]) / (count - 1);
-  if (!(step > 0) || !isFinite(step)) {
+  if (!isPositive(step)) {
     return [];
   }
   const ticks: number[] = [];
@@ -105,8 +106,14 @@ export function getTimeScaleTicks(
 
   const intervalData = intervals[intervalIndex];
   const {unit, index: unitIndex} = intervalData;
-  let {period} = intervalData;
+  const date = new Date(domain[0]);
 
+  for (let index = 0; index < unitIndex; index++) {
+    const {/*setUTC, */set, offset} = dateUnits[index];
+    (/*utc ? setUTC : */set).call(date, offset);
+  }
+
+  let {period} = intervalData;
   if (unit === year) {
     const yearStep = step / year.duration;
     const power = Math.floor(Math.log(yearStep) / Math.LN10);
@@ -114,11 +121,6 @@ export function getTimeScaleTicks(
     period = Math.max(1, Math.floor(yearStep / product)) * product;
   }
 
-  const date = new Date(domain[0]);
-  for (let index = 0; index < unitIndex; index++) {
-    const {/*setUTC, */set, offset} = dateUnits[index];
-    (/*utc ? setUTC : */set).call(date, offset);
-  }
   floorDate();
 
   const firstTick = date.getTime();
@@ -131,7 +133,10 @@ export function getTimeScaleTicks(
       date,
       (/*utc ? unit.getUTC : */unit.get).call(date) + period
     );
-    floorDate();
+
+    if (unit !== year) {
+      floorDate();
+    }
 
     const nextTick = date.getTime();
     if (
@@ -147,7 +152,7 @@ export function getTimeScaleTicks(
   return ticks;
 
   function floorDate() {
-    if (period === 1 || unit === year) {
+    if (period === 1) {
       return;
     }
     const value = (/*utc ? unit.getUTC : */unit.get).call(date) - unit.offset;

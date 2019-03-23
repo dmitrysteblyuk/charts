@@ -1,11 +1,9 @@
+import {isPositive} from './utils';
+
 export function getDecimalScaleTicks(
   count: number,
   domain: NumberRange
 ): NumberRange {
-  function isPositive(x: number) {
-    return x > 0 && isFinite(x);
-  }
-
   let step = (domain[1] - domain[0]) / (count - 1);
   if (!isPositive(step)) {
     return [];

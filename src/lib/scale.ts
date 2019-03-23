@@ -37,11 +37,10 @@ export class Scale {
 
   setDomain(domain: NumberRange) {
     if (arrayIsEqual(this.domain, domain)) {
-      return false;
+      return;
     }
     this.domain = domain;
     this.rescale();
-    return true;
   }
 
   getDomain() {
