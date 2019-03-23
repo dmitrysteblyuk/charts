@@ -12,6 +12,8 @@ import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
 import {roundRange} from '../lib/utils';
 import {getZoomFactorAndOffset} from './zoom-transform';
 import {axisTimeFormat} from '../lib/time-format';
+import {Tooltip} from '../tooltip';
+import {getNearestPoint} from './get-nearest-point';
 
 export class TimeChart {
   private readonly timeScale = new TimeScale();
@@ -26,10 +28,6 @@ export class TimeChart {
         tickFormat: axisTimeFormat
       }),
       new Axis(AxisPosition.left, this.valueScale)
-    ],
-    [
-      new Axis(AxisPosition.bottom, this.timeScale),
-      new Axis(AxisPosition.left, this.valueScale)
     ]
   );
   private readonly legend = new Legend([]);
@@ -38,10 +36,6 @@ export class TimeChart {
       new Axis(AxisPosition.top, this.fullTimeScale).setProps({
         tickFormat: axisTimeFormat
       }),
-      new Axis(AxisPosition.right, this.fullValueScale)
-    ],
-    [
-      new Axis(AxisPosition.top, this.fullTimeScale),
       new Axis(AxisPosition.right, this.fullValueScale)
     ]
   );
@@ -53,16 +47,8 @@ export class TimeChart {
   private chartOuterWidth = 0;
   private chartOuterHeight = 0;
   private helperHeight = 0;
-
-  constructor() {
-    (
-      this.mainChart.grids.concat(this.helperChart.grids)
-    ).forEach((grid) => grid.setProps({
-      displayLabels: false,
-      displayScale: false,
-      color: '#aaa'
-    }));
-  }
+  private bodyContainer = new Selection(document.body);
+  private tooltip = new Tooltip();
 
   setProps(props: {
     chartOuterWidth: number,
@@ -80,56 +66,39 @@ export class TimeChart {
       helperHeight
     } = this;
 
-    container.renderOne('g', 0, (selection, isNew) => {
-      this.legend.setProps({
-        maxWidth: chartOuterWidth
-      })
-        .render(selection);
-      const yOffset = chartOuterHeight - this.legend.getSize();
-      selection.attr('transform', `translate(0,${yOffset})`);
-
-      if (!isNew) {
-        return;
-      }
-      this.legend.onClickEvent.on((seriesGroup) => {
-        const hidden = !seriesGroup[0].isHidden();
-        seriesGroup.forEach((series) => series.setProps({hidden}));
-        this.render(container);
-      });
-    });
+    this.renderLegend(container);
 
     const mainHeight = (
       chartOuterHeight -
       helperHeight -
       (this.legend.getSize() + 20)
     );
-    const mainContainer = container.renderOne('g', 1, (selection) => {
-      this.mainChart.setProps({
-        chartOuterWidth,
-        chartOuterHeight: mainHeight
-      })
-        .render(selection);
-    });
+    const mainContainer = container.renderOne('g', 1);
+    this.mainChart.setProps({
+      chartOuterWidth,
+      chartOuterHeight: mainHeight
+    })
+      .render(mainContainer);
 
-    const helperContainer = container.renderOne('g', 2, (selection) => {
-      selection.attr('transform', `translate(0,${mainHeight})`);
-      this.helperChart.setProps({
-        chartOuterWidth,
-        chartOuterHeight: helperHeight,
-        fixedPaddings: [, , , this.mainChart.getPaddings()[3]]
-      })
-        .render(selection);
-    });
+    const helperContainer = container.renderOne('g', 2);
+    helperContainer.attr('transform', `translate(0,${mainHeight})`);
+    this.helperChart.setProps({
+      chartOuterWidth,
+      chartOuterHeight: helperHeight,
+      fixedPaddings: [, , , this.mainChart.getPaddings()[3]]
+    })
+      .render(helperContainer);
 
     const helperChartContainer = helperContainer.selectOne(0) as Selection;
-    helperChartContainer.renderOne('g', 3, (selection, isNew) => {
-      this.renderBrush(selection, isNew, container);
-    });
+    const brushContainer = helperChartContainer.renderOne('g', 2);
+    this.renderBrush(brushContainer, container);
 
     const mainChartContainer = mainContainer.selectOne(0) as Selection;
-    mainChartContainer.renderOne('rect', 3, (selection, isNew) => {
-      this.renderRectForDragging(selection, isNew, container);
-    });
+    const lineContainer = mainChartContainer.renderOne('g', 2);
+    const rectSelection = mainChartContainer.renderOne('rect', 3);
+    this.renderRectForDragging(rectSelection, container);
+
+    this.renderTooltip(rectSelection, lineContainer);
   }
 
   addSeries(data: SeriesData, props: SeriesProps) {
@@ -150,17 +119,122 @@ export class TimeChart {
   }
 
   setEnableTransitions(enableTransitions: boolean) {
-    [this.mainChart, this.helperChart].forEach(({axes, series, grids}) => {
+    [this.mainChart, this.helperChart].forEach(({axes, series}) => {
       (axes as (BaseSeries | Axis)[])
-        .concat(grids)
         .concat(series)
         .forEach((item) => item.setProps({enableTransitions}));
     });
   }
 
+  private getMainRect(rectSelection: Selection) {
+    return rectSelection.getRect();
+  }
+
+  private renderLegend(container: Selection) {
+    const legendContainer = container.renderOne('g', 0);
+    this.legend.setProps({
+      maxWidth: this.chartOuterWidth
+    })
+      .render(legendContainer);
+    const yOffset = this.chartOuterHeight - this.legend.getSize();
+    legendContainer.attr('transform', `translate(0,${yOffset})`);
+
+    if (!legendContainer.isNew()) {
+      return;
+    }
+    this.legend.onClickEvent.on((seriesGroup) => {
+      const hidden = !seriesGroup[0].isHidden();
+      seriesGroup.forEach((series) => series.setProps({hidden}));
+      this.render(container);
+    });
+  }
+
+  private renderTooltip(rectSelection: Selection, lineContainer: Selection) {
+    if (!rectSelection.isNew()) {
+      return;
+    }
+    const tooltipContainer = this.bodyContainer.renderOne<HTMLElement>(
+      'div',
+      'tooltipContainer'
+    );
+    const {tooltip} = this;
+    tooltipContainer.on('mouseleave', (event: MouseEvent) => {
+      const relatedSelection = new Selection(event.relatedTarget as any);
+      if (relatedSelection.isSame(rectSelection)) {
+        return;
+      }
+      hideTooltip();
+    });
+
+    rectSelection.on('mouseleave', (event: MouseEvent) => {
+      const relatedSelection = new Selection(event.relatedTarget as any);
+      if (relatedSelection.isDescendant(tooltipContainer)) {
+        return;
+      }
+      hideTooltip();
+    }).on('mousemove', ({clientX}: MouseEvent) => {
+      const rect = this.getMainRect(rectSelection);
+      const pointX = clientX - rect.left;
+      const results = this.mainChart.series.reduce((points, series) => {
+        if (series.isHidden()) {
+          return points;
+        }
+        const nearestPoint = getNearestPoint(
+          pointX, series.data, series.xScale, 20
+        );
+        if (!nearestPoint) {
+          return points;
+        }
+        const point = {series, ...nearestPoint};
+        const lastPoint = points[0];
+
+        if (!points.length || point.distance < lastPoint.distance) {
+          return [point];
+        }
+
+        const nextTime = point.series.data.x[point.index];
+        const lastTime = lastPoint.series.data.x[lastPoint.index];
+
+        if (nextTime !== lastTime) {
+          return points;
+        }
+        return points.concat(point);
+      }, [] as {distance: number, index: number, series: BaseSeries}[]);
+
+      if (!results.length) {
+        hideTooltip();
+        return;
+      }
+
+      const {series: firstSeries, index: firstIndex} = results[0];
+      const time = firstSeries.data.x[firstIndex];
+      const lineX = firstSeries.xScale.scale(time);
+      const lineY1 = 20;
+      const lineY2 = this.mainChart.getInnerHeight();
+      const left = Math.round(lineX + rect.left) - 20;
+
+      tooltip.setProps({
+        time,
+        left,
+        hidden: false,
+        series: results.map(({series}) => series),
+        values: results.map(({series, index}) => series.data.y[index]),
+        top: rect.top + lineY1,
+        lineX,
+        lineY1,
+        lineY2
+      })
+        .render(tooltipContainer, lineContainer);
+    });
+
+    function hideTooltip() {
+      tooltip.setProps({hidden: true})
+        .render(tooltipContainer, lineContainer);
+    }
+  }
+
   private renderRectForDragging(
     rectSelection: Selection,
-    isFirstRender: boolean,
     container: Selection
   ) {
     rectSelection.attr({
@@ -168,7 +242,7 @@ export class TimeChart {
       'height': this.mainChart.getInnerHeight()
     });
 
-    if (!isFirstRender) {
+    if (!rectSelection.isNew()) {
       return;
     }
 
@@ -194,7 +268,9 @@ export class TimeChart {
         mode,
         startDomain,
         startWidth,
-        rectSelection
+        (clientX) => this.timeScale.invert().scale(
+          clientX - this.getMainRect(rectSelection).left
+        )
       );
       this.zoomMainChart(startDomain, factor, offset, container);
     }, (positions) => {
@@ -249,7 +325,6 @@ export class TimeChart {
 
   private renderBrush(
     brushContainer: Selection,
-    isFirstRender: boolean,
     timeChartContainer: Selection
   ) {
     const {brushLeft, brushRight} = this;
@@ -265,9 +340,9 @@ export class TimeChart {
       height: brushHeight,
       ...brushExtent
     })
-      .render(brushContainer, isFirstRender);
+      .render(brushContainer);
 
-    if (!isFirstRender) {
+    if (!brushContainer.isNew()) {
       return;
     }
 

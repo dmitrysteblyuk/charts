@@ -1,6 +1,10 @@
 import {Scale} from '../lib/scale';
 import {ChartScale} from '../chart/chart-scale';
-import {Selection} from '../lib/selection';
+import {
+  Selection,
+  DEFAULT_ANIMATION_DURATION,
+  DataType
+} from '../lib/selection';
 import {forEach} from '../lib/utils';
 import './index.css';
 
@@ -18,12 +22,15 @@ export class Axis {
   private readonly transitioningTicks: Selection[] = [];
 
   private displayLabels = true;
+  private displayGrid = true;
   private displayLines = true;
   private displayScale = true;
   private tickCount = 5;
   private tickPadding = 5;
   private tickSize = 5;
+  private gridSize = 0;
   private color = '#444';
+  private gridColor = '#aaa';
   private tickFormat: (tick: number) => string = String;
   private animated = false;
   private enableTransitions = true;
@@ -35,17 +42,20 @@ export class Axis {
     readonly scale: ChartScale
   ) {}
 
-  setProps(props: {
-    tickSize?: number,
-    color?: string,
-    displayLabels?: boolean,
-    displayLines?: boolean,
-    displayScale?: boolean,
-    animated?: boolean,
-    enableTransitions?: boolean,
-    hideOverlappingTicks?: boolean,
-    tickFormat?: (value: number) => string
-  }): this {
+  setProps(props: Partial<{
+    tickSize: number,
+    color: string,
+    gridColor: string,
+    displayLabels: boolean,
+    displayLines: boolean,
+    displayScale: boolean,
+    displayGrid: boolean,
+    gridSize: number,
+    animated: boolean,
+    enableTransitions: boolean,
+    hideOverlappingTicks: boolean,
+    tickFormat: (value: number) => string
+  }>): this {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
     return this;
   }
@@ -55,7 +65,14 @@ export class Axis {
   }
 
   render(container: Selection) {
-    const {tickSize, position, scale, color, displayScale} = this;
+    const {
+      tickSize,
+      position,
+      scale,
+      color,
+      displayScale,
+      hideOverlappingTicks
+    } = this;
     const range = scale.getRange();
     const matrix = axisTransformMatrix[position];
 
@@ -69,7 +86,7 @@ export class Axis {
         'fill': 'none',
         'stroke': color
       });
-    }, !displayScale);
+    }, hideOverlappingTicks || !displayScale);
 
     this.renderTicks(axisContainer);
   }
@@ -94,21 +111,35 @@ export class Axis {
       displayLines,
       position,
       color,
+      gridColor,
       tickSize,
+      gridSize,
       tickFormat,
       animated,
       enableTransitions,
-      transitioningTicks
+      transitioningTicks,
+      displayGrid
     } = this;
     const range = scale.getRange();
     const {transitionScale, hideOverlappingTicks} = this;
     const vertical = this.isVertical();
     const matrix = axisTransformMatrix[position];
+    const toAnimate = !hideOverlappingTicks && animated;
+
+    const currentDomain = scale.getDomain();
     const fromDomain = axisContainer.getPreviousData({
-      domain: scale.getDomain()
+      domain: currentDomain
     }).domain as NumberRange;
-    const useTransitions = fromDomain && animated && enableTransitions;
-    const checkTicksForOverlapping = hideOverlappingTicks && displayLabels;
+    const useTransitions = fromDomain && toAnimate && enableTransitions;
+
+    const checkTicksForOverlapping = Boolean(
+      (
+        axisContainer.getDataChanges({range: scale.getRange()}) ||
+        currentDomain !== fromDomain
+      ) &&
+      hideOverlappingTicks &&
+      displayLabels
+    );
 
     transitionScale.setRange(range);
 
@@ -118,17 +149,20 @@ export class Axis {
     const tickData = scale.getTicks(tickCount);
     const ticksContainer = axisContainer.renderOne('g', 'axisTicks');
 
-    ticksContainer.renderAll('g', tickData, (
-      tickSelection: Selection,
-      tick: number,
-      isNew?: boolean
-    ) => {
+    ticksContainer.renderAll('g', tickData, (tickSelection, tick) => {
       tickSelection.renderOne('line', 'tickLine', (selection) => {
         selection.attr({
           'y2': tickSize,
           'stroke': color
         });
-      }, !displayLines);
+      }, hideOverlappingTicks || !displayLines);
+
+      tickSelection.renderOne('line', 'tickGrid', (selection) => {
+        selection.attr({
+          'y2': -gridSize,
+          'stroke': gridColor
+        });
+      }, hideOverlappingTicks || !displayGrid);
 
       tickSelection.renderOne('text', 'tickLabel', (selection) => {
         const textAnchor = (
@@ -156,7 +190,7 @@ export class Axis {
         });
       }, !displayLabels);
 
-      if (animated && isNew) {
+      if (toAnimate && tickSelection.isNew()) {
         tickSelection.attr('class', 'appear');
       }
 
@@ -164,21 +198,21 @@ export class Axis {
         return;
       }
       if (useTransitions) {
-        transitionTick(tickSelection, tick, isNew);
+        transitionTick(tickSelection, tick);
         return;
       }
       tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
     }, (tickSelection, tick, removeCallback) => {
-      if (!animated) {
+      if (!toAnimate) {
         removeCallback();
         return;
       }
       tickSelection.attr('class', 'fade');
       if (!useTransitions) {
-        setTimeout(removeCallback, 200);
+        setTimeout(removeCallback, DEFAULT_ANIMATION_DURATION);
         return;
       }
-      transitionTick(tickSelection, tick, false, removeCallback);
+      transitionTick(tickSelection, tick, removeCallback);
     }, String);
 
     if (useTransitions) {
@@ -216,25 +250,25 @@ export class Axis {
         return;
       }
       visibleRects.push(rect);
-      nextTickData.unshift(tick);
+      nextTickData.push(tick);
     });
 
     const maxTickSize = visibleRects.reduce((maxSize, rect) => {
       return Math.max(maxSize, vertical ? rect.width : rect.height);
     }, 0);
-
     this.outsideSize = maxTickSize + tickPadding + tickSize;
 
     if (!isSomeRemoved) {
       return;
     }
     scale.resetTicks(nextTickData, tickCount);
-    ticksContainer.getPreviousData({children: nextTickData});
+    ticksContainer.getDataChanges({
+      children: nextTickData
+    }, DataType.attributes);
 
     function transitionTick(
       tickSelection: Selection,
       tick: number,
-      _isNew?: boolean,
       removeCallback?: () => void
     ) {
       tickSelection.attrTransition('transform', (progress: number) => {
@@ -244,7 +278,7 @@ export class Axis {
             break;
           case 1:
             const index = transitioningTicks.findIndex(
-              (selection) => selection.isEqual(selection)
+              (selection) => selection.isSame(selection)
             );
             if (index !== -1) {
               transitioningTicks.splice(index, 1);
@@ -254,8 +288,8 @@ export class Axis {
             }
         }
 
-        // if (isNew || removeCallback) {
-        //   const opacity = isNew ? progress : 1 - progress;
+        // if (tickSelection.isNew() || removeCallback) {
+        //   const opacity = tickSelection.isNew() ? progress : 1 - progress;
         //   tickSelection.attr('style', `opacity: ${opacity}`);
         // }
 

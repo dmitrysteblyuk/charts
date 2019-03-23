@@ -4,9 +4,16 @@ type Dictionary<T, K extends string = string> = {
 
 type NumberRange = ReadonlyArray<number>;
 
-interface Rect {
+type Rect = Readonly<{
   top: number;
   left: number;
   width: number;
   height: number;
-}
+}>;
+
+type Omit<T, K> = Pick<T, Exclude<keyof T, K>>;
+
+type CSSProperties = Partial<Omit<
+  CSSStyleDeclaration,
+  'length' | 'parentRule'
+>>;

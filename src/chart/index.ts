@@ -15,7 +15,6 @@ export class Chart {
 
   constructor(
     readonly axes: Axis[],
-    readonly grids: Axis[] = [],
     readonly series: BaseSeries[] = []
   ) {}
 
@@ -31,15 +30,13 @@ export class Chart {
 
   render(container: Selection) {
     const chartContainer = container.renderOne('g', 0);
-    const gridsContainer = chartContainer.renderOne('g', 0);
-    const axesContainer = chartContainer.renderOne('g', 1);
-    const seriesContainer = chartContainer.renderOne('g', 2);
+    const axesContainer = chartContainer.renderOne('g', 0);
+    const seriesContainer = chartContainer.renderOne('g', 1);
 
     this.setDomains(({xScale}) => xScale, ({extendXDomain}) => extendXDomain);
     this.setDomains(({yScale}) => yScale, ({extendYDomain}) => extendYDomain);
     this.renderAxes(axesContainer);
     this.positionContainer(chartContainer);
-    this.renderGrids(gridsContainer);
     this.renderSeries(seriesContainer);
   }
 
@@ -95,21 +92,12 @@ export class Chart {
   }
 
   private renderSeries(seriesContainer: Selection) {
-    seriesContainer.renderAll('g', this.series, (selection, series, isNew) => {
-      series.render(selection, isNew);
-    });
-  }
-
-  private renderGrids(gridsContainer: Selection) {
-    gridsContainer.renderAll('g', this.grids, (selection, grid, isNew) => {
-      selection.attr('transform', this.getAxisTransform(grid));
-      grid.setProps({
-        tickSize: -(
-          grid.isVertical() ? this.chartInnerWidth : this.chartInnerHeight
-        ),
-        animated: !isNew
-      })
-        .render(selection);
+    seriesContainer.renderAll('g', this.series, (
+      selection,
+      series,
+      _index
+    ) => {
+      series.render(selection);
     });
   }
 
@@ -131,7 +119,7 @@ export class Chart {
     const containerForAxesAdjusting = axesContainer.renderOne('g',  0)
       .attr('style', 'visibility: hidden');
     containerForAxesAdjusting.renderAll('g', this.axes, (selection, axis) => {
-      axis.setProps({animated: false, hideOverlappingTicks: true});
+      axis.setProps({hideOverlappingTicks: true});
       renderAxis(selection, axis);
 
       const size = axis.getOutsideSize();
@@ -149,9 +137,16 @@ export class Chart {
     this.paddings = paddings;
 
     const visibleContainer = axesContainer.renderOne('g', 1);
-    visibleContainer.renderAll('g', this.axes, (selection, axis, isNew) => {
+    visibleContainer.renderAll('g', this.axes, (selection, axis) => {
+      const {chartInnerWidth, chartInnerHeight} = this;
+
       selection.attr('transform', this.getAxisTransform(axis));
-      axis.setProps({animated: !isNew, hideOverlappingTicks: false});
+
+      axis.setProps({
+        animated: !selection.isNew(),
+        hideOverlappingTicks: false,
+        gridSize: axis.isVertical() ? chartInnerWidth : chartInnerHeight
+      });
       renderAxis(selection, axis);
     });
 

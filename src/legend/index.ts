@@ -11,9 +11,9 @@ export class Legend {
   constructor(readonly seriesGroups: BaseSeries[][]) {}
 
   setProps(props: {
-    maxWidth?: number
+    maxWidth: number
   }): this {
-    forEach(props, (value, key) => value !== undefined && (this[key] = value));
+    forEach(props, (value, key) => this[key] = value);
     return this;
   }
 
@@ -24,7 +24,7 @@ export class Legend {
   render(container: Selection) {
     const {seriesGroups, maxWidth} = this;
 
-    container.renderAll('g', seriesGroups, (itemSelection, group, isNew) => {
+    container.renderAll('g', seriesGroups, (itemSelection, group) => {
       const [series] = group;
       itemSelection.renderOne('circle', 0, (selection) => {
         selection.attr({
@@ -45,7 +45,7 @@ export class Legend {
         });
       });
 
-      if (!isNew) {
+      if (!itemSelection.isNew()) {
         return;
       }
       itemSelection.on('click', () => {
@@ -57,7 +57,6 @@ export class Legend {
     let maxItemSize = 0;
     container.updateAll((selection) => {
       const rect = selection.getRoundedRect();
-      rect.height += 4;
       if (rect.width > maxItemSize) {
         maxItemSize = rect.width;
       }
@@ -77,16 +76,18 @@ export class Legend {
       if (row >= offsets.length) {
         offsets.push(0);
       }
-      offsets[row] = Math.max(offsets[row], offsets[row - 1] + rect.height);
+      offsets[row] = Math.max(
+        offsets[row],
+        offsets[row - 1] + rect.height + 4
+      );
       return offsets;
     }, [0]);
 
-    let itemIndex = 0;
-    container.updateAll((selection) => {
-      const x = itemIndex % totalColumns * columnSize;
-      const y = rowOffsets[Math.floor(itemIndex / totalColumns)];
+    container.updateAll((selection, _group, index) => {
+      const x = index % totalColumns * columnSize;
+      const y = rowOffsets[Math.floor(index / totalColumns)];
       selection.attr('transform', `translate(${x},${y})`);
-      itemIndex++;
+      index++;
     });
 
     this.size = rowOffsets[rowOffsets.length - 1];

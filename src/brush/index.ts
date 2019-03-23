@@ -33,18 +33,18 @@ export class Brush {
     return this;
   }
 
-  render(container: Selection, isFirstRender?: boolean) {
+  render(container: Selection) {
     const {left, right, height, width, borderWidth} = this;
     if (left > 0 || right < width) {
       this.reset = false;
     }
 
-    container.renderOne('rect', 0, (selection, isNew) => {
+    container.renderOne('rect', 0, (selection) => {
       selection.attr({
         'width': left,
         'height': height
       });
-      if (!isNew) {
+      if (!selection.isNew()) {
         return;
       }
       selection.on('click', () => this.onResetClick()).attr({
@@ -55,13 +55,13 @@ export class Brush {
       });
     });
 
-    container.renderOne('rect', 1, (selection, isNew) => {
+    container.renderOne('rect', 1, (selection) => {
       selection.attr({
         'x': right,
         'width': width - right,
         'height': height
       });
-      if (!isNew) {
+      if (!selection.isNew()) {
         return;
       }
       selection.on('click', () => this.onResetClick()).attr({
@@ -101,7 +101,7 @@ export class Brush {
       });
     });
 
-    if (!isFirstRender) {
+    if (!container.isNew()) {
       return;
     }
     this.initializeDragEvents(container);

@@ -20,7 +20,7 @@ export abstract class BaseSeries {
   constructor(
     readonly xScale: ChartScale,
     readonly yScale: ChartScale,
-    protected data: SeriesData
+    readonly data: SeriesData
   ) {}
 
   setProps(props: Partial<SeriesProps>): this {
@@ -40,7 +40,7 @@ export abstract class BaseSeries {
     return this.hidden;
   }
 
-  abstract render(container: Selection, isFirstRender?: boolean): void;
+  abstract render(container: Selection): void;
 
   extendXDomain(xDomain: NumberRange): NumberRange {
     const x = this.data.x;

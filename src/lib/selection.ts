@@ -1,21 +1,25 @@
 import {map, forEach, arrayIsEqual} from './utils';
 
+export const DEFAULT_ANIMATION_DURATION = 200;
+
 const DATUM_PROPERTY = '__DATUM__';
 const ACTIVE_TRANSITIONS_PROPERTY = '__ACTIVE_TRANSITIONS__';
-const DEFAULT_TRANSITION_DURATION = 200;
 const BEING_REMOVED_PROPERTY = '__BEING_REMOVED__';
 const SVG_URI = 'http://www.w3.org/2000/svg';
 const XHTML_URI = 'http://www.w3.org/1999/xhtml';
-const DATA_CHANGES_PROPERTY = '__DATA_CHANGES__';
+const DATA_CHANGES_PROPERTIES = [
+  '__ATTRIBUTE_CHANGES__',
+  '__STYLE_CHANGES__',
+  '__DATA_CHANGES__'
+];
+
+export const enum DataType {attributes, styles, data};
 
 type Primitive = string | boolean | number | undefined;
 type TrackData = Dictionary<Primitive | ReadonlyArray<Primitive | {}>>;
 type Selector = number | string;
 type Remover<E extends Element, D> = (
   (selection: Selection<E>, datum: D, callback: () => void) => void
-);
-type Updater<E extends Element> = (
-  (selection: Selection<E>, isNew: boolean) => void
 );
 type ActiveTransitions = Dictionary<{
   requestId: number;
@@ -27,11 +31,30 @@ const {requestAnimationFrame, cancelAnimationFrame} = window;
 export class Selection<EL extends Element = Element> {
   private static countID = 0;
   private selectionId?: string;
+  private justCreated = false;
 
-  constructor(private element: EL) {}
+  constructor(private readonly element: EL) {}
 
-  isEqual({element}: Selection) {
+  setStyles(this: Selection<HTMLElement>, styles: CSSProperties) {
+    const {style} = this.element;
+    forEach(styles, (value, key) => style[key] = value);
+  }
+
+  isSame({element}: Selection) {
     return element === this.element;
+  }
+
+  isDescendant({element}: Selection) {
+    let parentElement: Element | null = this.element;
+    for (;
+      parentElement && parentElement !== element;
+      {parentElement} = parentElement
+    ) {}
+    return parentElement !== null;
+  }
+
+  isNew(): boolean {
+    return this.justCreated;
   }
 
   selectOne<E extends Element>(selector: Selector) {
@@ -77,21 +100,29 @@ export class Selection<EL extends Element = Element> {
   // }
 
   text(text: Primitive): this {
-    if (!detectChanges(this.element, {children: text})) {
+    if (!detectChanges(this.element, {children: text}, DataType.attributes)) {
       return this;
     }
     this.element.textContent = text === null ? null : String(text);
     return this;
   }
 
-  getPreviousData<D extends TrackData>(nextData: D) {
-    const data = map(getElementData<D>(this.element), (value) => value);
-    const changes = detectChanges<D>(this.element, nextData);
+  getDataChanges<D extends TrackData>(nextData: D, dataType = DataType.data) {
+    return detectChanges<D>(this.element, nextData, dataType);
+  }
+
+  getPreviousData<D extends TrackData>(nextData: D, dataType = DataType.data) {
+    const data = map(
+      (getElementData(this.element, dataType) || {}) as D,
+      (value) => value
+    );
+    const changes = detectChanges<D>(this.element, nextData, dataType);
+
     const result = map(nextData, (value, key) => {
       if (!changes || !changes[key]) {
         return value;
       }
-      return data && data[key];
+      return data[key];
     }) as Partial<D>;
 
     return result;
@@ -107,7 +138,7 @@ export class Selection<EL extends Element = Element> {
       typeof nameOrData === 'string' ? {[nameOrData]: attrValue}
         : nameOrData
     );
-    const changes = detectChanges(this.element, data);
+    const changes = detectChanges(this.element, data, DataType.attributes);
     if (!changes) {
       return this;
     }
@@ -134,7 +165,7 @@ export class Selection<EL extends Element = Element> {
   attrTransition(
     name: string,
     interpolator: (progress: number) => string,
-    duration = DEFAULT_TRANSITION_DURATION
+    duration = DEFAULT_ANIMATION_DURATION
   ): void {
     startTransition(this.element, name, interpolator, duration);
   }
@@ -166,19 +197,19 @@ export class Selection<EL extends Element = Element> {
   renderOne<E extends Element>(
     tagName: string,
     selector: Selector,
-    updater?: Updater<E>
+    updater?: (selection: Selection<E>) => void
   ): Selection<E>;
   renderOne<E extends Element, D>(
     tagName: string,
     selector: Selector,
-    updater?: Updater<E>,
+    updater?: (selection: Selection<E>) => void,
     toRemove?: boolean,
     remover?: Remover<E, D>
   ): Selection<E> | null;
   renderOne<E extends Element, D>(
     tagName: string,
     selector: Selector,
-    updater?: Updater<E>,
+    updater?: (selection: Selection<E>) => void,
     toRemove?: boolean,
     remover?: Remover<E, D>
   ): Selection<E> | null {
@@ -190,7 +221,6 @@ export class Selection<EL extends Element = Element> {
       return null;
     }
 
-    let isNew = false;
     if (selection === null) {
       const childId = (
         typeof selector === 'string'
@@ -198,23 +228,22 @@ export class Selection<EL extends Element = Element> {
           : undefined
       );
       selection = this.addChild<E>(tagName, childId);
-      isNew = true;
     }
 
     if (updater) {
-      updater(selection, isNew);
+      updater(selection);
     }
     return selection;
   }
 
   updateAll<E extends Element, D>(
-    updater: (selection: Selection<E>, datum: D) => void
+    updater: (selection: Selection<E>, datum: D, index: number) => void
   ): void {
-    Array.from(this.element.children).forEach((element) => {
+    Array.from(this.element.children).forEach((element, index) => {
       if (isBeingRemoved(element)) {
         return;
       }
-      updater(new Selection(element as E), getDatum<D>(element));
+      updater(new Selection(element as E), getDatum<D>(element), index);
     });
   }
 
@@ -224,30 +253,35 @@ export class Selection<EL extends Element = Element> {
     updater: (
       selection: Selection<E>,
       datum: D,
-      isNew?: boolean,
+      index: number,
       previousDatum?: D
     ) => void,
     remover?: Remover<E, D>,
     getKey?: (datum: D, index: number) => string
   ): void {
-    if (!detectChanges(this.element, {children: data})) {
+    if (!detectChanges(this.element, {children: data}, DataType.attributes)) {
       this.updateAll(updater);
       return;
     }
     const {children} = this.element;
     const childLength = children.length;
-    const toUpdate: {element: E; datum: D; }[] = [];
+    const toUpdate: {element: E, datum: D, index: number}[] = [];
     const toRemove: E[] = [];
-    let toAdd: {datum: D, childId?: string, nextChildId?: string}[] = [];
+    let toAdd: {
+      datum: D,
+      childId?: string,
+      nextChildId?: string,
+      index: number
+    }[] = [];
     let usedDataIndex = 0;
 
     let lastChildId: string | undefined;
     const byId = getKey && data.reduceRight((result, datum, index) => {
       const childId = this.getChildId(getKey(datum, index));
-      result[childId] = {datum, nextChildId: lastChildId};
+      result[childId] = {datum, nextChildId: lastChildId, index};
       lastChildId = childId;
       return result;
-    }, {} as Dictionary<{datum: D, nextChildId: string | undefined}>);
+    }, {} as Dictionary<typeof toAdd[0]>);
 
     for (let index = 0; index < childLength; index++) {
       const element = children[index] as E;
@@ -257,8 +291,9 @@ export class Selection<EL extends Element = Element> {
 
       if (!byId) {
         if (usedDataIndex < data.length) {
-          const datum = data[usedDataIndex++];
-          toUpdate.push({element, datum});
+          const datum = data[usedDataIndex];
+          toUpdate.push({element, datum, index: usedDataIndex});
+          usedDataIndex++;
         } else {
           toRemove.push(element);
         }
@@ -267,9 +302,9 @@ export class Selection<EL extends Element = Element> {
 
       const childId = element.getAttribute('id');
       if (childId !== null && byId.hasOwnProperty(childId)) {
-        const {datum} = byId[childId];
+        const {datum, index: dataIndex} = byId[childId];
         delete byId[childId];
-        toUpdate.push({element, datum});
+        toUpdate.push({element, datum, index: dataIndex});
       } else {
         toRemove.push(element);
       }
@@ -277,11 +312,14 @@ export class Selection<EL extends Element = Element> {
 
     if (byId) {
       toAdd = Object.keys(byId).map((childId) => {
-        const {datum, nextChildId} = byId[childId];
-        return {datum, childId, nextChildId};
+        const {datum, nextChildId, index} = byId[childId];
+        return {datum, childId, nextChildId, index};
       });
     } else {
-      toAdd = data.slice(usedDataIndex).map((datum) => ({datum}));
+      toAdd = data.slice(usedDataIndex).map((datum, index) => ({
+        datum,
+        index: usedDataIndex + index
+      }));
     }
 
     toRemove.forEach((element) => {
@@ -292,16 +330,16 @@ export class Selection<EL extends Element = Element> {
       new Selection(element).destroy(remover);
     });
 
-    toUpdate.forEach(({element, datum}) => {
+    toUpdate.forEach(({element, datum, index}) => {
       const previousDatum = getDatum<D>(element);
       setDatum(element, datum);
-      updater(new Selection(element), datum, false, previousDatum);
+      updater(new Selection(element), datum, index, previousDatum);
     });
 
-    toAdd.forEach(({datum, childId, nextChildId}) => {
+    toAdd.forEach(({datum, childId, nextChildId, index}) => {
       const selection = this.addChild<E>(tagName, childId, nextChildId);
       setDatum(selection.element, datum);
-      updater(selection, datum, true);
+      updater(selection, datum, index);
     });
   }
 
@@ -321,7 +359,9 @@ export class Selection<EL extends Element = Element> {
     } else {
       parent.insertBefore(element, parent.children.namedItem(nextChildId));
     }
-    return new Selection(element);
+    const selection = new Selection(element);
+    selection.justCreated = true;
+    return selection;
   }
 
   private getChildId(selector: string) {
@@ -447,11 +487,15 @@ function startRemovingElement(element: Element): void {
 
 function detectChanges<D extends TrackData>(
   element: Element,
-  nextData: D
+  nextData: D,
+  dataType: DataType
 ): {[key in keyof D]?: boolean} | null {
-  const data = getElementData<D>(element);
+  const data = getElementData<D>(element, dataType);
   if (!data) {
-    (element as any)[DATA_CHANGES_PROPERTY] = map(nextData, value => value);
+    (element as any)[DATA_CHANGES_PROPERTIES[dataType]] = map(
+      nextData,
+      value => value
+    );
     return map(nextData, () => true);
   }
   if (data === nextData) {
@@ -483,8 +527,11 @@ function detectChanges<D extends TrackData>(
   return changes;
 }
 
-function getElementData<D extends TrackData>(element: Element): D | undefined {
-  return (element as any)[DATA_CHANGES_PROPERTY];
+function getElementData<D extends TrackData>(
+  element: Element,
+  dataType: DataType
+): D | undefined {
+  return (element as any)[DATA_CHANGES_PROPERTIES[dataType]];
 }
 
 function createChild<E extends Element>(

@@ -7,7 +7,7 @@ export function forEach<T>(
   });
 }
 
-export function map<T, V>(
+export function map<T extends {}, V>(
   object: T,
   mapper: (value: T[keyof T], key: keyof T) => V
 ) {

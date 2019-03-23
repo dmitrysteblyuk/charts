@@ -1,5 +1,4 @@
 import {ZoomMode, ZoomPositions} from '../lib/zoom';
-import {Selection} from '../lib/selection';
 
 export function getZoomFactorAndOffset(
   startPositions: ZoomPositions,
@@ -7,9 +6,8 @@ export function getZoomFactorAndOffset(
   mode: ZoomMode,
   [startTime, endTime]: NumberRange,
   startWidth: number,
-  rectSelection: Selection
+  getTimeForPosition: (clientX: number) => number
 ) {
-  const timeSpan = endTime - startTime;
   if (
     mode === ZoomMode.Wheel &&
     positions[0][0] === startPositions[0][0] &&
@@ -17,11 +15,11 @@ export function getZoomFactorAndOffset(
   ) {
     const [startX, startY] = startPositions[0];
     const factor = 1 + (positions[0][1] - startY) / window.outerHeight;
-    const fixedX = startX - rectSelection.getRect().left;
-    const fixedT = fixedX / startWidth * timeSpan + startTime;
+    const fixedT = getTimeForPosition(startX);
     return [factor, fixedT * (1 - factor)];
   }
 
+  const timeSpan = endTime - startTime;
   if (mode !== ZoomMode.Pinch) {
     const diffT = (
       (positions[0][0] - startPositions[0][0]) /
