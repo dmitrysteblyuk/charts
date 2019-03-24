@@ -48,3 +48,32 @@ function setSize() {
     'height': height
   });
 }
+
+function test(count: number, fn: (index: number) => any): [number, any] {
+  const startTime = Date.now();
+  let res: any;
+  for (let index = 0; index < count; index++) {
+    res = fn(index);
+  }
+  return [Date.now() - startTime, res];
+}
+
+function getRandomBitsFast(count: number, callback: (bit: number) => void) {
+  for (let index = 0; index < count; ) {
+    let randomNumber = Math.random() * 1e16 >>> 0;
+    do {
+      callback(randomNumber & 1);
+      index++;
+    } while((randomNumber = randomNumber >>> 1) > 0);
+  }
+}
+
+function getRandomBitsSimple(count: number, callback: (bit: number) => void) {
+  for (let index = 0; index < count; index++) {
+    callback(Math.random() > .5 ? 1 : 0);
+  }
+}
+
+(window as any).test = test;
+(window as any).getRandomBitsFast = getRandomBitsFast;
+(window as any).getRandomBitsSimple = getRandomBitsSimple;

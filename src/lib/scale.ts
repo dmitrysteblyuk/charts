@@ -7,9 +7,9 @@ export class Scale {
   private range: NumberRange = [0, 1]
   private inverted: Scale | undefined;
 
-  scale(x: number) {
+  scale = (x: number) => {
     return this.factor * x + this.offset;
-  }
+  };
 
   invert() {
     let {inverted} = this;

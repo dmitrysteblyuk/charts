@@ -1,9 +1,9 @@
 import {Chart} from '../chart';
-import {Axis, AxisPosition} from '../axis';
+import {Axis, AxisPosition, timePrecedence} from '../axis';
 import {Brush} from '../brush';
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
-import {ValueScale, TimeScale} from '../chart/chart-scale';
+import {ValueScale, TimeScale, getExtendedDomain} from '../chart/chart-scale';
 import {BaseSeries, SeriesProps} from '../series';
 import {LineSeries} from '../series/line-series';
 import {Legend} from '../legend';
@@ -25,7 +25,8 @@ export class TimeChart {
   private readonly mainChart = new Chart(
     [
       new Axis(AxisPosition.bottom, this.timeScale).setProps({
-        tickFormat: axisTimeFormat
+        tickFormat: axisTimeFormat,
+        tickPrecedence: timePrecedence
       }),
       new Axis(AxisPosition.left, this.valueScale)
     ]
@@ -34,7 +35,8 @@ export class TimeChart {
   private readonly helperChart = new Chart(
     [
       new Axis(AxisPosition.top, this.fullTimeScale).setProps({
-        tickFormat: axisTimeFormat
+        tickFormat: axisTimeFormat,
+        tickPrecedence: timePrecedence
       }),
       new Axis(AxisPosition.right, this.fullValueScale)
     ]
@@ -73,12 +75,15 @@ export class TimeChart {
       helperHeight -
       (this.legend.getSize() + 20)
     );
+
     const mainContainer = container.renderOne('g', 1);
     this.mainChart.setProps({
       chartOuterWidth,
       chartOuterHeight: mainHeight
     })
       .render(mainContainer);
+
+    this.fullTimeScale.setMinDomain(this.timeScale.getDomain());
 
     const helperContainer = container.renderOne('g', 2);
     helperContainer.attr('transform', `translate(0,${mainHeight})`);
@@ -304,21 +309,15 @@ export class TimeChart {
     this.timeScale.setFixed(true);
     this.timeScale.setDomain([nextStartTime, nextEndTime]);
 
-    let [minTime, maxTime] = this.fullTimeScale.getDomain();
-    let fullTimeScaleExtended: boolean | undefined;
+    const currentFullDomain = this.fullTimeScale.getDomain();
+    const extendedFullDomain = getExtendedDomain(
+      currentFullDomain,
+      [nextStartTime, nextEndTime]
+    );
 
-    if (minTime > startTime) {
-      minTime = startTime;
-      fullTimeScaleExtended = true;
-    }
-    if (maxTime < endTime) {
-      maxTime = endTime;
-      fullTimeScaleExtended = true;
-    }
-
-    if (fullTimeScaleExtended) {
+    if (extendedFullDomain !== currentFullDomain) {
       this.fullTimeScale.setExtendableOnly(true);
-      this.fullTimeScale.setDomain([minTime, maxTime]);
+      this.fullTimeScale.setDomain(extendedFullDomain);
     }
     this.render(container);
   }
@@ -358,6 +357,7 @@ export class TimeChart {
     this.brush.changeEvent.on(({left, right}) => {
       this.brushLeft = left;
       this.brushRight = right;
+
       const reset = this.brush.isReset();
       this.timeScale.setFixed(!reset);
 

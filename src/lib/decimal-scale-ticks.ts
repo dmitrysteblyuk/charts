@@ -14,12 +14,7 @@ export function getDecimalScaleTicks(
   if (!isPositive(product)) {
     return [];
   }
-  step = Math.max(1, Math.floor(step / product));
-  while (product % 1) {
-    product *= 10;
-    step /= 10;
-  }
-  step *= product;
+  step = Math.max(1, Math.floor(step / product)) * product;
   if (!isPositive(step)) {
     return [];
   }
@@ -27,14 +22,8 @@ export function getDecimalScaleTicks(
   const startIndex = Math.ceil(domain[0] / step);
   const endIndex = Math.floor(domain[1] / step);
 
-  let precision = 1;
-  while (step % 1) {
-    precision *= 10;
-    step *= 10;
-  }
-
   for (let index = startIndex; index <= endIndex; ) {
-    ticks.push(index * step / precision);
+    ticks.push(index * step);
     if (!(index < ++index)) {
       break;
     }

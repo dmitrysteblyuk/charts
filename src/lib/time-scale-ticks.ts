@@ -5,7 +5,6 @@ import {isPositive} from './utils';
 interface DateUnit {
   duration: number;
   periods: NumberRange;
-  offset: number;
   get: (this: Date) => number;
   set: (this: Date, value: number, ...rest: number[]) => number;
   // getUTC: (this: Date) => number;
@@ -15,7 +14,6 @@ interface DateUnit {
 const millisecond: DateUnit = {
   duration: 1,
   periods: [1],
-  offset: 0,
   get: Date.prototype.getMilliseconds,
   set: Date.prototype.setMilliseconds,
   // getUTC: Date.prototype.getUTCMilliseconds,
@@ -24,7 +22,6 @@ const millisecond: DateUnit = {
 const second: DateUnit = {
   duration: 1000,
   periods: [1, 5, 15, 30],
-  offset: 0,
   get: Date.prototype.getSeconds,
   set: Date.prototype.setSeconds,
   // getUTC: Date.prototype.getUTCSeconds,
@@ -33,7 +30,6 @@ const second: DateUnit = {
 const minute: DateUnit = {
   duration: second.duration * 60,
   periods: [1, 5, 15, 30],
-  offset: 0,
   get: Date.prototype.getMinutes,
   set: Date.prototype.setMinutes,
   // getUTC: Date.prototype.getUTCMinutes,
@@ -42,7 +38,6 @@ const minute: DateUnit = {
 const hour: DateUnit = {
   duration: minute.duration * 60,
   periods: [1, 3, 6, 12],
-  offset: 0,
   get: Date.prototype.getHours,
   set: Date.prototype.setHours,
   // getUTC: Date.prototype.getUTCHours,
@@ -51,16 +46,22 @@ const hour: DateUnit = {
 const day: DateUnit = {
   duration: hour.duration * 24,
   periods: [1, 2, 7],
-  offset: 1,
-  get: Date.prototype.getDate,
-  set: Date.prototype.setDate,
-  // getUTC: Date.prototype.getUTCDate,
-  // setUTC: Date.prototype.setUTCDate
+  get(this: Date) {
+    return this.getDate() - 1;
+  },
+  set(this: Date, date: number) {
+    return this.setDate(date + 1);
+  },
+  // getUTC(this: Date) {
+  //   return this.getUTCDate() - 1;
+  // },
+  // setUTC(this: Date, date: number) {
+  //   return this.setUTCDate(date + 1);
+  // }
 };
 const month: DateUnit = {
   duration: day.duration * 30,
   periods: [1, 3],
-  offset: 0,
   get: Date.prototype.getMonth,
   set: Date.prototype.setMonth,
   // getUTC: Date.prototype.getUTCMonth,
@@ -69,14 +70,14 @@ const month: DateUnit = {
 const year: DateUnit = {
   duration: day.duration * 365,
   periods: [1],
-  offset: 0,
   get: Date.prototype.getFullYear,
   set: Date.prototype.setFullYear,
   // getUTC: Date.prototype.getUTCFullYear,
   // setUTC: Date.prototype.setUTCFullYear
 };
 
-const dateUnits = [millisecond, second, minute, hour, day, month, year];
+export const dateUnits = [millisecond, second, minute, hour, day, month, year];
+
 const intervals = dateUnits.reduce((result, unit, index) => {
   return result.concat(unit.periods.map((period) => {
     const value = period * unit.duration;
@@ -109,8 +110,8 @@ export function getTimeScaleTicks(
   const date = new Date(domain[0]);
 
   for (let index = 0; index < unitIndex; index++) {
-    const {/*setUTC, */set, offset} = dateUnits[index];
-    (/*utc ? setUTC : */set).call(date, offset);
+    const {/*setUTC, */set} = dateUnits[index];
+    (/*utc ? setUTC : */set).call(date, 0);
   }
 
   let {period} = intervalData;
@@ -155,11 +156,11 @@ export function getTimeScaleTicks(
     if (period === 1) {
       return;
     }
-    const value = (/*utc ? unit.getUTC : */unit.get).call(date) - unit.offset;
+    const value = (/*utc ? unit.getUTC : */unit.get).call(date);
     const diff = value % period;
     if (diff === 0) {
       return;
     }
-    (/*utc ? unit.setUTC : */unit.set).call(date, value - diff + unit.offset);
+    (/*utc ? unit.setUTC : */unit.set).call(date, value - diff);
   }
 }

@@ -1,6 +1,6 @@
 import {Axis, AxisPosition} from '../axis';
 import {Selection} from '../lib/selection';
-import {ChartScale} from './chart-scale';
+import {ChartScale, getExtendedDomain} from './chart-scale';
 import {forEach, newArray, groupBy} from '../lib/utils';
 import {BaseSeries} from '../series';
 
@@ -63,7 +63,7 @@ export class Chart {
     )
   ) {
     const groupsByScale = groupBy(
-      this.series.filter((series) => !series.isHidden()),
+      this.series,
       (a, b) => getScale(a) === getScale(b)
     );
     groupsByScale.forEach(group => {
@@ -76,14 +76,18 @@ export class Chart {
           ? scale.getDomain()
           : [Infinity, -Infinity]
       );
-      let domain = group.reduce(
-        (result, series) => getDomainExtender(series).call(series, result),
-        startDomain
-      );
+      let domain = group.reduce((result, series) => {
+        if (series.isHidden()) {
+          return result;
+        }
+        return getDomainExtender(series).call(series, result);
+      }, startDomain);
 
       if (domain[0] > domain[1]) {
-        return;
+        domain = scale.getDomain();
       }
+      domain = getExtendedDomain(domain, scale.getMinDomain());
+
       if (!(domain[0] < domain[1])) {
         domain = [domain[0] - 1, domain[1] + 1];
       }

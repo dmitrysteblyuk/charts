@@ -1,6 +1,6 @@
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
-import {ChartScale} from '../chart/chart-scale';
+import {ChartScale, getExtendedDomain} from '../chart/chart-scale';
 import {SeriesData} from '../lib/series-data';
 import {binarySearch} from '../lib/binary-search';
 
@@ -47,24 +47,7 @@ export abstract class BaseSeries {
     if (!x.length) {
       return xDomain;
     }
-    const x0 = x[0];
-    const x1 = x[x.length - 1];
-    let [minX, maxX] = xDomain;
-    let isExtended: true | undefined;
-
-    if (minX > x0) {
-      minX = x0;
-      isExtended = true;
-    }
-    if (maxX < x1) {
-      maxX = x1;
-      isExtended = true;
-    }
-
-    if (isExtended) {
-      return [minX, maxX];
-    }
-    return xDomain;
+    return getExtendedDomain(xDomain, [x[0], x[x.length - 1]]);
   }
 
   extendYDomain(yDomain: NumberRange): NumberRange {
@@ -83,22 +66,14 @@ export abstract class BaseSeries {
     );
 
     let [minY, maxY] = yDomain;
-    let isExtended: true | undefined;
-
     for (let index = startIndex; index < endIndex; index++) {
       if (minY > y[index]) {
         minY = y[index];
-        isExtended = true;
       }
       if (maxY < y[index]) {
         maxY = y[index];
-        isExtended = true;
       }
     }
-
-    if (isExtended) {
-      return [minY, maxY];
-    }
-    return yDomain;
+    return getExtendedDomain(yDomain, [minY, maxY]);
   }
 }

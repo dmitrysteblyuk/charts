@@ -7,6 +7,7 @@ import {
 } from '../lib/selection';
 import {forEach} from '../lib/utils';
 import './index.css';
+import {dateUnits} from '../lib/time-scale-ticks';
 
 const axisTransformMatrix = [
   ['1,0,0,-1,0,0', '1,0,0,-1,0,0'],
@@ -36,6 +37,7 @@ export class Axis {
   private enableTransitions = true;
   private hideOverlappingTicks = false;
   private outsideSize = 0;
+  private tickPrecedence: (a: number, b: number) => number = () => 0;
 
   constructor (
     private position: AxisPosition,
@@ -54,7 +56,8 @@ export class Axis {
     animated: boolean,
     enableTransitions: boolean,
     hideOverlappingTicks: boolean,
-    tickFormat: (value: number) => string
+    tickFormat: (value: number) => string,
+    tickPrecedence: (a: number, b: number) => number
   }>): this {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));
     return this;
@@ -231,6 +234,7 @@ export class Axis {
     const visibleRects: Rect[] = [];
     const nextTickData: number[] = [];
     const tickSpace = vertical ? 3 : 10;
+    let lastVisibleSelection: Selection;
     let isSomeRemoved: boolean | undefined;
 
     ticksContainer.updateAll((selection, tick: number) => {
@@ -245,12 +249,25 @@ export class Axis {
       );
 
       if (previousRect && doRectsOverlap(rect, previousRect, tickSpace)) {
-        selection.destroy();
         isSomeRemoved = true;
-        return;
+        const precedence = this.tickPrecedence(
+          tick,
+          nextTickData[nextTickData.length - 1]
+        );
+
+        if (!(precedence > 0)) {
+          selection.destroy();
+          return;
+        }
+
+        visibleRects.pop();
+        nextTickData.pop();
+        lastVisibleSelection.destroy();
       }
+
       visibleRects.push(rect);
       nextTickData.push(tick);
+      lastVisibleSelection = selection;
     });
 
     const maxTickSize = visibleRects.reduce((maxSize, rect) => {
@@ -302,6 +319,29 @@ export class Axis {
       });
     }
   }
+}
+
+export function timePrecedence(a: number, b: number): number {
+  const dateA = new Date(a);
+  const dateB = new Date(b);
+  let valueA: number | undefined;
+  let valueB: number | undefined;
+  const unit = dateUnits.find(({get}) => {
+    valueA = get.call(dateA);
+    valueB = get.call(dateB);
+    return valueA !== 0 || valueB !== 0;
+  });
+
+  if (!unit) {
+    return 0;
+  }
+  if (valueA === 0) {
+    return 1;
+  }
+  if (valueB === 0) {
+    return -1;
+  }
+  return 0;
 }
 
 function doRectsOverlap(a: Rect, b: Rect, space: number): boolean {
