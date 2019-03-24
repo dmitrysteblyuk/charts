@@ -10,7 +10,7 @@ export function getDecimalScaleTicks(
   }
 
   const ticks: number[] = [];
-  let product = Math.pow(10, Math.floor(Math.log(step) / Math.LN10));
+  const product = Math.pow(10, Math.floor(Math.log(step) / Math.LN10));
   if (!isPositive(product)) {
     return [];
   }

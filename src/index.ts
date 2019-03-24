@@ -2,18 +2,13 @@ import {TimeChart} from './time-chart';
 import {SeriesData} from './lib/series-data';
 import {Selection} from './lib/selection';
 
+const timeNow = Date.now();
 const timeChart = new TimeChart();
-timeChart.addSeries(new SeriesData(
-  [10, 11, 12, 13, 14, 15].map((date) => +new Date(`2019-03-${date}`)),
-  [0, -1000, 500, 10000, 23800, 55607]
-), {
+timeChart.addSeries(generateRandomData(10000, timeNow), {
   color: 'steelblue',
   label: 'series #1'
 });
-timeChart.addSeries(new SeriesData(
-  [1, 2, 5, 12].map((date) => +new Date(`2019-03-${date}`)),
-  [3000, -21000, -500, 5000]
-), {
+timeChart.addSeries(generateRandomData(15000, timeNow), {
   color: 'forestgreen',
   label: 'series #2'
 });
@@ -49,6 +44,29 @@ function setSize() {
   });
 }
 
+function generateRandomData(count: number, endTime: number): SeriesData {
+  const timeStep = 15000;
+  const startTime = endTime - timeStep * count;
+  const x = new Uint32Array(count);
+  const y = new Float64Array(count);
+
+  x[0] = startTime;
+  y[0] = 0;
+
+  // tslint:disable no-bitwise
+  for (let index = 1; index < count; ) {
+    let randomNumber = Math.random() * 1e16 >>> 0;
+    do {
+      x[index] = startTime + timeStep * index;
+      y[index] = y[index - 1] + (randomNumber & 1 ? 1 : -1.0732);
+      index++;
+    } while ((randomNumber = randomNumber >>> 1) > 0);
+  }
+  // tslint:enable no-bitwise
+
+  return new SeriesData(x, y);
+}
+
 function test(count: number, fn: (index: number) => any): [number, any] {
   const startTime = Date.now();
   let res: any;
@@ -58,22 +76,5 @@ function test(count: number, fn: (index: number) => any): [number, any] {
   return [Date.now() - startTime, res];
 }
 
-function getRandomBitsFast(count: number, callback: (bit: number) => void) {
-  for (let index = 0; index < count; ) {
-    let randomNumber = Math.random() * 1e16 >>> 0;
-    do {
-      callback(randomNumber & 1);
-      index++;
-    } while((randomNumber = randomNumber >>> 1) > 0);
-  }
-}
-
-function getRandomBitsSimple(count: number, callback: (bit: number) => void) {
-  for (let index = 0; index < count; index++) {
-    callback(Math.random() > .5 ? 1 : 0);
-  }
-}
-
 (window as any).test = test;
-(window as any).getRandomBitsFast = getRandomBitsFast;
-(window as any).getRandomBitsSimple = getRandomBitsSimple;
+(window as any).timeChart = timeChart;
