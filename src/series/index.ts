@@ -20,7 +20,7 @@ export abstract class BaseSeries {
   constructor(
     readonly xScale: ChartScale,
     readonly yScale: ChartScale,
-    readonly data: SeriesData
+    private data: SeriesData
   ) {}
 
   setProps(props: Partial<SeriesProps>): this {
@@ -38,6 +38,15 @@ export abstract class BaseSeries {
 
   isHidden() {
     return this.hidden;
+  }
+
+  getData() {
+    return this.data;
+  }
+
+  setData(data: SeriesData) {
+    this.data = data;
+    this.getYDomain.clearCache();
   }
 
   abstract render(container: Selection): void;

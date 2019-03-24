@@ -52,7 +52,7 @@ export class SeriesData {
     }
 
     const {size} = this;
-    const count = Math.round(Math.sqrt(size * pixels));
+    const count = Math.round(Math.sqrt(size * pixels / 2));
     const clusterLength = Math.ceil(size / count);
     if (!(clusterLength > 3)) {
       this.clusterLength = 0;

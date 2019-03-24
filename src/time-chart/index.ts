@@ -22,7 +22,7 @@ export class TimeChart {
   private readonly fullValueScale = new ValueScale();
   private readonly brush = new Brush();
 
-  private readonly mainChart = new Chart(
+  readonly mainChart = new Chart(
     [
       new Axis(AxisPosition.bottom, this.timeScale).setProps({
         tickFormat: axisTimeFormat,
@@ -34,8 +34,9 @@ export class TimeChart {
       })
     ]
   );
+  readonly helperChart = new Chart([]);
   private readonly legend = new Legend([]);
-  private readonly helperChart = new Chart([]);
+
   private isBrushing = false;
   private actionTimerId: number | null = null;
   private brushLeft = 0;
@@ -206,7 +207,7 @@ export class TimeChart {
           return points;
         }
         const nearestPoint = getNearestPoint(
-          pointX, series.data, series.xScale, 20
+          pointX, series.getData(), series.xScale, 20
         );
         if (!nearestPoint) {
           return points;
@@ -218,8 +219,8 @@ export class TimeChart {
           return [point];
         }
 
-        const nextTime = point.series.data.x[point.index];
-        const lastTime = lastPoint.series.data.x[lastPoint.index];
+        const nextTime = point.series.getData().x[point.index];
+        const lastTime = lastPoint.series.getData().x[lastPoint.index];
 
         if (nextTime !== lastTime) {
           return points;
@@ -233,7 +234,7 @@ export class TimeChart {
       }
 
       const {series: firstSeries, index: firstIndex} = results[0];
-      const time = firstSeries.data.x[firstIndex];
+      const time = firstSeries.getData().x[firstIndex];
       const lineX = firstSeries.xScale.scale(time);
       const lineY2 = this.mainChart.getInnerHeight();
       const left = Math.round(lineX + rect.left) - 20;
@@ -243,7 +244,7 @@ export class TimeChart {
         left,
         hidden: false,
         series: results.map(({series}) => series),
-        values: results.map(({series, index}) => series.data.y[index]),
+        values: results.map(({series, index}) => series.getData().y[index]),
         top: rect.top,
         lineX,
         lineY1: 0,

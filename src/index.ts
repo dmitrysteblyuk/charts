@@ -1,6 +1,7 @@
 import {TimeChart} from './time-chart';
 import {SeriesData} from './lib/series-data';
 import {Selection} from './lib/selection';
+import {isPositive} from './lib/utils';
 import './index.css';
 
 fetch('./chart_data.json')
@@ -11,9 +12,17 @@ fetch('./chart_data.json')
   })
   .then(initializeCharts);
 
+const currentDate = new Date();
+currentDate.setUTCMinutes(0, 0, 0);
+const currentTime = currentDate.getTime();
+
 const svgSelection = new Selection(document.body)
   .renderOne<SVGElement>('svg', 'svgContainer')
   .attr('class', 'chart-svg');
+
+const performanceDemoDiv = (
+  document.getElementById('performanceDemo') as HTMLElement
+);
 
 function initializeCharts(
   json: {
@@ -46,16 +55,80 @@ function initializeCharts(
   window.onresize = () => {
     renderCharts(charts);
   };
+  processRandomDataForm(charts[0]);
+}
+
+function processRandomDataForm(topChart: TimeChart) {
+  const form = performanceDemoDiv.querySelector('form') as HTMLElement;
+  const countInput = form.querySelector('input') as HTMLInputElement;
+  const generateButton = new Selection(
+    form.querySelector('button[type="submit"]') as HTMLButtonElement
+  );
+  const applyButton = new Selection(
+    form.querySelector('button[type="button"]') as HTMLButtonElement
+  );
+  const formSelection = new Selection(form);
+  const randomData: SeriesData[] = [];
+  const realData: SeriesData[] = [];
+  let showingRealData = true;
+
+  formSelection.on('submit', (event) => {
+    event.preventDefault();
+    if (randomData.length) {
+      return;
+    }
+    const count = Math.ceil(
+      Math.abs(parseInt(countInput.value, 10)) / 2
+    );
+    if (!isPositive(count)) {
+      return;
+    }
+    const data1 = generateRandomData(count, currentTime);
+    if (!data1) {
+      return;
+    }
+    const data2 = generateRandomData(count, currentTime);
+    if (!data2) {
+      return;
+    }
+
+    applyButton.attr('disabled', undefined);
+    generateButton.attr('disabled', '');
+    countInput.setAttribute('readonly', '');
+
+    randomData.push(data1, data2);
+  });
+
+  applyButton.on('click', () => {
+    [topChart.mainChart, topChart.helperChart].forEach((chart) => {
+      chart.series.forEach((series, index) => {
+        if (index >= 2) {
+          return;
+        }
+        if (showingRealData) {
+          realData[index] = series.getData();
+        }
+        series.setData((showingRealData ? randomData : realData)[index]);
+      });
+    });
+    showingRealData = !showingRealData;
+    applyButton.text(showingRealData ? 'Apply' : 'Back');
+    topChart.render(svgSelection.selectOne(0) as Selection);
+  });
 }
 
 function renderCharts(charts: TimeChart[]) {
   const svgWidth = window.innerWidth - 30;
-  const viewHeight = window.innerHeight - 20;
-  const chartOuterHeight = Math.floor(
+  const viewHeight = (
+    window.innerHeight -
+    20 -
+    performanceDemoDiv.getBoundingClientRect().height
+  );
+  const chartOuterHeight = Math.max(1, Math.floor(
     viewHeight > 900 ? viewHeight / 3
       : viewHeight > 600 ? viewHeight / 2
       : viewHeight
-  );
+  ));
 
   const singleColumn = svgWidth < 1000;
   const chartOuterWidth = Math.floor(
@@ -78,7 +151,7 @@ function renderCharts(charts: TimeChart[]) {
       chart.setProps({tooltipContainer: selection});
     });
 
-  svgSelection.renderAll('g', charts, (selection, chart, index) => {
+  svgSelection.renderAll('g', charts, (container, chart, index) => {
     const translateX = (
       singleColumn || index === 0 || index % 2
         ? 0
@@ -90,7 +163,7 @@ function renderCharts(charts: TimeChart[]) {
         : Math.floor((index + 1) / 2) * chartOuterHeight
     );
 
-    selection.attr(
+    container.attr(
       'transform',
       `translate(${translateX}, ${translateY})`
     );
@@ -100,21 +173,28 @@ function renderCharts(charts: TimeChart[]) {
       chartOuterWidth: index === 0 ? svgWidth : chartOuterWidth,
       helperHeight: 45
     })
-      .render(selection);
+      .render(container);
   });
 }
 
-function generateRandomData(count: number, endTime: number): SeriesData {
+function generateRandomData(
+  count: number,
+  endTime: number
+): SeriesData | null {
   const timeStep = 15000;
   const startTime = endTime - timeStep * count;
   let x: Float64Array;
   let y: Float64Array;
+
   try {
     x = new Float64Array(count);
     y = new Float64Array(count);
   } catch (error) {
-    alert(error);
-    return new SeriesData([], []);
+    alert(
+      error +
+      '. Likely you do not have enough memory, try fewer points.'
+    );
+    return null;
   }
 
   const startY = 0;

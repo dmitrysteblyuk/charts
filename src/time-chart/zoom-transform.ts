@@ -14,7 +14,10 @@ export function getZoomFactorAndOffset(
     positions[0][1] !== startPositions[0][1]
   ) {
     const [startX, startY] = startPositions[0];
-    const factor = 1 + (positions[0][1] - startY) / window.outerHeight;
+    const factor = Math.max(
+      0.5,
+      1 + (positions[0][1] - startY) / window.outerHeight
+    );
     const fixedT = getTimeForPosition(startX);
     return [factor, fixedT * (1 - factor)];
   }

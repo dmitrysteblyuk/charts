@@ -7,7 +7,8 @@ import {BaseSeries} from './index';
 
 export class LineSeries extends BaseSeries {
   render(container: Selection) {
-    const {data, xScale, yScale, color} = this;
+    const data = this.getData();
+    const {xScale, yScale, color} = this;
 
     container.renderOne('path', 0, (selection) => {
       if (!data.size) {
@@ -64,6 +65,12 @@ export class LineSeries extends BaseSeries {
         return `scale(1,${yFactor})translate(0,${yOffset})`;
       });
     }, this.hidden);
+  }
+
+  setData(data: SeriesData) {
+    super.setData(data);
+    this.getPoints.clearCache();
+    this.drawLine.clearCache();
   }
 
   private getPoints = memoizeOne(getPoints);
