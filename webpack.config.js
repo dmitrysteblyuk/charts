@@ -3,6 +3,7 @@ const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: {
@@ -52,6 +53,13 @@ module.exports = {
 
     new MiniCssExtractPlugin({
       filename: 'styles.css'
-    })
+    }),
+
+    new CopyPlugin([
+      {
+        from: 'chart_data.json',
+        to: 'chart_data.json'
+      }
+    ])
   ]
 };

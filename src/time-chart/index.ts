@@ -49,36 +49,44 @@ export class TimeChart {
   private chartOuterWidth = 0;
   private chartOuterHeight = 0;
   private helperHeight = 0;
-  private bodyContainer = new Selection(document.body);
+  private tooltipContainer: Selection<HTMLElement> | undefined;
   private tooltip = new Tooltip();
+  private paddings = [20, 20, 20, 20];
 
-  setProps(props: {
+  setProps(props: Partial<{
     chartOuterWidth: number,
     chartOuterHeight: number,
-    helperHeight: number
-  }): this {
-    forEach(props, (value, key) => this[key] = value);
+    helperHeight: number,
+    tooltipContainer: Selection<HTMLElement>
+  }>): this {
+    forEach(props, (value, key) => value !== undefined && (this[key] = value));
     return this;
   }
 
   render(container: Selection) {
     const {
-      chartOuterWidth,
       chartOuterHeight,
-      helperHeight
+      helperHeight,
+      paddings
     } = this;
 
     this.renderLegend(container);
 
-    const mainHeight = (
+    const mainHeight = Math.max(
+      1,
       chartOuterHeight -
       helperHeight -
-      (this.legend.getSize() + 20)
+      (this.legend.getSize() + 20) -
+      paddings[0] -
+      paddings[2]
     );
 
-    const mainContainer = container.renderOne('g', 1);
+    const mainContainer = container.renderOne('g', 1).attr(
+      'transform',
+      `translate(${paddings[3]},${paddings[0]})`
+    );
     this.mainChart.setProps({
-      chartOuterWidth,
+      chartOuterWidth: this.getChartWidth(),
       chartOuterHeight: mainHeight
     })
       .render(mainContainer);
@@ -86,9 +94,12 @@ export class TimeChart {
     this.fullTimeScale.setMinDomain(this.timeScale.getDomain());
 
     const helperContainer = container.renderOne('g', 2);
-    helperContainer.attr('transform', `translate(0,${mainHeight})`);
+    helperContainer.attr(
+      'transform',
+      `translate(${paddings[3]},${mainHeight + paddings[0]})`
+    );
     this.helperChart.setProps({
-      chartOuterWidth,
+      chartOuterWidth: this.getChartWidth(),
       chartOuterHeight: helperHeight,
       fixedPaddings: [, , , this.mainChart.getPaddings()[3]]
     })
@@ -131,6 +142,13 @@ export class TimeChart {
     });
   }
 
+  private getChartWidth() {
+    const {chartOuterWidth, paddings} = this;
+    return Math.max(
+      1, chartOuterWidth - paddings[1] - paddings[3]
+    );
+  }
+
   private getMainRect(rectSelection: Selection) {
     return rectSelection.getRect();
   }
@@ -138,11 +156,18 @@ export class TimeChart {
   private renderLegend(container: Selection) {
     const legendContainer = container.renderOne('g', 0);
     this.legend.setProps({
-      maxWidth: this.chartOuterWidth
+      maxWidth: this.getChartWidth()
     })
       .render(legendContainer);
-    const yOffset = this.chartOuterHeight - this.legend.getSize();
-    legendContainer.attr('transform', `translate(0,${yOffset})`);
+    const yOffset = (
+      this.chartOuterHeight -
+      this.legend.getSize() -
+      this.paddings[2]
+    );
+    legendContainer.attr(
+      'transform',
+      `translate(${this.paddings[3]},${yOffset})`
+    );
 
     if (!legendContainer.isNew()) {
       return;
@@ -155,15 +180,16 @@ export class TimeChart {
   }
 
   private renderTooltip(rectSelection: Selection, lineContainer: Selection) {
-    if (!rectSelection.isNew()) {
+    const {tooltipContainer} = this;
+    if (!rectSelection.isNew() || !tooltipContainer) {
       return;
     }
-    const tooltipContainer = this.bodyContainer.renderOne<HTMLElement>(
+    const tooltipSelection = tooltipContainer.renderOne<HTMLElement>(
       'div',
-      'tooltipContainer'
+      'timechartTooltip'
     );
     const {tooltip} = this;
-    tooltipContainer.on('mouseleave', (event: MouseEvent) => {
+    tooltipSelection.on('mouseleave', (event: MouseEvent) => {
       const relatedSelection = new Selection(event.relatedTarget as any);
       if (relatedSelection.isSame(rectSelection)) {
         return;
@@ -173,7 +199,7 @@ export class TimeChart {
 
     rectSelection.on('mouseleave', (event: MouseEvent) => {
       const relatedSelection = new Selection(event.relatedTarget as any);
-      if (relatedSelection.isDescendant(tooltipContainer)) {
+      if (relatedSelection.isDescendant(tooltipSelection)) {
         return;
       }
       hideTooltip();
@@ -229,12 +255,12 @@ export class TimeChart {
         lineY1,
         lineY2
       })
-        .render(tooltipContainer, lineContainer);
+        .render(tooltipSelection, lineContainer);
     });
 
     function hideTooltip() {
       tooltip.setProps({hidden: true})
-        .render(tooltipContainer, lineContainer);
+        .render(tooltipSelection, lineContainer);
     }
   }
 

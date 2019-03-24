@@ -24,7 +24,7 @@ export function onZoomEvents(
   selection
     .on('mousedown', onStart)
     .on('touchstart', onStart, {passive: true})
-    .on('wheel', onStart, {passive: true});
+    .on('wheel', onStart);
   windowSelection
     .on('mouseup', onEnd)
     .on('mousemove', onChange)
@@ -40,6 +40,8 @@ export function onZoomEvents(
         startZoom(initialPositions, ZoomMode.Drag, event);
         return;
       }
+      event.preventDefault();
+
       startZoom(initialPositions, ZoomMode.Wheel, event);
 
       const {deltaX, deltaY} = event;

@@ -27,6 +27,7 @@
   "devDependencies": {
     "@types/jasmine": "^3.3.7",
     "awesome-typescript-loader": "^5.2.1",
+    "copy-webpack-plugin": "^5.0.2",
     "cross-env": "^5.2.0",
     "css-loader": "^2.1.1",
     "git-pre-push": "^0.0.5",

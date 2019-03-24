@@ -35,9 +35,10 @@ export class Selection<EL extends Element = Element> {
 
   constructor(private readonly element: EL) {}
 
-  setStyles(this: Selection<HTMLElement>, styles: CSSProperties) {
+  setStyles(this: Selection<HTMLElement | SVGElement>, styles: CSSProperties) {
     const {style} = this.element;
     forEach(styles, (value, key) => style[key] = value);
+    return this;
   }
 
   isSame({element}: Selection) {
@@ -88,7 +89,13 @@ export class Selection<EL extends Element = Element> {
 
   getRect(): Rect {
     const {width, height, left, top} = this.element.getBoundingClientRect();
-    return {width, height, left, top};
+    const {scrollLeft, scrollTop} = document.documentElement;
+    return {
+      width,
+      height,
+      left: left + scrollLeft,
+      top: top + scrollTop
+    };
   }
 
   getRoundedRect(): Rect {

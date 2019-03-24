@@ -3,7 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const emitEmptyFiles = ['./built/axis/index.css'];
+const emitEmptyFiles = [
+  './built/axis/index.css',
+  './built/index.css'
+];
 emitEmptyFiles.forEach((fileName) => {
   if (!fs.existsSync(fileName)) {
     fs.closeSync(fs.openSync(fileName, 'w'));
