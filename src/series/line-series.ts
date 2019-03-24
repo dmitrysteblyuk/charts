@@ -1,6 +1,7 @@
 import {Selection} from '../lib/selection';
-import {newArray} from '../lib/utils';
+import {binarySearch} from '../lib/binary-search';
 import {Scale} from '../lib/scale';
+import {memoizeOne} from '../lib/utils';
 import {SeriesData} from '../lib/series-data';
 import {BaseSeries} from './index';
 
@@ -14,13 +15,28 @@ export class LineSeries extends BaseSeries {
         return;
       }
 
-      const line = drawLine(
-        (x) => Math.round(xScale.scale(x)),
-        (y) => Math.round(yScale.scale(y)),
-        data,
-        newArray(data.size, (index) => index),
+      const [x0, x1] = xScale.getDomain();
+      let startIndex = binarySearch(
         0,
-        data.size
+        data.size,
+        (index) => x0 < data.x[index]
+      ) - 1;
+      let endIndex = binarySearch(
+        startIndex + 1,
+        data.size,
+        (index) => x1 <= data.x[index]
+      ) + 1;
+      startIndex = Math.max(0, startIndex);
+      endIndex = Math.min(data.size, endIndex);
+
+      const line = this.drawLine(
+        data,
+        startIndex,
+        endIndex,
+        xScale.getFactor(),
+        xScale.getOffset(),
+        yScale.getFactor(),
+        yScale.getOffset()
       );
       selection.attr({
         'stroke': color,
@@ -49,6 +65,24 @@ export class LineSeries extends BaseSeries {
       });
     }, this.hidden);
   }
+
+  private getPoints = memoizeOne(getPoints);
+
+  private drawLine = memoizeOne((
+    data: SeriesData,
+    startIndex: number,
+    endIndex: number,
+    factorX: number,
+    ...[]: number[]
+  ) => {
+    const {xScale, yScale} = this;
+    return drawLine(
+      (x) => Math.floor(xScale.scale(x)),
+      (y) => Math.round(yScale.scale(y)),
+      data,
+      this.getPoints(data, startIndex, endIndex, factorX)
+    );
+  });
 }
 
 function getTransform(
@@ -72,15 +106,13 @@ function drawLine(
   scaleX: (x: number) => number,
   scaleY: (y: number) => number,
   data: SeriesData,
-  points: number[],
-  startIndex: number,
-  endIndex: number
+  points: ReadonlyArray<number>
 ): string {
-  let lastX = scaleX(data.x[points[startIndex]]);
-  let lastY = scaleY(data.y[points[startIndex]]);
+  let lastX = scaleX(data.x[points[0]]);
+  let lastY = scaleY(data.y[points[0]]);
   const path = ['M', lastX, ',', lastY];
 
-  for (let index = startIndex + 1; index < endIndex; index++) {
+  for (let index = 1; index < points.length; index++) {
     const nextX = scaleX(data.x[points[index]]);
     const nextY = scaleY(data.y[points[index]]);
 
@@ -98,4 +130,85 @@ function drawLine(
     }
   }
   return path.join('');
+}
+
+function getPoints(
+  data: SeriesData,
+  startIndex: number,
+  endIndex: number,
+  factorX: number
+): ReadonlyArray<number> {
+  if (startIndex >= endIndex) {
+    return [];
+  }
+  const points: number[] = [];
+  let last = -1;
+  rangePoints(data, startIndex, endIndex, factorX, (index) => {
+    if (last === index) {
+      return;
+    }
+    points.push(index);
+    last = index;
+  });
+  return points;
+}
+
+function rangePoints(
+  data: SeriesData,
+  startIndex: number,
+  endIndex: number,
+  factorX: number,
+  addNext: (index: number) => void
+) {
+  let lastX = Math.floor(factorX * data.x[startIndex]);
+  let connect = (
+    startIndex === 0 ||
+    lastX > Math.floor(factorX * data.x[startIndex - 1]) + 1
+  );
+
+  for (let index = startIndex; index < endIndex; index++) {
+    if (connect) {
+      addNext(index);
+    }
+
+    let toIndex: number | undefined;
+    if (index === endIndex - 1) {
+      toIndex = endIndex;
+    } else {
+      const dataX = Math.ceil((lastX + 1) / factorX);
+      toIndex = binarySearch(
+        index + 1,
+        endIndex,
+        (searchIndex) => dataX <= data.x[searchIndex]
+      );
+    }
+
+    const range = data.getRange(
+      index + 1,
+      toIndex,
+      index,
+      index
+    );
+
+    if (range[0] < range[1]) {
+      addNext(range[0]);
+      addNext(range[1]);
+    } else {
+      addNext(range[1]);
+      addNext(range[0]);
+    }
+
+    index = toIndex - 1;
+    if (index === data.size - 1) {
+      connect = true;
+    } else {
+      const prevX = lastX;
+      lastX = Math.floor(factorX * data.x[index + 1]);
+      connect = lastX > prevX + 1;
+    }
+
+    if (connect) {
+      addNext(index);
+    }
+  }
 }

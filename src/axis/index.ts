@@ -127,13 +127,13 @@ export class Axis {
     const {transitionScale, hideOverlappingTicks} = this;
     const vertical = this.isVertical();
     const matrix = axisTransformMatrix[position];
-    const toAnimate = !hideOverlappingTicks && animated;
+    const shouldAnimate = !hideOverlappingTicks && animated;
 
     const currentDomain = scale.getDomain();
     const fromDomain = axisContainer.getPreviousData({
       domain: currentDomain
     }).domain as NumberRange;
-    const useTransitions = fromDomain && toAnimate && enableTransitions;
+    const useTransitions = fromDomain && shouldAnimate && enableTransitions;
 
     const checkTicksForOverlapping = Boolean(
       (
@@ -193,7 +193,7 @@ export class Axis {
         });
       }, !displayLabels);
 
-      if (toAnimate && tickSelection.isNew()) {
+      if (shouldAnimate && tickSelection.isNew()) {
         tickSelection.attr('class', 'appear');
       }
 
@@ -206,7 +206,7 @@ export class Axis {
       }
       tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
     }, (tickSelection, tick, removeCallback) => {
-      if (!toAnimate) {
+      if (!shouldAnimate) {
         removeCallback();
         return;
       }

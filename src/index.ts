@@ -4,11 +4,11 @@ import {Selection} from './lib/selection';
 
 const timeNow = Date.now();
 const timeChart = new TimeChart();
-timeChart.addSeries(generateRandomData(10000, timeNow), {
+timeChart.addSeries(generateRandomData(50000000, timeNow), {
   color: 'steelblue',
   label: 'series #1'
 });
-timeChart.addSeries(generateRandomData(15000, timeNow), {
+timeChart.addSeries(generateRandomData(50000000, timeNow), {
   color: 'forestgreen',
   label: 'series #2'
 });
@@ -47,22 +47,45 @@ function setSize() {
 function generateRandomData(count: number, endTime: number): SeriesData {
   const timeStep = 15000;
   const startTime = endTime - timeStep * count;
-  const x = new Uint32Array(count);
-  const y = new Float64Array(count);
+  let x: Float64Array;
+  let y: Float64Array;
+  try {
+    x = new Float64Array(count);
+    y = new Float64Array(count);
+  } catch (error) {
+    alert(error);
+    return new SeriesData([], []);
+  }
+
+  const startY = 0;
+  let minY = startY;
+  let maxY = startY;
 
   x[0] = startTime;
-  y[0] = 0;
+  y[0] = startY;
 
   // tslint:disable no-bitwise
   for (let index = 1; index < count; ) {
     let randomNumber = Math.random() * 1e16 >>> 0;
     do {
       x[index] = startTime + timeStep * index;
-      y[index] = y[index - 1] + (randomNumber & 1 ? 1 : -1.0732);
-      index++;
-    } while ((randomNumber = randomNumber >>> 1) > 0);
+      const nextY = y[index - 1] + (randomNumber & 1 ? 1 : -1.0598);
+      y[index] = nextY;
+      if (minY > nextY) {
+        minY = nextY;
+      } else if (maxY < nextY) {
+        maxY = nextY;
+      }
+    }
+    while (++index < count && (randomNumber = randomNumber >>> 1) > 0);
   }
   // tslint:enable no-bitwise
+
+  // Throw in some peaks
+  for (let index = 10; index-- > 0; ) {
+    const randomY = Math.random() * (maxY - minY) + minY;
+    y[Math.floor(Math.random() * count)] = randomY;
+  }
 
   return new SeriesData(x, y);
 }

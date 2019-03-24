@@ -1,5 +1,5 @@
 import {Selection} from '../lib/selection';
-import {forEach} from '../lib/utils';
+import {forEach, memoizeOne} from '../lib/utils';
 import {ChartScale, getExtendedDomain} from '../chart/chart-scale';
 import {SeriesData} from '../lib/series-data';
 import {binarySearch} from '../lib/binary-search';
@@ -51,7 +51,7 @@ export abstract class BaseSeries {
   }
 
   extendYDomain(yDomain: NumberRange): NumberRange {
-    const {x: dataX, y: dataY, size} = this.data;
+    const {x: dataX, size} = this.data;
     if (!size) {
       return yDomain;
     }
@@ -67,15 +67,22 @@ export abstract class BaseSeries {
 
     this.prepareData();
 
-    const [minY, maxY] = this.data.getRange(
+    const [minY, maxY] = this.getYDomain(startIndex, endIndex, this.data);
+    return getExtendedDomain(yDomain, [minY, maxY]);
+  }
+
+  private getYDomain = memoizeOne((
+    startIndex: number,
+    endIndex: number,
+    data: SeriesData
+  ) => {
+    return data.getRange(
       startIndex + 1,
       endIndex,
       startIndex,
       startIndex
-    ).map((index) => dataY[index]);
-
-    return getExtendedDomain(yDomain, [minY, maxY]);
-  }
+    ).map((index) => data.y[index])
+  });
 
   private prepareData() {
     const [start, end] = this.xScale.getRange();

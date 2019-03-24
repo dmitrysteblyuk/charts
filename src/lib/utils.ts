@@ -58,3 +58,24 @@ export function arrayIsEqual<T>(
 export function isPositive(x: number): boolean {
   return x > 0 && isFinite(x);
 }
+
+export function memoizeOne<T extends (...args: any[]) => any>(
+  method: T
+): T & {clearCache: () => void} {
+  let lastArgs: any[] | undefined;
+  let lastResult: any;
+
+  const memoized = ((...args: any[]) => {
+    if (!lastArgs || !arrayIsEqual(lastArgs, args)) {
+      lastArgs = args;
+      lastResult = method(...args);
+    }
+    return lastResult;
+  }) as (T & {clearCache: () => void});
+
+  memoized.clearCache = () => {
+    lastArgs = lastResult = undefined;
+  };
+
+  return memoized;
+}

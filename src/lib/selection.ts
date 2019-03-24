@@ -203,18 +203,18 @@ export class Selection<EL extends Element = Element> {
     tagName: string,
     selector: Selector,
     updater?: (selection: Selection<E>) => void,
-    toRemove?: boolean,
+    shouldRemove?: boolean,
     remover?: Remover<E, D>
   ): Selection<E> | null;
   renderOne<E extends Element, D>(
     tagName: string,
     selector: Selector,
     updater?: (selection: Selection<E>) => void,
-    toRemove?: boolean,
+    shouldRemove?: boolean,
     remover?: Remover<E, D>
   ): Selection<E> | null {
     let selection = this.selectOne<E>(selector);
-    if (toRemove) {
+    if (shouldRemove) {
       if (selection !== null) {
         selection.destroy(remover);
       }
@@ -439,7 +439,7 @@ function animate(
   onRequest: (requestId: number) => void,
   duration: number,
   onStop: () => void,
-  toFlush: () => boolean | undefined
+  shouldFlush: () => boolean | undefined
 ) {
   let startTime: number | null = null;
 
@@ -448,7 +448,7 @@ function animate(
       startTime = time;
     }
     const progress = (
-      toFlush()
+      shouldFlush()
         ? 1
         : Math.min(1, (time - startTime) / duration)
     );
