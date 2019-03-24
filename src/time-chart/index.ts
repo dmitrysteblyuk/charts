@@ -14,6 +14,7 @@ import {getZoomFactorAndOffset} from './zoom-transform';
 import {axisTimeFormat} from '../lib/time-format';
 import {Tooltip} from '../tooltip';
 import {getNearestPoint} from './get-nearest-point';
+import {roundAuto} from '../lib/decimal-scale-ticks';
 
 export class TimeChart {
   private readonly timeScale = new TimeScale();
@@ -30,6 +31,7 @@ export class TimeChart {
         displayGrid: false
       }),
       new Axis(AxisPosition.left, this.valueScale).setProps({
+        tickFormat: roundAuto,
         displayScale: false
       })
     ]

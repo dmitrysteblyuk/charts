@@ -30,7 +30,7 @@ export class Axis {
   private gridSize = 0;
   private color = '#777';
   private gridColor = '#ddd';
-  private tickFormat: (tick: number) => string = String;
+  private tickFormat: (tick: number) => string | number = String;
   private animated = false;
   private enableTransitions = true;
   private hideOverlappingTicks = false;
@@ -52,7 +52,7 @@ export class Axis {
     animated: boolean,
     enableTransitions: boolean,
     hideOverlappingTicks: boolean,
-    tickFormat: (value: number) => string,
+    tickFormat: (value: number) => string | number,
     tickPrecedence: (a: number, b: number) => number
   }>): this {
     forEach(props, (value, key) => value !== undefined && (this[key] = value));

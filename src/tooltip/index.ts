@@ -1,6 +1,7 @@
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
 import {BaseSeries} from '../series';
+import {roundAuto} from '../lib/decimal-scale-ticks';
 import './index.css';
 
 export class Tooltip {
@@ -68,7 +69,7 @@ export class Tooltip {
     }
 
     tooltipContainer.renderOne<HTMLElement>('div', 0)
-      .text(new Date(time).toLocaleString());
+      .text(new Date(time).toUTCString());
 
     const valueSelection = tooltipContainer.renderOne<HTMLElement>('div', 1);
     if (valueSelection.isNew()) {
@@ -81,7 +82,7 @@ export class Tooltip {
     ) => {
       const series = this.series[index];
       selection.setStyles({'color': series.getColor()});
-      selection.renderOne<HTMLElement>('div', 0).text(value);
+      selection.renderOne<HTMLElement>('div', 0).text(roundAuto(value));
       selection.renderOne('div', 1).text(series.getLabel());
     });
 

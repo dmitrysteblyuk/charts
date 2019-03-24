@@ -30,3 +30,14 @@ export function getDecimalScaleTicks(
   }
   return ticks;
 }
+
+export function roundAuto(x: number): number {
+  if (x === 0) {
+    return x;
+  }
+  const n = x > 99 && x < 100 || x > 0 && x < 1 ? 2 : 1;
+  const d = Math.round(Math.log(Math.abs(x)) / Math.LN10);
+  const degree = d > n ? 0 : d < 0 ? n - d : n;
+  const power = Math.pow(10, degree);
+  return Math.round(x * power) / power;
+}
