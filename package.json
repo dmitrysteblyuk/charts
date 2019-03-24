@@ -2,13 +2,16 @@
   "name": "reader",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://dmitrysteblyuk.github.io/charts",
   "scripts": {
     "start": "webpack-dev-server --mode development --host 0.0.0.0 --disable-host-check",
     "webpack": "rm -rf dist && webpack --mode production",
     "closure": "rm -rf built && tsc --project ./tsconfig-closure.json && node ./compile-with-closure.js",
     "build": "yarn webpack && yarn closure",
     "test": "cross-env TS_NODE_FILES=true ts-node node_modules/jasmine/bin/jasmine --files=./definitions/globals.d.ts",
-    "lint": "tslint --project ./tsconfig.json --format verbose \"./src/**/*.ts\""
+    "lint": "tslint --project ./tsconfig.json --format verbose \"./src/**/*.ts\"",
+    "predeploy": "yarn run build",
+    "deploy": "gh-pages -d dist"
   },
   "pre-push": [
     "lint",
@@ -30,6 +33,7 @@
     "copy-webpack-plugin": "^5.0.2",
     "cross-env": "^5.2.0",
     "css-loader": "^2.1.1",
+    "gh-pages": "^2.0.1",
     "git-pre-push": "^0.0.5",
     "google-closure-compiler": "^20190301.0.0",
     "html-webpack-plugin": "^3.2.0",
