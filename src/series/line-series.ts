@@ -40,7 +40,7 @@ export class LineSeries extends BaseSeries {
       );
       selection.attr({
         'stroke': color,
-        'stroke-width': 1,
+        'stroke-width': 2,
         'fill': 'none',
         'd': line
       });

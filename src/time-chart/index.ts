@@ -26,21 +26,16 @@ export class TimeChart {
     [
       new Axis(AxisPosition.bottom, this.timeScale).setProps({
         tickFormat: axisTimeFormat,
-        tickPrecedence: timePrecedence
+        tickPrecedence: timePrecedence,
+        displayGrid: false
       }),
-      new Axis(AxisPosition.left, this.valueScale)
+      new Axis(AxisPosition.left, this.valueScale).setProps({
+        displayScale: false
+      })
     ]
   );
   private readonly legend = new Legend([]);
-  private readonly helperChart = new Chart(
-    [
-      new Axis(AxisPosition.top, this.fullTimeScale).setProps({
-        tickFormat: axisTimeFormat,
-        tickPrecedence: timePrecedence
-      }),
-      new Axis(AxisPosition.right, this.fullValueScale)
-    ]
-  );
+  private readonly helperChart = new Chart([]);
   private isBrushing = false;
   private actionTimerId: number | null = null;
   private brushLeft = 0;
@@ -49,6 +44,7 @@ export class TimeChart {
   private chartOuterWidth = 0;
   private chartOuterHeight = 0;
   private helperHeight = 0;
+  private helperPadding = 10;
   private tooltipContainer: Selection<HTMLElement> | undefined;
   private tooltip = new Tooltip();
   private paddings = [20, 20, 20, 20];
@@ -67,7 +63,8 @@ export class TimeChart {
     const {
       chartOuterHeight,
       helperHeight,
-      paddings
+      paddings,
+      helperPadding
     } = this;
 
     this.renderLegend(container);
@@ -76,6 +73,7 @@ export class TimeChart {
       1,
       chartOuterHeight -
       helperHeight -
+      helperPadding -
       (this.legend.getSize() + 20) -
       paddings[0] -
       paddings[2]
@@ -96,7 +94,7 @@ export class TimeChart {
     const helperContainer = container.renderOne('g', 2);
     helperContainer.attr(
       'transform',
-      `translate(${paddings[3]},${mainHeight + paddings[0]})`
+      `translate(${paddings[3]},${mainHeight + paddings[0] + helperPadding})`
     );
     this.helperChart.setProps({
       chartOuterWidth: this.getChartWidth(),
@@ -155,24 +153,25 @@ export class TimeChart {
 
   private renderLegend(container: Selection) {
     const legendContainer = container.renderOne('g', 0);
-    this.legend.setProps({
+    const {legend} = this;
+    legend.setProps({
       maxWidth: this.getChartWidth()
     })
       .render(legendContainer);
     const yOffset = (
       this.chartOuterHeight -
-      this.legend.getSize() -
+      legend.getSize() -
       this.paddings[2]
     );
     legendContainer.attr(
       'transform',
-      `translate(${this.paddings[3]},${yOffset})`
+      `translate(${this.paddings[3] + legend.getPadding()},${yOffset})`
     );
 
     if (!legendContainer.isNew()) {
       return;
     }
-    this.legend.onClickEvent.on((seriesGroup) => {
+    legend.onClickEvent.on((seriesGroup) => {
       const hidden = !seriesGroup[0].isHidden();
       seriesGroup.forEach((series) => series.setProps({hidden}));
       this.render(container);
@@ -184,12 +183,8 @@ export class TimeChart {
     if (!rectSelection.isNew() || !tooltipContainer) {
       return;
     }
-    const tooltipSelection = tooltipContainer.renderOne<HTMLElement>(
-      'div',
-      'timechartTooltip'
-    );
     const {tooltip} = this;
-    tooltipSelection.on('mouseleave', (event: MouseEvent) => {
+    tooltipContainer.on('mouseleave', (event: MouseEvent) => {
       const relatedSelection = new Selection(event.relatedTarget as any);
       if (relatedSelection.isSame(rectSelection)) {
         return;
@@ -199,7 +194,7 @@ export class TimeChart {
 
     rectSelection.on('mouseleave', (event: MouseEvent) => {
       const relatedSelection = new Selection(event.relatedTarget as any);
-      if (relatedSelection.isDescendant(tooltipSelection)) {
+      if (relatedSelection.isDescendant(tooltipContainer)) {
         return;
       }
       hideTooltip();
@@ -240,7 +235,6 @@ export class TimeChart {
       const {series: firstSeries, index: firstIndex} = results[0];
       const time = firstSeries.data.x[firstIndex];
       const lineX = firstSeries.xScale.scale(time);
-      const lineY1 = 20;
       const lineY2 = this.mainChart.getInnerHeight();
       const left = Math.round(lineX + rect.left) - 20;
 
@@ -250,17 +244,17 @@ export class TimeChart {
         hidden: false,
         series: results.map(({series}) => series),
         values: results.map(({series, index}) => series.data.y[index]),
-        top: rect.top + lineY1,
+        top: rect.top,
         lineX,
-        lineY1,
+        lineY1: 0,
         lineY2
       })
-        .render(tooltipSelection, lineContainer);
+        .render(tooltipContainer, lineContainer);
     });
 
     function hideTooltip() {
       tooltip.setProps({hidden: true})
-        .render(tooltipSelection, lineContainer);
+        .render(tooltipContainer as Selection<HTMLElement>, lineContainer);
     }
   }
 

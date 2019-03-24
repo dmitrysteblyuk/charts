@@ -1,0 +1,31 @@
+.chart-tooltip {
+  position: absolute;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+  white-space: pre;
+  background: white;
+  border: 1px solid #ddd;
+  padding: 5px 10px;
+  animation-duration: 0.5s;
+  display: flex;
+  flex-direction: column;
+  font-family: monospace;
+  font-size: 14px;
+}
+.chart-tooltip-values {
+  display: flex;
+  justify-content: space-evenly;
+  flex-grow: 1;
+}
+.chart-tooltip-values > * {
+  padding: 7px 5px 0;
+  display: inline-block;
+}
+.chart-tooltip-values > * > :first-child {
+  font-size: 17px;
+  font-weight: bold;
+}
+.chart-tooltip-values > * > :last-child {
+  font-size: 13px;
+}

@@ -13,10 +13,7 @@ fetch('./chart_data.json')
 
 const svgSelection = new Selection(document.body)
   .renderOne<SVGElement>('svg', 'svgContainer')
-  .setStyles({
-    'touchAction': 'manipulation',
-    'webkitTapHighlightColor': 'rgba(0,0,0,0)'
-  });
+  .attr('class', 'chart-svg');
 
 function initializeCharts(
   json: {
@@ -71,8 +68,8 @@ function renderCharts(charts: TimeChart[]) {
   );
 
   svgSelection.attr({
-    width: svgWidth,
-    height: svgHeight
+    'width': svgWidth,
+    'height': svgHeight
   });
 
   new Selection(document.body)
@@ -101,7 +98,7 @@ function renderCharts(charts: TimeChart[]) {
     chart.setProps({
       chartOuterHeight,
       chartOuterWidth: index === 0 ? svgWidth : chartOuterWidth,
-      helperHeight: 60
+      helperHeight: 45
     })
       .render(selection);
   });

@@ -24,14 +24,12 @@ export class Axis {
 
   private displayLabels = true;
   private displayGrid = true;
-  private displayLines = true;
   private displayScale = true;
   private tickCount = 5;
-  private tickPadding = 5;
-  private tickSize = 5;
+  private tickPadding = 10;
   private gridSize = 0;
-  private color = '#444';
-  private gridColor = '#aaa';
+  private color = '#777';
+  private gridColor = '#ddd';
   private tickFormat: (tick: number) => string = String;
   private animated = false;
   private enableTransitions = true;
@@ -45,11 +43,9 @@ export class Axis {
   ) {}
 
   setProps(props: Partial<{
-    tickSize: number,
     color: string,
     gridColor: string,
     displayLabels: boolean,
-    displayLines: boolean,
     displayScale: boolean,
     displayGrid: boolean,
     gridSize: number,
@@ -69,10 +65,9 @@ export class Axis {
 
   render(container: Selection) {
     const {
-      tickSize,
       position,
       scale,
-      color,
+      gridColor,
       displayScale,
       hideOverlappingTicks
     } = this;
@@ -83,11 +78,11 @@ export class Axis {
     axisContainer.attr('transform', matrix && `matrix(${matrix[0]})`);
 
     axisContainer.renderOne('path', 'axisScale', (selection) => {
-      const pathAttr = `M${range[0]},${tickSize}V0H${range[1]}V${tickSize}`;
+      const pathAttr = `M${range[0]},0H${range[1]}`;
       selection.attr({
         'd': pathAttr,
         'fill': 'none',
-        'stroke': color
+        'stroke': gridColor
       });
     }, hideOverlappingTicks || !displayScale);
 
@@ -111,11 +106,9 @@ export class Axis {
       tickCount,
       tickPadding,
       displayLabels,
-      displayLines,
       position,
       color,
       gridColor,
-      tickSize,
       gridSize,
       tickFormat,
       animated,
@@ -153,13 +146,6 @@ export class Axis {
     const ticksContainer = axisContainer.renderOne('g', 'axisTicks');
 
     ticksContainer.renderAll('g', tickData, (tickSelection, tick) => {
-      tickSelection.renderOne('line', 'tickLine', (selection) => {
-        selection.attr({
-          'y2': tickSize,
-          'stroke': color
-        });
-      }, hideOverlappingTicks || !displayLines);
-
       tickSelection.renderOne('line', 'tickGrid', (selection) => {
         selection.attr({
           'y2': -gridSize,
@@ -169,26 +155,29 @@ export class Axis {
 
       tickSelection.renderOne('text', 'tickLabel', (selection) => {
         const textAnchor = (
-          position === AxisPosition.left ? 'end'
-            : position === AxisPosition.right ? undefined
+          position === AxisPosition.left ? 'start'
+            : position === AxisPosition.right ? 'end'
             : 'middle'
         );
         const dominantBaseline = (
           position === AxisPosition.top ? undefined
             : position === AxisPosition.bottom ? 'hanging'
-            : 'central'
+            : 'text-after-edge'
         );
-        const indent = (tickPadding + tickSize) * (
+        const indent = tickPadding * (
           position === AxisPosition.left ||
           position === AxisPosition.bottom
             ? 1 : -1
         );
 
         selection.text(tickFormat(tick)).attr({
+          'font-family': 'monospace',
+          'fill': color,
+          'font-size': '12px',
           'transform': matrix && `matrix(${matrix[1]})`,
           'text-anchor': textAnchor,
           'dominant-baseline': dominantBaseline,
-          'x': vertical ? -indent : 0,
+          'x': vertical ? indent : 0,
           'y': vertical ? 0 : indent
         });
       }, !displayLabels);
@@ -270,10 +259,14 @@ export class Axis {
       lastVisibleSelection = selection;
     });
 
-    const maxTickSize = visibleRects.reduce((maxSize, rect) => {
-      return Math.max(maxSize, vertical ? rect.width : rect.height);
-    }, 0);
-    this.outsideSize = maxTickSize + tickPadding + tickSize;
+    if (vertical) {
+      this.outsideSize = 0;
+    } else {
+      const maxTickSize = visibleRects.reduce((maxSize, rect) => {
+        return Math.max(maxSize, vertical ? rect.width : rect.height);
+      }, 0);
+      this.outsideSize = maxTickSize + tickPadding;
+    }
 
     if (!isSomeRemoved) {
       return;

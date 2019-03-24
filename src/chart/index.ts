@@ -101,6 +101,8 @@ export class Chart {
       series,
       _index
     ) => {
+      this.setScaleRange(series.xScale, false);
+      this.setScaleRange(series.yScale, true);
       series.render(selection);
     });
   }

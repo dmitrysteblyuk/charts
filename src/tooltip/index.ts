@@ -1,6 +1,7 @@
 import {Selection} from '../lib/selection';
 import {forEach} from '../lib/utils';
 import {BaseSeries} from '../series';
+import './index.css';
 
 export class Tooltip {
   private top = 0;
@@ -60,41 +61,31 @@ export class Tooltip {
     }
 
     const {top, time, values, lineX, lineY1, lineY2} = this;
+    const tooltipContainer = container.renderOne<HTMLElement>('div', 0);
 
-    if (container.isNew()) {
-      container.setStyles({
-        position: 'absolute',
-        width: 'auto',
-        height: 'auto',
-        borderRadius: '4px',
-        whiteSpace: 'pre',
-        background: 'white',
-        border: '1px solid #444',
-        padding: '4px',
-        animationDuration: '0.5s'
-      });
+    if (tooltipContainer.isNew()) {
+      tooltipContainer.attr('class', 'chart-tooltip');
     }
 
-    container.renderOne('div', 0)
-      .text(new Date(time).toISOString());
+    tooltipContainer.renderOne<HTMLElement>('div', 0)
+      .text(new Date(time).toLocaleString());
 
-    const valueSelection = container.renderOne('div', 1);
+    const valueSelection = tooltipContainer.renderOne<HTMLElement>('div', 1);
+    if (valueSelection.isNew()) {
+      valueSelection.attr('class', 'chart-tooltip-values');
+    }
     valueSelection.renderAll<HTMLElement, number>('div', values, (
       selection,
       value,
       index
     ) => {
       const series = this.series[index];
-      selection.setStyles({
-        display: 'inline-block',
-        color: series.getColor()
-      });
-
-      selection.renderOne('div', 0).text(series.getLabel());
-      selection.renderOne('div', 1).text(value);
+      selection.setStyles({'color': series.getColor()});
+      selection.renderOne<HTMLElement>('div', 0).text(value);
+      selection.renderOne('div', 1).text(series.getLabel());
     });
 
-    const rect = container.getRect();
+    const rect = tooltipContainer.getRect();
     const lineSelection = lineContainer.renderOne('line', 0);
     const circlesContainer = lineContainer.renderOne('g', 1);
     lineSelection.attr({
@@ -102,7 +93,7 @@ export class Tooltip {
       'x2': lineX,
       'y1': Math.min(lineY1 + rect.height, lineY2),
       'y2': lineY2,
-      'stroke': '#444'
+      'stroke': '#ddd'
     });
 
     circlesContainer.renderAll('circle', values, (selection, value, index) => {
@@ -118,9 +109,9 @@ export class Tooltip {
     });
 
     const left = Math.min(this.left, window.innerWidth - rect.width - 5);
-    container.setStyles({
-      top: `${top}px`,
-      left: `${left}px`
+    tooltipContainer.setStyles({
+      'top': `${top}px`,
+      'left': `${left}px`
     });
   }
 }

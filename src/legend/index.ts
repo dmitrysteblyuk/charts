@@ -6,6 +6,9 @@ import {EventEmitter} from '../lib/event-emitter';
 export class Legend {
   private maxWidth = 0;
   private size = 0;
+  private radius = 7;
+  private strokeWidth = 3;
+  private rectPadding = 7;
   readonly onClickEvent = new EventEmitter<BaseSeries[]>();
 
   constructor(readonly seriesGroups: BaseSeries[][]) {}
@@ -21,28 +24,61 @@ export class Legend {
     return this.size;
   }
 
+  getPadding() {
+    return this.rectPadding;
+  }
+
   render(container: Selection) {
-    const {seriesGroups, maxWidth} = this;
+    const {seriesGroups, maxWidth, radius, strokeWidth, rectPadding} = this;
 
     container.renderAll('g', seriesGroups, (itemSelection, group) => {
       const [series] = group;
-      itemSelection.renderOne('circle', 0, (selection) => {
-        selection.attr({
-          'cx': 12,
-          'cy': 12,
-          'r': 10,
-          'stroke': series.getColor(),
-          'stroke-width': 3,
-          'fill': series.isHidden() ? 'transparent' : series.getColor()
+      const circleSelection = itemSelection.renderOne('circle', 0);
+      if (circleSelection.isNew()) {
+        const center = radius + strokeWidth / 2;
+        circleSelection.attr({
+          'cx': center,
+          'cy': center,
+          'r': radius,
+          'stroke-width': strokeWidth
         });
+      }
+      circleSelection.attr({
+        'stroke': series.getColor(),
+        'fill': series.isHidden() ? 'transparent' : series.getColor()
       });
 
-      itemSelection.renderOne('text', 1, (selection) => {
-        selection.text(series.getLabel()).attr({
-          'dx': 33,
-          'dy': 12.5,
+      const textSelection = itemSelection.renderOne('text', 1);
+      textSelection.text(series.getLabel());
+      const dx = 2 * radius + strokeWidth + 10;
+      if (textSelection.isNew()) {
+        textSelection.attr({
+          'dx': dx,
+          'dy': radius + strokeWidth,
           'dominant-baseline': 'middle'
         });
+      }
+
+      const rectSelection = itemSelection.renderOne('rect', 2);
+      if (rectSelection.isNew()) {
+        rectSelection.attr({
+          'x': -rectPadding,
+          'y': -rectPadding,
+          'fill': 'transparent',
+          'stroke': '#ddd'
+        });
+      }
+      const textRect = textSelection.getRoundedRect();
+      const height = (
+        Math.max(textRect.height, 2 * radius + strokeWidth) +
+        2 * rectPadding
+      );
+      const width = dx + textRect.width + 3 * rectPadding;
+      rectSelection.attr({
+        'rx': height / 2,
+        'ry': height / 2,
+        'width': width,
+        'height': height
       });
 
       if (!itemSelection.isNew()) {
@@ -63,7 +99,7 @@ export class Legend {
       rects.push(rect);
     });
 
-    const columnSize = maxItemSize + 10;
+    const columnSize = maxItemSize + 15;
     const totalColumns = Math.max(1, Math.floor(maxWidth / columnSize));
 
     if (!isPositive(totalColumns)) {

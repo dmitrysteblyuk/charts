@@ -5,6 +5,7 @@ const zlib = require('zlib');
 
 const emitEmptyFiles = [
   './built/axis/index.css',
+  './built/tooltip/index.css',
   './built/index.css'
 ];
 emitEmptyFiles.forEach((fileName) => {

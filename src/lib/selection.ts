@@ -16,7 +16,7 @@ const DATA_CHANGES_PROPERTIES = [
 export const enum DataType {attributes, styles, data};
 
 type Primitive = string | boolean | number | undefined;
-type TrackData = Dictionary<Primitive | ReadonlyArray<Primitive | {}>>;
+type TrackData = Dictionary<Primitive | null | ReadonlyArray<Primitive | {}>>;
 type Selector = number | string;
 type Remover<E extends Element, D> = (
   (selection: Selection<E>, datum: D, callback: () => void) => void
@@ -38,6 +38,15 @@ export class Selection<EL extends Element = Element> {
   setStyles(this: Selection<HTMLElement | SVGElement>, styles: CSSProperties) {
     const {style} = this.element;
     forEach(styles, (value, key) => style[key] = value);
+    // const changes = detectChanges<Dictionary<any>>(
+    //   this.element,
+    //   styles,
+    //   DataType.styles
+    // );
+    // if (!changes) {
+    //   return this;
+    // }
+    // forEach(changes, (_, key: any) => style[key] = styles[key] as any);
     return this;
   }
 

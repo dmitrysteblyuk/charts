@@ -19,8 +19,7 @@ export class Brush {
   private left = 0;
   private right = 0;
   private reset = true;
-  private fill = 'rgba(0, 0, 0, 0.3)';
-  private stroke = '#444';
+  private color = 'rgba(0, 25, 100, 0.1)';
   private borderWidth = 10;
 
   setProps(props: {
@@ -39,7 +38,21 @@ export class Brush {
       this.reset = false;
     }
 
-    container.renderOne('rect', 0, (selection) => {
+    const rectSelection = container.renderOne('rect', 0);
+    if (rectSelection.isNew()) {
+      rectSelection.attr({
+        'x': '0',
+        'y': '0',
+        'stroke': this.color,
+        'fill': 'none'
+      });
+    }
+    rectSelection.attr({
+      'width': width,
+      'height': height
+    });
+
+    container.renderOne('rect', 1, (selection) => {
       selection.attr({
         'width': left,
         'height': height
@@ -48,14 +61,13 @@ export class Brush {
         return;
       }
       selection.on('click', () => this.onResetClick()).attr({
-        'fill': defaultFill,
-        'stroke': this.stroke,
+        'fill': this.color,
         'x': '0',
         'y': '0'
       });
     });
 
-    container.renderOne('rect', 1, (selection) => {
+    container.renderOne('rect', 2, (selection) => {
       selection.attr({
         'x': right,
         'width': width - right,
@@ -65,15 +77,14 @@ export class Brush {
         return;
       }
       selection.on('click', () => this.onResetClick()).attr({
-        'fill': defaultFill,
-        'stroke': this.stroke,
+        'fill': this.color,
         'y': '0'
       });
     });
 
-    container.renderOne('rect', 2, (selection) => {
+    container.renderOne('rect', 3, (selection) => {
       selection.attr({
-        'fill': this.reset ? defaultFill : this.fill,
+        'fill': defaultFill,
         'x': left,
         'width': right - left,
         'height': height,
@@ -81,7 +92,7 @@ export class Brush {
       });
     });
 
-    container.renderOne('rect', 3, (selection) => {
+    container.renderOne('rect', 4, (selection) => {
       selection.attr({
         'fill': defaultFill,
         'x': left - borderWidth,
@@ -91,7 +102,7 @@ export class Brush {
       });
     });
 
-    container.renderOne('rect', 4, (selection) => {
+    container.renderOne('rect', 5, (selection) => {
       selection.attr({
         'fill': defaultFill,
         'x': right - borderWidth,
@@ -228,9 +239,9 @@ export class Brush {
 
       behaviour = (
         this.reset ? Behaviour.selectNew
-          : index === 2 ? Behaviour.move
-          : index === 3 ? Behaviour.resizeLeft
-          : index === 4 ? Behaviour.resizeRight
+          : index === 3 ? Behaviour.move
+          : index === 4 ? Behaviour.resizeLeft
+          : index === 5 ? Behaviour.resizeRight
           : Behaviour.selectNew
       );
 
