@@ -2,7 +2,7 @@ import {Chart} from '../chart';
 import {Axis, AxisPosition, timePrecedence} from '../axis';
 import {Brush} from '../brush';
 import {Selection} from '../lib/selection';
-import {forEach} from '../lib/utils';
+import {setProps} from '../lib/utils';
 import {ValueScale, TimeScale, getExtendedDomain} from '../chart/chart-scale';
 import {BaseSeries, SeriesProps} from '../series';
 import {LineSeries} from '../series/line-series';
@@ -17,50 +17,40 @@ import {getNearestPoint} from './get-nearest-point';
 import {roundAuto} from '../lib/decimal-scale-ticks';
 
 export class TimeChart {
-  private readonly timeScale = new TimeScale();
-  private readonly fullTimeScale = new TimeScale();
-  private readonly valueScale = new ValueScale();
-  private readonly fullValueScale = new ValueScale();
-  private readonly brush = new Brush();
+  chartOuterWidth = 0;
+  chartOuterHeight = 0;
+  helperHeight = 0;
+  helperPadding = 10;
+  tooltipContainer: Selection<HTMLElement> | undefined;
+  paddings = [20, 20, 20, 20];
 
-  readonly mainChart = new Chart(
+  readonly timeScale = new TimeScale();
+  readonly fullTimeScale = new TimeScale();
+  readonly valueScale = new ValueScale();
+  readonly fullValueScale = new ValueScale();
+  readonly brush = new Brush();
+  readonly legend = new Legend([]);
+  readonly tooltip = new Tooltip();
+  readonly helperChart = new Chart([]);
+  readonly mainChart = setProps(new Chart(
     [
-      new Axis(AxisPosition.bottom, this.timeScale).setProps({
+      setProps(new Axis(AxisPosition.bottom, this.timeScale), {
         tickFormat: axisTimeFormat,
-        tickPrecedence: timePrecedence,
-        displayGrid: false
+        displayGrid: false,
+        tickPrecedence: timePrecedence
       }),
-      new Axis(AxisPosition.left, this.valueScale).setProps({
+      setProps(new Axis(AxisPosition.left, this.valueScale), {
         tickFormat: roundAuto,
         displayScale: false
       })
     ]
-  );
-  readonly helperChart = new Chart([]);
-  private readonly legend = new Legend([]);
+  ), {
+    paddings: [0, 0, 20, 0]
+  });
 
   private isBrushing = false;
-  private actionTimerId: number | null = null;
   private brushLeft = 0;
   private brushRight = 0;
-
-  private chartOuterWidth = 0;
-  private chartOuterHeight = 0;
-  private helperHeight = 0;
-  private helperPadding = 10;
-  private tooltipContainer: Selection<HTMLElement> | undefined;
-  private tooltip = new Tooltip();
-  private paddings = [20, 20, 20, 20];
-
-  setProps(props: Partial<{
-    chartOuterWidth: number,
-    chartOuterHeight: number,
-    helperHeight: number,
-    tooltipContainer: Selection<HTMLElement>
-  }>): this {
-    forEach(props, (value, key) => value !== undefined && (this[key] = value));
-    return this;
-  }
 
   render(container: Selection) {
     const {
@@ -69,6 +59,17 @@ export class TimeChart {
       paddings,
       helperPadding
     } = this;
+
+    const clipPath = container.renderOne('clipPath', 0);
+    clipPath.renderOne('rect', 0).attr({
+      x: paddings[3],
+      y: 0,
+      width: this.getChartWidth(),
+      height: chartOuterHeight
+    });
+    if (clipPath.isNew()) {
+      container.attr('clip-path', `url(#${clipPath.getId()})`);
+    }
 
     this.renderLegend(container);
 
@@ -82,29 +83,30 @@ export class TimeChart {
       paddings[2]
     );
 
-    const mainContainer = container.renderOne('g', 1).attr(
+    const mainContainer = container.renderOne('g', 2).attr(
       'transform',
       `translate(${paddings[3]},${paddings[0]})`
     );
-    this.mainChart.setProps({
+    setProps(this.mainChart, {
       chartOuterWidth: this.getChartWidth(),
       chartOuterHeight: mainHeight
-    })
-      .render(mainContainer);
+    }).render(
+      mainContainer
+    );
 
     this.fullTimeScale.setMinDomain(this.timeScale.getDomain());
 
-    const helperContainer = container.renderOne('g', 2);
+    const helperContainer = container.renderOne('g', 3);
     helperContainer.attr(
       'transform',
       `translate(${paddings[3]},${mainHeight + paddings[0] + helperPadding})`
     );
-    this.helperChart.setProps({
+    setProps(this.helperChart, {
       chartOuterWidth: this.getChartWidth(),
-      chartOuterHeight: helperHeight,
-      fixedPaddings: [, , , this.mainChart.getPaddings()[3]]
-    })
-      .render(helperContainer);
+      chartOuterHeight: helperHeight
+    }).render(
+      helperContainer
+    );
 
     const helperChartContainer = helperContainer.selectOne(0) as Selection;
     const brushContainer = helperChartContainer.renderOne('g', 2);
@@ -118,17 +120,18 @@ export class TimeChart {
     this.renderTooltip(rectSelection, lineContainer);
   }
 
-  addSeries(data: SeriesData, props: SeriesProps) {
-    const mainSeries = new LineSeries(
+  addSeries<K extends keyof SeriesProps>(data: SeriesData, props: Pick<SeriesProps, K>) {
+    const mainSeries = setProps(new LineSeries(
       this.timeScale,
       this.valueScale,
       data
-    ).setProps(props);
-    const helperSeries = new LineSeries(
+    ), props as Pick<LineSeries, K>);
+
+    const helperSeries = setProps(new LineSeries(
       this.fullTimeScale,
       this.fullValueScale,
       data
-    ).setProps(props);
+    ), props as Pick<LineSeries, K>);
 
     this.mainChart.series.push(mainSeries);
     this.helperChart.series.push(helperSeries);
@@ -139,7 +142,7 @@ export class TimeChart {
     [this.mainChart, this.helperChart].forEach(({axes, series}) => {
       (axes as (BaseSeries | Axis)[])
         .concat(series)
-        .forEach((item) => item.setProps({enableTransitions}));
+        .forEach((item) => setProps(item, {enableTransitions}));
     });
   }
 
@@ -155,9 +158,9 @@ export class TimeChart {
   }
 
   private renderLegend(container: Selection) {
-    const legendContainer = container.renderOne('g', 0);
+    const legendContainer = container.renderOne('g', 1);
     const {legend} = this;
-    legend.setProps({
+    setProps(legend, {
       maxWidth: this.getChartWidth()
     })
       .render(legendContainer);
@@ -176,7 +179,7 @@ export class TimeChart {
     }
     legend.onClickEvent.on((seriesGroup) => {
       const hidden = !seriesGroup[0].isHidden();
-      seriesGroup.forEach((series) => series.setProps({hidden}));
+      seriesGroup.forEach((series) => setProps(series, {hidden}));
       this.render(container);
     });
   }
@@ -241,7 +244,7 @@ export class TimeChart {
       const lineY2 = this.mainChart.getInnerHeight();
       const left = Math.round(lineX + rect.left) - 20;
 
-      tooltip.setProps({
+      setProps(tooltip, {
         time,
         left,
         hidden: false,
@@ -251,13 +254,17 @@ export class TimeChart {
         lineX,
         lineY1: 0,
         lineY2
-      })
-        .render(tooltipContainer, lineContainer);
+      }).render(
+        tooltipContainer,
+        lineContainer
+      );
     });
 
     function hideTooltip() {
-      tooltip.setProps({hidden: true})
-        .render(tooltipContainer as Selection<HTMLElement>, lineContainer);
+      setProps(tooltip, {hidden: true}).render(
+        tooltipContainer as Selection<HTMLElement>,
+        lineContainer
+      );
     }
   }
 
@@ -288,7 +295,6 @@ export class TimeChart {
     onZoomEvents(rectSelection, (positions, mode) => {
       if (!hasChanged) {
         hasChanged = true;
-        this.setInAction(true, container, mode === ZoomMode.Wheel);
       }
       const [factor, offset] = getZoomFactorAndOffset(
         startPositions,
@@ -313,7 +319,6 @@ export class TimeChart {
       if (mode === ZoomMode.Wheel) {
         return;
       }
-      this.setInAction(false, container);
     });
   }
 
@@ -358,11 +363,12 @@ export class TimeChart {
         : this.getBrushExtentFromTimeScale()
     );
 
-    this.brush.setProps({
+    setProps(this.brush, {
       height: brushHeight,
       ...brushExtent
-    })
-      .render(brushContainer);
+    }).render(
+      brushContainer
+    );
 
     if (!brushContainer.isNew()) {
       return;
@@ -373,7 +379,6 @@ export class TimeChart {
       if (isActive) {
         return;
       }
-      this.setInAction(false, timeChartContainer);
       this.render(timeChartContainer);
     });
 
@@ -390,7 +395,6 @@ export class TimeChart {
         this.setBrushExtentToTimeScale(left, right);
       }
 
-      this.setInAction(!reset, timeChartContainer);
       this.render(timeChartContainer);
     });
   }
@@ -416,46 +420,16 @@ export class TimeChart {
     const dateSpan = maxTime - minTime;
 
     if (!(dateSpan > 0)) {
-      return {width, left: 0, right: 0};
+      return {width, left: 0, right: width};
     }
 
     let [left, right] = roundRange(
-      width * (startTime - minTime) / dateSpan,
-      width * (endTime - minTime) / dateSpan
+      (startTime - minTime) / dateSpan * width,
+      (endTime - minTime) / dateSpan * width
     );
     left = Math.max(0, Math.min(left, width));
     right = Math.max(left, Math.min(right, width));
 
     return {width, left, right};
-  }
-
-  private setInAction(
-    inAction: boolean,
-    container: Selection,
-    timeout?: boolean
-  ) {
-    if (this.actionTimerId !== null) {
-      clearTimeout(this.actionTimerId);
-    }
-
-    if (this.mainChart.isInAction() !== inAction) {
-      this.mainChart.setProps({inAction});
-      this.helperChart.setProps({inAction});
-
-      if (!inAction) {
-        this.render(container);
-        return;
-      }
-    }
-
-    if (!timeout) {
-      return;
-    }
-
-    this.actionTimerId = setTimeout(() => {
-      this.mainChart.setProps({inAction: false});
-      this.helperChart.setProps({inAction: false});
-      this.render(container);
-    }, 500);
   }
 }

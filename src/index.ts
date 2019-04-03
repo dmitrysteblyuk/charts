@@ -1,7 +1,7 @@
 import {TimeChart} from './time-chart';
 import {SeriesData} from './lib/series-data';
 import {Selection} from './lib/selection';
-import {isPositive} from './lib/utils';
+import {isPositive, setProps} from './lib/utils';
 import './index.css';
 
 fetch('./chart_data.json')
@@ -16,9 +16,8 @@ const currentDate = new Date();
 currentDate.setUTCMinutes(0, 0, 0);
 const currentTime = currentDate.getTime();
 
-const svgSelection = new Selection(document.body)
-  .renderOne<SVGElement>('svg', 'svgContainer')
-  .attr('class', 'chart-svg');
+const rootSelection = new Selection(document.body)
+  .renderOne<SVGElement>('div', 'rootContainer');
 
 const performanceDemoDiv = (
   document.getElementById('performanceDemo') as HTMLElement
@@ -34,10 +33,14 @@ function initializeCharts(
   const charts = json.map((config) => {
     const chart = new TimeChart();
     const ids = Object.keys(config['names']);
-    const [, ...x] = config['columns'].find(([id]) => id === 'x') || ['x'];
+    const x = (
+      config['columns'].find(([id]) => id === 'x') || []
+    ).slice(1) as number[];
 
     ids.forEach((yId) => {
-      const [, ...y] = config['columns'].find(([id]) => id === yId) || ['y'];
+      const y = (
+        config['columns'].find(([id]) => id === yId) || []
+      ).slice(1) as number[];
       const label = config['names'][yId];
       const color = config['colors'][yId];
 
@@ -60,7 +63,9 @@ function initializeCharts(
 
 function processRandomDataForm(topChart: TimeChart) {
   const form = performanceDemoDiv.querySelector('form') as HTMLElement;
-  const countInput = form.querySelector('input') as HTMLInputElement;
+  const countInput = new Selection(
+    form.querySelector('input') as HTMLInputElement
+  );
   const generateButton = new Selection(
     form.querySelector('button[type="submit"]') as HTMLButtonElement
   );
@@ -78,7 +83,7 @@ function processRandomDataForm(topChart: TimeChart) {
       return;
     }
     const count = Math.ceil(
-      Math.abs(parseInt(countInput.value, 10)) / 2
+      Math.abs(parseInt(countInput.getValue(), 10)) / 2
     );
     if (!isPositive(count)) {
       return;
@@ -94,7 +99,7 @@ function processRandomDataForm(topChart: TimeChart) {
 
     applyButton.attr('disabled', undefined);
     generateButton.attr('disabled', '');
-    countInput.setAttribute('readonly', '');
+    countInput.attr('readonly', '');
 
     randomData.push(data1, data2);
   });
@@ -113,67 +118,48 @@ function processRandomDataForm(topChart: TimeChart) {
     });
     showingRealData = !showingRealData;
     applyButton.text(showingRealData ? 'Apply' : 'Back');
-    topChart.render(svgSelection.selectOne(0) as Selection);
+    topChart.render(rootSelection.selectOne(0) as Selection);
   });
 }
 
 function renderCharts(charts: TimeChart[]) {
-  const svgWidth = window.innerWidth - 30;
+  const fullWidth = window.innerWidth - 30;
   const viewHeight = (
     window.innerHeight -
     20 -
     performanceDemoDiv.getBoundingClientRect().height
   );
-  const chartOuterHeight = Math.max(1, Math.floor(
+  const chartOuterHeight = Math.max(250, Math.floor(
     viewHeight > 900 ? viewHeight / 3
       : viewHeight > 600 ? viewHeight / 2
       : viewHeight
   ));
 
-  const singleColumn = svgWidth < 1000;
-  const chartOuterWidth = Math.floor(
-    singleColumn ? svgWidth : svgWidth / 2
-  );
-  const svgHeight = (
-    singleColumn
-      ? charts.length * chartOuterHeight
-      : (1 + Math.ceil((charts.length - 1) / 2)) * chartOuterHeight
-  );
-
-  svgSelection.attr({
-    'width': svgWidth,
-    'height': svgHeight
-  });
+  const singleColumn = fullWidth < 1000;
+  const chartOuterWidth = Math.max(250, Math.floor(
+    singleColumn ? fullWidth : fullWidth / 2
+  ));
 
   new Selection(document.body)
     .renderOne('div', 'tooltipContainers')
     .renderAll('div', charts, (selection: Selection<HTMLElement>, chart) => {
-      chart.setProps({tooltipContainer: selection});
+      setProps(chart, {tooltipContainer: selection});
     });
 
-  svgSelection.renderAll('g', charts, (container, chart, index) => {
-    const translateX = (
-      singleColumn || index === 0 || index % 2
-        ? 0
-        : chartOuterWidth
-    );
-    const translateY = (
-      singleColumn ? index * chartOuterHeight
-        : index === 0 ? 0
-        : Math.floor((index + 1) / 2) * chartOuterHeight
-    );
+  rootSelection.renderAll('svg', charts, (container, chart, index) => {
+    container.attr({
+      'class': 'chart-svg',
+      'width': index === 0 ? fullWidth : chartOuterWidth,
+      'height': chartOuterHeight
+    });
 
-    container.attr(
-      'transform',
-      `translate(${translateX}, ${translateY})`
-    );
-
-    chart.setProps({
+    setProps(chart, {
       chartOuterHeight,
-      chartOuterWidth: index === 0 ? svgWidth : chartOuterWidth,
+      chartOuterWidth: index === 0 ? fullWidth : chartOuterWidth,
       helperHeight: 45
-    })
-      .render(container);
+    }).render(
+      container
+    );
   });
 }
 
@@ -191,8 +177,7 @@ function generateRandomData(
     y = new Float64Array(count);
   } catch (error) {
     alert(
-      error +
-      '. Likely you do not have enough memory, try fewer points.'
+      'Seems like you do not have enough memory, try fewer points. ' + error
     );
     return null;
   }
@@ -230,17 +215,21 @@ function generateRandomData(
   return new SeriesData(x, y);
 }
 
-function test(count: number, fn: (index: number) => any): [number, any] {
-  const startTime = Date.now();
-  let res: any;
-  for (let index = 0; index < count; index++) {
-    res = fn(index);
-  }
-  return [Date.now() - startTime, res];
-}
+// const svgSelection = new Selection(document.body)
+//   .renderOne<SVGElement>('svg', 'svgContainer')
+//   .attr('class', 'chart-svg');
 
-(window as any).test = test;
-(window as any).generateRandomData = generateRandomData;
+// function test(count: number, fn: (index: number) => any): [number, any] {
+//   const startTime = Date.now();
+//   let res: any;
+//   for (let index = 0; index < count; index++) {
+//     res = fn(index);
+//   }
+//   return [Date.now() - startTime, res];
+// }
+
+// (window as any).test = test;
+// (window as any).generateRandomData = generateRandomData;
 
 // (window as any).timeChart = timeChart;
 
@@ -268,7 +257,7 @@ function test(count: number, fn: (index: number) => any): [number, any] {
 //   const width = window.innerWidth - 50;
 //   const height = window.innerHeight - 50;
 
-//   timeChart.setProps({
+//   setProps(timeChart, {
 //     chartOuterWidth: width,
 //     chartOuterHeight: height,
 //     helperHeight: 250

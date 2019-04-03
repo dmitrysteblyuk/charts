@@ -1,32 +1,21 @@
 import {Axis, AxisPosition} from '../axis';
 import {Selection} from '../lib/selection';
 import {ChartScale, getExtendedDomain} from './chart-scale';
-import {forEach, newArray, groupBy} from '../lib/utils';
+import {groupBy, setProps} from '../lib/utils';
 import {BaseSeries} from '../series';
 
 export class Chart {
-  private chartOuterWidth = 0;
-  private chartOuterHeight = 0;
+  chartOuterWidth = 0;
+  chartOuterHeight = 0;
+  paddings: NumberRange = [0, 0, 0, 0];
+
   private chartInnerWidth = 0;
   private chartInnerHeight = 0;
-  private fixedPaddings: (number | undefined)[] = [];
-  private inAction = false;
-  private paddings: NumberRange = [0, 0, 0, 0];
 
   constructor(
     readonly axes: Axis[],
     readonly series: BaseSeries[] = []
   ) {}
-
-  setProps(props: Partial<{
-    chartOuterWidth: number,
-    chartOuterHeight: number,
-    inAction: boolean,
-    fixedPaddings: (number | undefined)[]
-  }>): this {
-    forEach(props, (value, key) => value !== undefined && (this[key] = value));
-    return this;
-  }
 
   render(container: Selection) {
     const chartContainer = container.renderOne('g', 0);
@@ -36,7 +25,7 @@ export class Chart {
     this.setDomains(({xScale}) => xScale, ({extendXDomain}) => extendXDomain);
     this.setDomains(({yScale}) => yScale, ({extendYDomain}) => extendYDomain);
     this.renderAxes(axesContainer);
-    this.positionContainer(chartContainer);
+    this.alignContainer(chartContainer);
     this.renderSeries(seriesContainer);
   }
 
@@ -46,14 +35,6 @@ export class Chart {
 
   getInnerHeight() {
     return this.chartInnerHeight;
-  }
-
-  getPaddings() {
-    return this.paddings;
-  }
-
-  isInAction() {
-    return this.inAction;
   }
 
   private setDomains(
@@ -108,67 +89,47 @@ export class Chart {
   }
 
   private renderAxes(axesContainer: Selection) {
-    const {chartOuterWidth, chartOuterHeight, fixedPaddings} = this;
-    const paddings = newArray(4, (index) => {
-      const fixed = fixedPaddings[index];
-      if (fixed !== undefined) {
-        return fixed;
+    const {chartOuterWidth, chartOuterHeight, paddings} = this;
+    this.chartInnerWidth = Math.max(
+      1, chartOuterWidth - paddings[1] - paddings[3]
+    );
+    this.chartInnerHeight = Math.max(
+      1, chartOuterHeight - paddings[0] - paddings[2]
+    );
+
+    const adjustAxes = this.axes.filter((axis) => {
+      this.setScaleRange(axis.scale, axis.isVertical());
+
+      if (axis.isVertical()) {
+        axis.tickData = null;
+        return false;
       }
-      if (this.inAction) {
-        return this.paddings[index];
-      }
-      return 0;
+      return true;
     });
-    const that = this;
-    setInnerSize();
 
     const containerForAxesAdjusting = axesContainer.renderOne('g',  0)
       .attr('style', 'visibility: hidden');
-    containerForAxesAdjusting.renderAll('g', this.axes, (selection, axis) => {
-      axis.setProps({hideOverlappingTicks: true});
-      renderAxis(selection, axis);
-
-      const size = axis.getOutsideSize();
-      const position = axis.getPosition();
-      if (
-        fixedPaddings[position] !== undefined ||
-        paddings[position] >= size
-      ) {
-        return;
-      }
-      paddings[position] = size;
+    containerForAxesAdjusting.renderAll('g', adjustAxes, (selection, axis) => {
+      setProps(axis, {hideOverlappingTicks: true});
+      axis.render(selection);
     });
 
-    setInnerSize();
-    this.paddings = paddings;
-
-    const visibleContainer = axesContainer.renderOne('g', 1);
-    visibleContainer.renderAll('g', this.axes, (selection, axis) => {
-      const {chartInnerWidth, chartInnerHeight} = this;
-
+    const visibleAxesContainer = axesContainer.renderOne('g',  1);
+    visibleAxesContainer.renderAll('g', this.axes, (selection, axis) => {
       selection.attr('transform', this.getAxisTransform(axis));
 
-      axis.setProps({
+      setProps(axis, {
         animated: !selection.isNew(),
         hideOverlappingTicks: false,
-        gridSize: axis.isVertical() ? chartInnerWidth : chartInnerHeight
-      });
-      renderAxis(selection, axis);
+        gridSize: (
+          axis.isVertical()
+            ? this.chartInnerWidth
+            : this.chartInnerHeight
+        )
+      }).render(
+        selection
+      );
     });
-
-    function renderAxis(selection: Selection, axis: Axis) {
-      that.setScaleRange(axis.scale, axis.isVertical());
-      axis.render(selection);
-    }
-
-    function setInnerSize() {
-      that.chartInnerWidth = Math.max(
-        1, chartOuterWidth - paddings[1] - paddings[3]
-      );
-      that.chartInnerHeight = Math.max(
-        1, chartOuterHeight - paddings[0] - paddings[2]
-      );
-    }
   }
 
   private setScaleRange(scale: ChartScale, vertical: boolean) {
@@ -186,7 +147,7 @@ export class Chart {
     return translate && `translate(${translate})`;
   }
 
-  private positionContainer(chartContainer: Selection) {
+  private alignContainer(chartContainer: Selection) {
     chartContainer.attr(
       'transform',
       `translate(${this.paddings[3]}, ${this.paddings[0]})`

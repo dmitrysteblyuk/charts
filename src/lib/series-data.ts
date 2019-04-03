@@ -19,6 +19,10 @@ export class SeriesData {
     this.size = x.length;
   }
 
+  isClustered() {
+    return Boolean(this.clusterLength);
+  }
+
   getRange(
     startIndex: number,
     endIndex: number,

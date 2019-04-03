@@ -45,14 +45,21 @@ export function roundRange(min: number, max: number) {
 }
 
 export function arrayIsEqual<T>(
-  a: ReadonlyArray<T>,
-  b: ReadonlyArray<T>
+  a: ArrayLike<T>,
+  b: ArrayLike<T>
 ): boolean {
-  return (
-    a === b ||
-    a.length === b.length &&
-    a.every((item, index) => item === b[index])
-  );
+  if (a === b) {
+    return true;
+  }
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let index = 0; index < a.length; index++) {
+    if (a[index] !== b[index]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function isPositive(x: number): boolean {
@@ -60,22 +67,31 @@ export function isPositive(x: number): boolean {
 }
 
 export function memoizeOne<T extends (...args: any[]) => any>(
-  method: T
+  method: T,
+  context?: any
 ): T & {clearCache: () => void} {
-  let lastArgs: any[] | undefined;
+  let lastArgs: IArguments | undefined;
   let lastResult: any;
-
-  const memoized = ((...args: any[]) => {
-    if (!lastArgs || !arrayIsEqual(lastArgs, args)) {
-      lastArgs = args;
-      lastResult = method(...args);
-    }
-    return lastResult;
-  }) as (T & {clearCache: () => void});
 
   memoized.clearCache = () => {
     lastArgs = lastResult = undefined;
   };
 
-  return memoized;
+  return memoized as any;
+
+  function memoized() {
+    if (!lastArgs || !arrayIsEqual(lastArgs, arguments)) {
+      lastArgs = arguments;
+      lastResult = method.apply(context, arguments as any);
+    }
+    return lastResult;
+  }
+}
+
+export function setProps<T, K extends keyof T = keyof T>(
+  object: T,
+  props: Pick<T, K>
+): T {
+  forEach(props, (value, key) => object[key] = value);
+  return object;
 }

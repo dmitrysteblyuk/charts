@@ -62,7 +62,7 @@ export class LineSeries extends BaseSeries {
           return '';
         }
         const [yFactor, yOffset] = getTransform(yScale, fromYDomain, progress);
-        return `scale(1,${yFactor})translate(0,${yOffset})`;
+        return `translate(0,${yOffset})scale(1,${yFactor})`;
       });
     }, this.hidden);
   }
@@ -87,7 +87,9 @@ export class LineSeries extends BaseSeries {
       (x) => Math.floor(xScale.scale(x)),
       (y) => Math.round(yScale.scale(y)),
       data,
-      this.getPoints(data, startIndex, endIndex, factorX)
+      this.getPoints(data, startIndex, endIndex, factorX),
+      startIndex,
+      endIndex
     );
   });
 }
@@ -113,15 +115,21 @@ function drawLine(
   scaleX: (x: number) => number,
   scaleY: (y: number) => number,
   data: SeriesData,
-  points: ReadonlyArray<number>
+  points: ReadonlyArray<number> | null,
+  startIndex: number,
+  endIndex: number
 ): string {
-  let lastX = scaleX(data.x[points[0]]);
-  let lastY = scaleY(data.y[points[0]]);
+  let lastX = scaleX(data.x[points ? points[0] : startIndex]);
+  let lastY = scaleY(data.y[points ? points[0] : startIndex]);
   const path = ['M', lastX, ',', lastY];
 
-  for (let index = 1; index < points.length; index++) {
-    const nextX = scaleX(data.x[points[index]]);
-    const nextY = scaleY(data.y[points[index]]);
+  for (
+    let index = points ? 1 : startIndex + 1;
+    index < (points ? points.length : endIndex);
+    index++
+  ) {
+    const nextX = scaleX(data.x[points ? points[index] : index]);
+    const nextY = scaleY(data.y[points ? points[index] : index]);
 
     if (lastX !== nextX) {
       lastX = nextX;
@@ -144,7 +152,10 @@ function getPoints(
   startIndex: number,
   endIndex: number,
   factorX: number
-): ReadonlyArray<number> {
+): ReadonlyArray<number> | null {
+  if (!data.isClustered()) {
+    return null;
+  }
   if (startIndex >= endIndex) {
     return [];
   }

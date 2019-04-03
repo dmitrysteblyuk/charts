@@ -1,6 +1,6 @@
 import {onZoomEvents, ZoomMode} from '../lib/zoom';
 import {Selection} from '../lib/selection';
-import {forEach, roundRange} from '../lib/utils';
+import {roundRange} from '../lib/utils';
 import {EventEmitter} from '../lib/event-emitter';
 
 const enum Behaviour {selectNew, resizeLeft, resizeRight, move};
@@ -13,30 +13,19 @@ export class Brush {
   }>();
   readonly activeEvent = new EventEmitter<boolean>();
 
-  private draggedBeforeClick = false;
-  private width = 0;
-  private height = 0;
-  private left = 0;
-  private right = 0;
-  private reset = true;
-  private color = 'rgba(0, 25, 100, 0.1)';
-  private borderWidth = 10;
+  width = 0;
+  height = 0;
+  left = 0;
+  right = 0;
+  color = 'rgba(0, 25, 100, 0.1)';
+  borderWidth = 10;
 
-  setProps(props: {
-    width: number;
-    height: number;
-    left: number;
-    right: number;
-  }): this {
-    forEach(props, (value, key) => this[key] = value);
-    return this;
-  }
+  private reset = true;
+  private draggedBeforeClick = false;
 
   render(container: Selection) {
     const {left, right, height, width, borderWidth} = this;
-    if (left > 0 || right < width) {
-      this.reset = false;
-    }
+    this.reset = !(left > 0 || right < width);
 
     const rectSelection = container.renderOne('rect', 0);
     if (rectSelection.isNew()) {
@@ -44,7 +33,7 @@ export class Brush {
         'x': '0',
         'y': '0',
         'stroke': this.color,
-        'fill': 'none'
+        'fill': 'transparent'
       });
     }
     rectSelection.attr({
@@ -52,64 +41,58 @@ export class Brush {
       'height': height
     });
 
-    container.renderOne('rect', 1, (selection) => {
-      selection.attr({
-        'width': left,
-        'height': height
-      });
-      if (!selection.isNew()) {
-        return;
-      }
-      selection.on('click', () => this.onResetClick()).attr({
+    const leftRect = container.renderOne('rect', 1);
+    leftRect.attr({
+      'width': left,
+      'height': height
+    });
+    if (leftRect.isNew()) {
+      leftRect.on('click', () => this.onResetClick()).attr({
         'fill': this.color,
         'x': '0',
         'y': '0'
       });
-    });
+    }
 
-    container.renderOne('rect', 2, (selection) => {
-      selection.attr({
-        'x': right,
-        'width': width - right,
-        'height': height
-      });
-      if (!selection.isNew()) {
-        return;
-      }
-      selection.on('click', () => this.onResetClick()).attr({
+    const rightRect = container.renderOne('rect', 2);
+    rightRect.attr({
+      'x': right,
+      'width': width - right,
+      'height': height
+    });
+    if (rightRect.isNew()) {
+      rightRect.on('click', () => this.onResetClick()).attr({
         'fill': this.color,
         'y': '0'
       });
-    });
+    }
 
-    container.renderOne('rect', 3, (selection) => {
-      selection.attr({
+    const centerRect = container.renderOne('rect', 3);
+    centerRect.attr('style', this.reset ? 'display: none' : '');
+    if (!this.reset) {
+      centerRect.attr({
         'fill': defaultFill,
         'x': left,
         'width': right - left,
         'height': height,
         'y': 0
       });
+    }
+
+    container.renderOne('rect', 4).attr({
+      'fill': defaultFill,
+      'x': left - borderWidth,
+      'width': borderWidth * 2,
+      'height': height,
+      'y': 0
     });
 
-    container.renderOne('rect', 4, (selection) => {
-      selection.attr({
-        'fill': defaultFill,
-        'x': left - borderWidth,
-        'width': borderWidth * 2,
-        'height': height,
-        'y': 0
-      });
-    });
-
-    container.renderOne('rect', 5, (selection) => {
-      selection.attr({
-        'fill': defaultFill,
-        'x': right - borderWidth,
-        'width': borderWidth * 2,
-        'height': height,
-        'y': 0
-      });
+    container.renderOne('rect', 5).attr({
+      'fill': defaultFill,
+      'x': right - borderWidth,
+      'width': borderWidth * 2,
+      'height': height,
+      'y': 0
     });
 
     if (!container.isNew()) {

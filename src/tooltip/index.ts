@@ -1,35 +1,27 @@
 import {Selection} from '../lib/selection';
-import {forEach} from '../lib/utils';
 import {BaseSeries} from '../series';
 import {roundAuto} from '../lib/decimal-scale-ticks';
 import './index.css';
 
 export class Tooltip {
-  private top = 0;
-  private left = 0;
-  private time = 0;
-  private values: number[] = [];
-  private series: BaseSeries[] = [];
-  private hidden = true;
-  private timerId: number | null = null;
-  private lineX = 0;
-  private lineY1 = 0;
-  private lineY2 = 0;
+  top = 0;
+  left = 0;
+  time = 0;
+  values: number[] = [];
+  series: BaseSeries[] = [];
+  hidden = true;
+  lineX = 0;
+  lineY1 = 0;
+  lineY2 = 0;
 
-  setProps(props: Partial<{
-    top: number,
-    left: number,
-    time: number,
-    values: number[],
-    series: BaseSeries[],
-    hidden: boolean,
-    lineX: number,
-    lineY1: number,
-    lineY2: number
-  }>): this {
-    forEach(props, (value, key) => value !== undefined && (this[key] = value));
-    return this;
-  }
+  timeFormat = (time: number) => {
+    const date = new Date(time);
+    if (date.getUTCSeconds() || date.getUTCMinutes() || date.getUTCHours()) {
+      return date.toUTCString();
+    }
+    return date.toDateString();
+  };
+  private timerId: number | null = null;
 
   render(
     container: Selection<HTMLElement>,
@@ -61,15 +53,16 @@ export class Tooltip {
       return;
     }
 
-    const {top, time, values, lineX, lineY1, lineY2} = this;
+    const {top, values, lineX, lineY1, lineY2} = this;
     const tooltipContainer = container.renderOne<HTMLElement>('div', 0);
 
     if (tooltipContainer.isNew()) {
       tooltipContainer.attr('class', 'chart-tooltip');
     }
 
-    tooltipContainer.renderOne<HTMLElement>('div', 0)
-      .text(new Date(time).toUTCString());
+    tooltipContainer.renderOne<HTMLElement>('div', 0).text(
+      this.timeFormat(this.time)
+    );
 
     const valueSelection = tooltipContainer.renderOne<HTMLElement>('div', 1);
     if (valueSelection.isNew()) {
@@ -82,7 +75,9 @@ export class Tooltip {
     ) => {
       const series = this.series[index];
       selection.setStyles({'color': series.getColor()});
-      selection.renderOne<HTMLElement>('div', 0).text(roundAuto(value));
+      selection.renderOne<HTMLElement>('div', 0).text(
+        roundAuto(value)
+      );
       selection.renderOne('div', 1).text(series.getLabel());
     });
 

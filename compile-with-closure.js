@@ -36,6 +36,7 @@ const closureCompiler = new ClosureCompiler({
   entry_point: ['./built/index.js'],
   js: ['built/**.*'],
   js_output_file: [outputFile],
+  output_wrapper: '(function() {%output%})();',
   externs: ['./closure-externs.js']
 });
 

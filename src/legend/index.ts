@@ -1,24 +1,18 @@
 import {Selection} from '../lib/selection';
-import {forEach, isPositive} from '../lib/utils';
+import {isPositive} from '../lib/utils';
 import {BaseSeries} from '../series';
 import {EventEmitter} from '../lib/event-emitter';
 
 export class Legend {
-  private maxWidth = 0;
+  maxWidth = 0;
+  radius = 7;
+  strokeWidth = 3;
+  rectPadding = 7;
+
   private size = 0;
-  private radius = 7;
-  private strokeWidth = 3;
-  private rectPadding = 7;
   readonly onClickEvent = new EventEmitter<BaseSeries[]>();
 
   constructor(readonly seriesGroups: BaseSeries[][]) {}
-
-  setProps(props: {
-    maxWidth: number
-  }): this {
-    forEach(props, (value, key) => this[key] = value);
-    return this;
-  }
 
   getSize() {
     return this.size;

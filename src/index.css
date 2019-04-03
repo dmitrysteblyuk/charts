@@ -11,4 +11,5 @@ svg.chart-svg {
   -webkit-tap-highlight-color: rgba(0,0,0,0);
   font-family: monospace;
   font-size: 12px;
+  /*shape-rendering: optimizeSpeed;*/
 }

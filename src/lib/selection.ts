@@ -50,6 +50,17 @@ export class Selection<EL extends Element = Element> {
     return this;
   }
 
+  getId() {
+    if (this.selectionId === undefined) {
+      this.selectionId = this.getSelectionId();
+    }
+    return this.selectionId;
+  }
+
+  getValue(this: Selection<HTMLInputElement>) {
+    return this.element.value;
+  }
+
   isSame({element}: Selection) {
     return element === this.element;
   }
@@ -98,13 +109,7 @@ export class Selection<EL extends Element = Element> {
 
   getRect(): Rect {
     const {width, height, left, top} = this.element.getBoundingClientRect();
-    const {scrollLeft, scrollTop} = document.documentElement;
-    return {
-      width,
-      height,
-      left: left + scrollLeft,
-      top: top + scrollTop
-    };
+    return {width, height, left, top};
   }
 
   getRoundedRect(): Rect {
@@ -151,7 +156,8 @@ export class Selection<EL extends Element = Element> {
     attrValue?: Primitive
   ): this {
     const data = (
-      typeof nameOrData === 'string' ? {[nameOrData]: attrValue}
+      typeof nameOrData === 'string'
+        ? {[nameOrData]: attrValue}
         : nameOrData
     );
     const changes = detectChanges(this.element, data, DataType.attributes);
@@ -381,10 +387,7 @@ export class Selection<EL extends Element = Element> {
   }
 
   private getChildId(selector: string) {
-    if (this.selectionId === undefined) {
-      this.selectionId = this.getSelectionId();
-    }
-    return `${this.selectionId}:${selector}`;
+    return `${this.getId()}:${selector}`;
   }
 
   private getSelectionId() {

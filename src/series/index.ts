@@ -1,5 +1,5 @@
 import {Selection} from '../lib/selection';
-import {forEach, memoizeOne} from '../lib/utils';
+import {memoizeOne} from '../lib/utils';
 import {ChartScale, getExtendedDomain} from '../chart/chart-scale';
 import {SeriesData} from '../lib/series-data';
 import {binarySearch} from '../lib/binary-search';
@@ -7,26 +7,21 @@ import {binarySearch} from '../lib/binary-search';
 export interface SeriesProps {
   color: string;
   label: string;
-  enableTransitions?: boolean;
-  hidden?: boolean;
+  enableTransitions: boolean;
+  hidden: boolean;
 }
 
-export abstract class BaseSeries {
-  protected color = '';
-  protected label = '';
-  protected hidden = false;
-  protected enableTransitions = true;
+export abstract class BaseSeries implements SeriesProps {
+  color = '';
+  label = '';
+  hidden = false;
+  enableTransitions = true;
 
   constructor(
     readonly xScale: ChartScale,
     readonly yScale: ChartScale,
     private data: SeriesData
   ) {}
-
-  setProps(props: Partial<SeriesProps>): this {
-    forEach(props, (value, key) => value !== undefined && (this[key] = value));
-    return this;
-  }
 
   getColor() {
     return this.color;

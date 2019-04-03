@@ -1,5 +1,21 @@
 import {newArray} from './utils';
 
+const monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+];
+const monthShortNames = monthNames.map((name) => name.substr(0, 3));
+
 export function axisTimeFormat(
   time: number
 ): string {
@@ -23,10 +39,13 @@ export function axisTimeFormat(
 
   const day = date.getDate();
   const month = date.getMonth();
-  if (day > 1 || month) {
-    return `${date.getFullYear()}-${padding(month + 1)}-${padding(day)}`;
-  }
 
+  if (day > 1) {
+    return `${monthShortNames[month]} ${day}`;
+  }
+  if (month) {
+    return `${monthNames[month]}`;
+  }
   return String(date.getFullYear());
 }
 

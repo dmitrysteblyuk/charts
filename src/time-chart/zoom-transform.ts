@@ -8,26 +8,24 @@ export function getZoomFactorAndOffset(
   startWidth: number,
   getTimeForPosition: (clientX: number) => number
 ) {
-  if (
-    mode === ZoomMode.Wheel &&
-    positions[0][0] === startPositions[0][0] &&
-    positions[0][1] !== startPositions[0][1]
-  ) {
+  const timeSpan = endTime - startTime;
+
+  if (mode === ZoomMode.Wheel) {
     const [startX, startY] = startPositions[0];
     const factor = Math.max(
       0.5,
       1 + (positions[0][1] - startY) / window.outerHeight
     );
+    const diffT = (
+      (positions[0][0] - startX) / window.outerWidth * timeSpan
+    );
     const fixedT = getTimeForPosition(startX);
-    return [factor, fixedT * (1 - factor)];
+    return [factor, fixedT * (1 - factor) + diffT];
   }
 
-  const timeSpan = endTime - startTime;
   if (mode !== ZoomMode.Pinch) {
     const diffT = (
-      (positions[0][0] - startPositions[0][0]) /
-      (mode === ZoomMode.Wheel ? window.outerWidth : -startWidth) *
-      timeSpan
+      (startPositions[0][0] - positions[0][0]) / startWidth * timeSpan
     );
     return [1, diffT];
   }

@@ -5,7 +5,6 @@ import {
   DEFAULT_ANIMATION_DURATION,
   DataType
 } from '../lib/selection';
-import {forEach} from '../lib/utils';
 import './index.css';
 import {dateUnits} from '../lib/time-scale-ticks';
 
@@ -19,45 +18,29 @@ const axisTransformMatrix = [
 export const enum AxisPosition {top, right, bottom, left};
 
 export class Axis {
+  displayLabels = true;
+  displayGrid = true;
+  displayScale = true;
+  tickCount = 5;
+  tickPadding = 10;
+  gridSize = 0;
+  color = '#777';
+  gridColor = '#ddd';
+  tickFormat: (tick: number) => string | number = String;
+  animated = false;
+  enableTransitions = true;
+  hideOverlappingTicks = false;
+  outsideSize = 0;
+  tickPrecedence: (a: number, b: number) => number = () => 0;
+  tickData: NumberRange | null = null;
+
   private readonly transitionScale = new Scale();
   private readonly transitioningTicks: Selection[] = [];
-
-  private displayLabels = true;
-  private displayGrid = true;
-  private displayScale = true;
-  private tickCount = 5;
-  private tickPadding = 10;
-  private gridSize = 0;
-  private color = '#777';
-  private gridColor = '#ddd';
-  private tickFormat: (tick: number) => string | number = String;
-  private animated = false;
-  private enableTransitions = true;
-  private hideOverlappingTicks = false;
-  private outsideSize = 0;
-  private tickPrecedence: (a: number, b: number) => number = () => 0;
 
   constructor (
     private position: AxisPosition,
     readonly scale: ChartScale
   ) {}
-
-  setProps(props: Partial<{
-    color: string,
-    gridColor: string,
-    displayLabels: boolean,
-    displayScale: boolean,
-    displayGrid: boolean,
-    gridSize: number,
-    animated: boolean,
-    enableTransitions: boolean,
-    hideOverlappingTicks: boolean,
-    tickFormat: (value: number) => string | number,
-    tickPrecedence: (a: number, b: number) => number
-  }>): this {
-    forEach(props, (value, key) => value !== undefined && (this[key] = value));
-    return this;
-  }
 
   getOutsideSize() {
     return this.outsideSize;
@@ -127,7 +110,6 @@ export class Axis {
       domain: currentDomain
     }).domain as NumberRange;
     const useTransitions = fromDomain && shouldAnimate && enableTransitions;
-
     const checkTicksForOverlapping = Boolean(
       (
         axisContainer.getDataChanges({range: scale.getRange()}) ||
@@ -139,13 +121,12 @@ export class Axis {
 
     transitionScale.setRange(range);
 
-    if (checkTicksForOverlapping) {
-      scale.resetTicks();
+    if (!this.tickData || checkTicksForOverlapping) {
+      this.tickData = scale.getTicks(tickCount);
     }
-    const tickData = scale.getTicks(tickCount);
     const ticksContainer = axisContainer.renderOne('g', 'axisTicks');
 
-    ticksContainer.renderAll('g', tickData, (tickSelection, tick) => {
+    ticksContainer.renderAll('g', this.tickData, (tickSelection, tick) => {
       tickSelection.renderOne('line', 'tickGrid', (selection) => {
         selection.attr({
           'y2': -gridSize,
@@ -193,7 +174,9 @@ export class Axis {
         transitionTick(tickSelection, tick);
         return;
       }
-      tickSelection.attr('transform', `translate(${scale.scale(tick)})`);
+      tickSelection.attr('transform', `translate(${
+        Math.round(scale.scale(tick))
+      })`);
     }, (tickSelection, tick, removeCallback) => {
       if (!shouldAnimate) {
         removeCallback();
@@ -222,7 +205,7 @@ export class Axis {
 
     const visibleRects: Rect[] = [];
     const nextTickData: number[] = [];
-    const tickSpace = vertical ? 3 : 10;
+    const tickSpace = vertical ? 0 : 10;
     let lastVisibleSelection: Selection;
     let isSomeRemoved: boolean | undefined;
 
@@ -271,7 +254,8 @@ export class Axis {
     if (!isSomeRemoved) {
       return;
     }
-    scale.resetTicks(nextTickData, tickCount);
+    this.tickData = nextTickData;
+
     ticksContainer.getDataChanges({
       children: nextTickData
     }, DataType.attributes);
@@ -308,7 +292,9 @@ export class Axis {
           fromDomain[0] + (domain[0] - fromDomain[0]) * progress,
           fromDomain[1] + (domain[1] - fromDomain[1]) * progress
         ]);
-        return `translate(${transitionScale.scale(tick)})`;
+        return `translate(${
+          Math.round(transitionScale.scale(tick))
+        })`;
       });
     }
   }

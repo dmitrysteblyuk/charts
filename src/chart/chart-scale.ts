@@ -1,12 +1,11 @@
 import {Scale} from '../lib/scale';
 import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
 import {getTimeScaleTicks} from '../lib/time-scale-ticks';
+import {memoizeOne} from '../lib/utils';
 
 export abstract class ChartScale extends Scale {
   private fixed = false;
   private extendableOnly = false;
-  private tickCount: number | undefined;
-  private ticks: ReadonlyArray<number> | undefined;
   private minDomain: NumberRange = [Infinity, -Infinity];
 
   setDomain(domain: NumberRange) {
@@ -15,22 +14,10 @@ export abstract class ChartScale extends Scale {
     if (previousDomain === this.getDomain()) {
       return;
     }
-    this.ticks = undefined;
+    this.getTicks.clearCache();
   }
 
-  getTicks(count: number): ReadonlyArray<number> {
-    if (this.ticks && this.tickCount === count) {
-      return this.ticks;
-    }
-    const ticks = this.calculateTicks(count);
-    this.resetTicks(ticks, count);
-    return ticks;
-  }
-
-  resetTicks(ticks?: ReadonlyArray<number>, tickCount?: number) {
-    this.ticks = ticks;
-    this.tickCount = tickCount;
-  }
+  readonly getTicks = memoizeOne(this.calculateTicks, this);
 
   isFixed() {
     return this.fixed;
