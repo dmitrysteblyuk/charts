@@ -120,18 +120,22 @@ export class TimeChart {
     this.renderTooltip(rectSelection, lineContainer);
   }
 
-  addSeries<K extends keyof SeriesProps>(data: SeriesData, props: Pick<SeriesProps, K>) {
+  addSeries(
+    data: SeriesData,
+    props: Partial<SeriesProps>,
+    helperProps?: Partial<SeriesProps>
+  ) {
     const mainSeries = setProps(new LineSeries(
       this.timeScale,
       this.valueScale,
       data
-    ), props as Pick<LineSeries, K>);
+    ), props as LineSeries);
 
     const helperSeries = setProps(new LineSeries(
       this.fullTimeScale,
       this.fullValueScale,
       data
-    ), props as Pick<LineSeries, K>);
+    ), {...props, ...helperProps} as LineSeries);
 
     this.mainChart.series.push(mainSeries);
     this.helperChart.series.push(helperSeries);

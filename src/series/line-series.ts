@@ -6,9 +6,11 @@ import {SeriesData} from '../lib/series-data';
 import {BaseSeries} from './index';
 
 export class LineSeries extends BaseSeries {
+  strokeWidth = 2;
+
   render(container: Selection) {
     const data = this.getData();
-    const {xScale, yScale, color} = this;
+    const {xScale, yScale, color, strokeWidth} = this;
 
     container.renderOne('path', 0, (selection) => {
       if (!data.size) {
@@ -41,7 +43,7 @@ export class LineSeries extends BaseSeries {
       );
       selection.attr({
         'stroke': color,
-        'stroke-width': 2,
+        'stroke-width': strokeWidth,
         'fill': 'none',
         'd': line
       });

@@ -9,6 +9,7 @@ export interface SeriesProps {
   label: string;
   enableTransitions: boolean;
   hidden: boolean;
+  strokeWidth?: number;
 }
 
 export abstract class BaseSeries implements SeriesProps {

@@ -4,6 +4,69 @@ import {Selection} from './lib/selection';
 import {isPositive, setProps} from './lib/utils';
 import './index.css';
 
+import {
+  VirtualDomElement,
+  ElementConnection
+} from './lib/virtual-node/dom-element';
+
+const rootNode = (window as any).rootNode = new VirtualDomElement('div');
+
+rootNode.renderOne('div', 'first', {
+  style: {width: '100px', height: '100px', background: 'forestgreen'}
+});
+rootNode.renderOne('div', 'first', {
+  style: {width: '200px'}
+}).updateProps(({
+  style: {background: 'red'}
+}));
+
+rootNode.renderAll(
+  'span',
+  'first',
+  ['OK', 'this', 'is', 'test'],
+  (datum) => ({textContent: datum}),
+  undefined,
+  String
+).forEach((node) => {
+  const div = node.renderAll('div', 'ds', []);
+  div
+});
+
+rootNode.renderAll(
+  'div',
+  'second',
+  ['second', 'test'],
+  (datum) => ({textContent: datum}),
+  undefined,
+  String
+);
+
+rootNode.renderAll(
+  'span',
+  'first',
+  ['NOT OK', 'this', 'is']
+).forEach((node) => {
+  node.updateProps({textContent: node.getDatum()});
+});
+
+rootNode.renderAll(
+  'span',
+  'first',
+  ['Still not OK', 'this', 'is', 'again', 'me']
+).forEach((node) => {
+  node.updateProps({textContent: node.getDatum()});
+});
+
+setTimeout(() => {
+  rootNode.removeOne('first', (child, done) => {
+    console.log(child);
+    child.updateProps({'class': 'fade'});
+    setTimeout(done, 200);
+  });
+}, 3000);
+
+rootNode.connectTo(new ElementConnection(document.body));
+
 fetch('./chart_data.json')
   .then((data) => data.json())
   .catch((error) => {
@@ -47,6 +110,8 @@ function initializeCharts(
       chart.addSeries(new SeriesData(x, y), {
         color,
         label
+      }, {
+        strokeWidth: 1
       });
     });
 

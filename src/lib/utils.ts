@@ -95,3 +95,124 @@ export function setProps<T, K extends keyof T = keyof T>(
   forEach(props, (value, key) => object[key] = value);
   return object;
 }
+
+export class List<V, K extends string = string> {
+  private byKey = new Map<string, ListItem<V, K>>();
+  private firstItem: ListItem<V, K> | null = null;
+  private lastItem: ListItem<V, K> | null = null;
+
+  forEach(iterator: (value: V, key: K) => void) {
+    for (let item = this.firstItem; item; item = item.nextItem) {
+      iterator(item.value, item.key);
+    }
+  }
+
+  getValues(): V[] {
+    const values: V[] = [];
+    for (let item = this.firstItem; item; item = item.nextItem) {
+      values.push(item.value);
+    }
+    return values;
+  }
+
+  getKeys(): K[] {
+    const keys: K[] = [];
+    for (let item = this.firstItem; item; item = item.nextItem) {
+      keys.push(item.key);
+    }
+    return keys;
+  }
+
+  getNextKey(key: string) {
+    const {nextItem} = this.byKey.get(key);
+    return nextItem && nextItem.key;
+  }
+
+  replace(key: K, newKey: K, value: V) {
+    const currentItem = this.byKey.get(key);
+    currentItem.key = newKey;
+    currentItem.value = value;
+    this.byKey.delete(key);
+    this.byKey.set(newKey, currentItem);
+  }
+
+  set(key: K, value: V, beforeKey?: K | null): void {
+    let item = this.byKey.get(key);
+    let beforeItem: ListItem<V, K> | null | undefined;
+
+    if (beforeKey == null) {
+      beforeItem = beforeKey;
+    } else {
+      (beforeItem = this.byKey.get(beforeKey)).key;
+    }
+
+    if (item) {
+      item.value = value;
+      if (beforeItem === undefined || item.nextItem === beforeItem) {
+        return;
+      }
+      this.removeConnected(item);
+    } else {
+      item = new ListItem(value, key);
+      this.byKey.set(key, item);
+    }
+    this.insertUnconnected(item, beforeItem || null);
+  }
+
+  delete(key: K): void {
+    this.removeConnected(this.byKey.get(key));
+    this.byKey.delete(key);
+  }
+
+  get(key: K): V {
+    return this.byKey.get(key).value;
+  }
+
+  has(key: K): boolean {
+    return this.byKey.has(key);
+  }
+
+  private insertUnconnected(
+    item: ListItem<V, K>,
+    beforeItem: ListItem<V, K> | null
+  ) {
+    if (item === beforeItem) {
+      throw new Error(`Cannot insert before self.`);
+    }
+    const previousItem = beforeItem ? beforeItem.previousItem : this.lastItem;
+    if (previousItem) {
+      previousItem.nextItem = item;
+    } else {
+      this.firstItem = item;
+    }
+
+    item.previousItem = previousItem;
+    item.nextItem = beforeItem;
+
+    if (beforeItem) {
+      beforeItem.previousItem = item;
+    } else {
+      this.lastItem = item;
+    }
+  }
+
+  private removeConnected(item: ListItem<V, K>) {
+    const {previousItem, nextItem} = item;
+    if (previousItem) {
+      previousItem.nextItem = nextItem;
+    } else {
+      this.firstItem = nextItem;
+    }
+    if (nextItem) {
+      nextItem.previousItem = previousItem;
+    } else {
+      this.lastItem = previousItem;
+    }
+  }
+}
+
+class ListItem<V, K> {
+  previousItem: ListItem<V, K> | null = null;
+  nextItem: ListItem<V, K> | null = null;
+  constructor (public value: V, public key: K) {}
+}

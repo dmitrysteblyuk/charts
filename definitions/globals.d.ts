@@ -15,5 +15,9 @@ type Omit<T, K> = Pick<T, Exclude<keyof T, K>>;
 
 type CSSProperties = Partial<Omit<
   CSSStyleDeclaration,
-  'length' | 'parentRule'
+  'length' | 'parentRule' | number
 >>;
+
+interface Map<K, V> {
+  get(key: K): V;
+}
