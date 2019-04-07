@@ -21,3 +21,8 @@ type CSSProperties = Partial<Omit<
 interface Map<K, V> {
   get(key: K): V;
 }
+
+interface Array<T> {
+  forEach(iterator: (item: T, index: number) => void): void;
+  map<V>(mapper: (item: T, index: number) => V): V[];
+}

@@ -3,111 +3,150 @@ import {BaseSeries} from '../series';
 import {roundAuto} from '../lib/decimal-scale-ticks';
 import './index.css';
 
-export class Tooltip {
-  top = 0;
-  left = 0;
-  time = 0;
-  values: number[] = [];
-  series: BaseSeries[] = [];
-  hidden = true;
-  lineX = 0;
-  lineY1 = 0;
-  lineY2 = 0;
+export type Tooltip = ReturnType<typeof createTooltip>;
 
-  timeFormat = (time: number) => {
-    const date = new Date(time);
+export function createTooltip() {
+  let top = 20;
+  let left = 0;
+  let time = 0;
+  let values: number[] = [];
+  let series: (BaseSeries | null)[] = [];
+  let hidden = true;
+  let prevHidden = hidden;
+  let lineX = 0;
+  let lineY1 = 0;
+  let lineY2 = 0;
+  let pixelRatio = 1;
+
+  let timeFormat = (dateTime: number) => {
+    const date = new Date(dateTime);
     if (date.getUTCSeconds() || date.getUTCMinutes() || date.getUTCHours()) {
       return date.toUTCString();
     }
     return date.toDateString();
   };
-  private timerId: number | null = null;
+  let timerId: number | null = null;
 
-  render(
+  function render(
     container: Selection<HTMLElement>,
     lineContainer: Selection
   ) {
-    const {hidden} = this;
-    if (container.getDataChanges({hidden})) {
-      container.attr('class', hidden ? 'fade' : 'appear');
-      lineContainer.attr('class', hidden ? 'fade' : 'appear');
-
-      if (hidden) {
-        this.timerId = setTimeout(() => {
-          container.setStyles({'display': 'none'});
-          lineContainer.attr('styles', 'display: none');
-          this.timerId = null;
-        }, 500);
-        return;
-      }
-
-      if (this.timerId !== null) {
-        clearInterval(this.timerId);
-        this.timerId = null;
-      }
-      container.setStyles({'display': null});
-      lineContainer.attr('styles', undefined);
+    if (prevHidden !== hidden) {
+      prevHidden = hidden;
+      toggle(container, lineContainer);
     }
 
     if (hidden) {
       return;
     }
 
-    const {top, values, lineX, lineY1, lineY2} = this;
-    const tooltipContainer = container.renderOne<HTMLElement>('div', 0);
-
-    if (tooltipContainer.isNew()) {
-      tooltipContainer.attr('class', 'chart-tooltip');
-    }
-
-    tooltipContainer.renderOne<HTMLElement>('div', 0).text(
-      this.timeFormat(this.time)
+    container.renderOne<HTMLElement>('div', 0).text(
+      timeFormat(time)
     );
 
-    const valueSelection = tooltipContainer.renderOne<HTMLElement>('div', 1);
-    if (valueSelection.isNew()) {
-      valueSelection.attr('class', 'chart-tooltip-values');
-    }
-    valueSelection.renderAll<HTMLElement, number>('div', values, (
-      selection,
-      value,
-      index
-    ) => {
-      const series = this.series[index];
-      selection.setStyles({'color': series.getColor()});
+    const valueSelection = container.renderOne<HTMLElement>('div', 1, {
+      'class': 'chart-tooltip-values'
+    });
+
+    values.forEach((value, index) => {
+      const selection = valueSelection.renderOne('div', index);
+      const item = series[index];
+      if (!item) {
+        selection.setStyles({'display': 'none'});
+        return;
+      }
+
+      selection.setStyles({
+        'color': item.getColor(),
+        display: null
+      });
+
       selection.renderOne<HTMLElement>('div', 0).text(
         roundAuto(value)
       );
-      selection.renderOne('div', 1).text(series.getLabel());
+      selection.renderOne('div', 1).text(item.getLabel());
     });
 
-    const rect = tooltipContainer.getRect();
-    const lineSelection = lineContainer.renderOne('line', 0);
-    const circlesContainer = lineContainer.renderOne('g', 1);
-    lineSelection.attr({
+    const rect = container.getRect();
+    lineContainer.renderOne('line', 0, {
+      'stroke': '#ddd'
+    }).attr({
       'x1': lineX,
       'x2': lineX,
-      'y1': Math.min(lineY1 + rect.height, lineY2),
-      'y2': lineY2,
-      'stroke': '#ddd'
+      'y1': Math.min(lineY1 + rect.height + top, lineY2),
+      'y2': lineY2
     });
 
-    circlesContainer.renderAll('circle', values, (selection, value, index) => {
-      const series = this.series[index];
-      selection.attr({
-        'stroke': series.getColor(),
-        'fill': 'white',
+    const circlesContainer = lineContainer.renderOne('g', 1);
+    values.forEach((value, index) => {
+      const selection = circlesContainer.renderOne('circle', index, {
         'stroke-width': 2,
         'r': 5,
+        'fill': 'white'
+      });
+
+      const item = series[index];
+      if (!item) {
+        selection.setStyles({'display': 'none'});
+        return;
+      }
+
+      selection.setStyles({
+        display: null
+      }).attr({
+        'stroke': item.getColor(),
         'cx': lineX,
-        'cy': series.yScale.scale(value)
+        'cy': item.yScale.scale(value) / pixelRatio
       });
     });
 
-    const left = Math.min(this.left, window.innerWidth - rect.width - 5);
-    tooltipContainer.setStyles({
+    const leftPosition = Math.min(left, window.innerWidth - rect.width - 5);
+    container.setStyles({
       'top': `${top}px`,
-      'left': `${left}px`
+      'left': `${leftPosition}px`
     });
   }
+
+  function toggle(
+    container: Selection<HTMLElement>,
+    lineContainer: Selection
+  ) {
+    container.attr(
+      'class',
+      hidden ? 'chart-tooltip fade' : 'chart-tooltip appear'
+    );
+    lineContainer.attr('class', hidden ? 'fade' : 'appear');
+
+    if (hidden) {
+      timerId = setTimeout(() => {
+        container.setStyles({'display': 'none'});
+        lineContainer.attr('styles', 'display: none');
+        timerId = null;
+      }, 500);
+      return;
+    }
+
+    if (timerId !== null) {
+      clearInterval(timerId);
+      timerId = null;
+    }
+    container.setStyles({'display': null});
+    lineContainer.attr('styles', undefined);
+  }
+
+  const instance = {
+    render,
+    setTop: (_: typeof top) => (top = _, instance),
+    setLeft: (_: typeof left) => (left = _, instance),
+    setTime: (_: typeof time) => (time = _, instance),
+    setValues: (_: typeof values) => (values = _, instance),
+    setSeries: (_: typeof series) => (series = _, instance),
+    setHidden: (_: typeof hidden) => (hidden = _, instance),
+    setLineX: (_: typeof lineX) => (lineX = _, instance),
+    setLineY1: (_: typeof lineY1) => (lineY1 = _, instance),
+    setLineY2: (_: typeof lineY2) => (lineY2 = _, instance),
+    setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance),
+    setTimeFormat: (_: typeof timeFormat) => (timeFormat = _, instance)
+  };
+  return instance;
 }

@@ -1,62 +1,48 @@
-import {Scale} from '../lib/scale';
+import {createScale} from '../lib/scale';
 import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
 import {getTimeScaleTicks} from '../lib/time-scale-ticks';
 import {memoizeOne} from '../lib/utils';
 
-export abstract class ChartScale extends Scale {
-  private fixed = false;
-  private extendableOnly = false;
-  private minDomain: NumberRange = [Infinity, -Infinity];
+export type ChartScale = ReturnType<typeof createChartScale>;
 
-  setDomain(domain: NumberRange) {
-    const previousDomain = this.getDomain();
-    super.setDomain(domain);
-    if (previousDomain === this.getDomain()) {
+export function createChartScale(
+  calculateTicks: (count: number, domain: NumberRange) => NumberRange
+) {
+  const scale = createScale();
+  let fixed = false;
+  let extendableOnly = false;
+  let minDomain: NumberRange = [Infinity, -Infinity];
+  const getTicks = memoizeOne(
+    (count: number) => calculateTicks(count, scale.getDomain())
+  );
+
+  function setDomain(domain: NumberRange) {
+    const previousDomain = scale.getDomain();
+    scale.setDomain(domain);
+    if (previousDomain === scale.getDomain()) {
       return;
     }
-    this.getTicks.clearCache();
+    getTicks.clearCache();
   }
 
-  readonly getTicks = memoizeOne(this.calculateTicks, this);
-
-  isFixed() {
-    return this.fixed;
-  }
-
-  setFixed(fixed: boolean) {
-    this.fixed = fixed;
-  }
-
-  isExtendableOnly() {
-    return this.extendableOnly;
-  }
-
-  setExtendableOnly(extendableOnly: boolean) {
-    this.extendableOnly = extendableOnly;
-  }
-
-  setMinDomain(minDomain: NumberRange) {
-    this.minDomain = minDomain;
-  }
-
-  getMinDomain() {
-    return this.minDomain;
-  }
-
-  protected abstract calculateTicks(count: number): NumberRange;
+  const instance = {
+    ...scale,
+    getTicks,
+    setDomain,
+    isExtendableOnly: () => extendableOnly,
+    getMinDomain: () => minDomain,
+    isFixed: () => fixed,
+    // tslint:disable max-line-length
+    setFixed: (_: typeof fixed) => (fixed = _, instance),
+    setExtendableOnly: (_: typeof extendableOnly) => (extendableOnly = _, instance),
+    setMinDomain: (_: typeof minDomain) => (minDomain = _, instance)
+    // tslint:enable max-line-length
+  };
+  return instance;
 }
 
-export class ValueScale extends ChartScale {
-  calculateTicks(count: number) {
-    return getDecimalScaleTicks(count, this.getDomain());
-  }
-}
-
-export class TimeScale extends ChartScale {
-  calculateTicks(count: number) {
-    return getTimeScaleTicks(count, this.getDomain());
-  }
-}
+export const createValueScale = () => createChartScale(getDecimalScaleTicks);
+export const createTimeScale = () => createChartScale(getTimeScaleTicks);
 
 export function getExtendedDomain(
   domain: NumberRange,

@@ -1,5 +1,3 @@
-import {newArray} from './utils';
-
 const monthNames = [
   'January',
   'February',
@@ -54,5 +52,5 @@ function padding(value: number, count = 2) {
   if (result.length >= count) {
     return result;
   }
-  return newArray(count - result.length, () => 0).join('') + result;
+  return new Array(count - result.length).fill(0).join('') + result;
 }

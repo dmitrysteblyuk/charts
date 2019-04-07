@@ -3,7 +3,7 @@ const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
-const CopyPlugin = require('copy-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
   entry: {
@@ -41,7 +41,15 @@ module.exports = {
 
   optimization: {
     minimizer: [
-      new OptimizeCSSAssetsPlugin({})
+      new OptimizeCSSAssetsPlugin({}),
+      new TerserPlugin({
+        cache: true,
+        parallel: true,
+        sourceMap: true, // Must be set to true if using source-maps in production
+        terserOptions: {
+          // https://github.com/webpack-contrib/terser-webpack-plugin#terseroptions
+        }
+      })
     ]
   },
 
@@ -53,13 +61,6 @@ module.exports = {
 
     new MiniCssExtractPlugin({
       filename: 'styles.css'
-    }),
-
-    new CopyPlugin([
-      {
-        from: 'chart_data.json',
-        to: 'chart_data.json'
-      }
-    ])
+    })
   ]
 };

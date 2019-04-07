@@ -8,12 +8,14 @@ export function onZoomEvents(
   selection: Selection,
   onZoomChange: (
     positions: ZoomPositions,
-    mode: ZoomMode
+    mode: ZoomMode,
+    event: Event
   ) => void,
   onZoomStart: (
     initialPositions: ZoomPositions,
     mode: ZoomMode,
-    target: Selection
+    target: Selection,
+    event: Event
   ) => void,
   onZoomEnd?: (mode: ZoomMode) => void
 ) {
@@ -40,13 +42,12 @@ export function onZoomEvents(
         startZoom(initialPositions, ZoomMode.Drag, event);
         return;
       }
-      event.preventDefault();
 
       startZoom(initialPositions, ZoomMode.Wheel, event);
 
       const {deltaX, deltaY} = event;
       const [[x, y]] = initialPositions;
-      onZoomChange([[x + deltaX, y + deltaY]], ZoomMode.Wheel);
+      onZoomChange([[x + deltaX, y + deltaY]], ZoomMode.Wheel, event);
       endZoom();
       return;
     }
@@ -97,10 +98,9 @@ export function onZoomEvents(
     if (!positions) {
       return;
     }
-    event.preventDefault();
 
     if (!isTouchEvent(event)) {
-      onZoomChange(getMousePositions(event), ZoomMode.Drag);
+      onZoomChange(getMousePositions(event), ZoomMode.Drag, event);
       return;
     }
 
@@ -119,7 +119,7 @@ export function onZoomEvents(
       return;
     }
     positions = nextPositions;
-    onZoomChange(nextPositions, mode as ZoomMode);
+    onZoomChange(nextPositions, mode as ZoomMode, event);
   }
 
   function onEnd(event: ZoomEvent) {
@@ -154,7 +154,7 @@ export function onZoomEvents(
     event: Event
   ) {
     const target = new Selection(event.target as any);
-    onZoomStart(positions = initialPositions, mode = nextMode, target);
+    onZoomStart(positions = initialPositions, mode = nextMode, target, event);
   }
 
   function endZoom() {

@@ -8,16 +8,22 @@ export function binarySearch(
   endIndex: number,
   isLessOrLessOrEqualThan: (index: number) => boolean
 ): number {
-  if (startIndex < endIndex) {
-    return search(startIndex, endIndex);
+  if (startIndex >= endIndex) {
+    return startIndex - 1;
   }
-  return startIndex - 1;
+  if (isLessOrLessOrEqualThan(startIndex)) {
+    return startIndex;
+  }
+  if (!isLessOrLessOrEqualThan(endIndex - 1)) {
+    return endIndex;
+  }
+  return search(startIndex, endIndex);
 
   function search(start: number, end: number): number {
     const middle = Math.floor((end - start) / 2) + start;
     if (isLessOrLessOrEqualThan(middle)) {
       if (middle === start) {
-        return start;
+        return middle;
       }
       return search(start, middle);
     }

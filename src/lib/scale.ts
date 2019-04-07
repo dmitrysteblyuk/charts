@@ -1,63 +1,58 @@
-import {arrayIsEqual} from './utils';
+import {isArrayEqual} from './utils';
 
-export class Scale {
-  private factor = 1;
-  private offset = 0;
-  private domain: NumberRange = [0, 1];
-  private range: NumberRange = [0, 1]
-  private inverted: Scale | undefined;
+export type Scale = ReturnType<typeof createScale>;
 
-  scale = (x: number) => {
-    return this.factor * x + this.offset;
-  };
+export function createScale() {
+  let factor = 1;
+  let offset = 0;
+  let domain: NumberRange = [0, 1];
+  let range: NumberRange = [0, 1]
+  let inverted: Scale | undefined;
 
-  invert() {
-    let {inverted} = this;
+  function scale(x: number) {
+    return factor * x + offset;
+  }
+
+  function invert() {
     if (inverted) {
       return inverted;
     }
-    inverted = this.inverted = new Scale();
-    inverted.setDomain(this.range);
-    inverted.setRange(this.domain);
+    inverted = inverted = createScale();
+    inverted.setDomain(range);
+    inverted.setRange(domain);
     return inverted;
   }
 
-  getFactor() {
-    return this.factor;
-  }
-
-  getOffset() {
-    return this.offset;
-  }
-
-  setDomain(domain: NumberRange) {
-    if (arrayIsEqual(this.domain, domain)) {
+  function setDomain(_domain: NumberRange) {
+    if (isArrayEqual(domain, _domain)) {
       return;
     }
-    this.domain = domain;
-    this.rescale();
+    domain = _domain;
+    rescale();
   }
 
-  getDomain() {
-    return this.domain;
-  }
-
-  setRange(range: NumberRange) {
-    if (arrayIsEqual(this.range, range)) {
+  function setRange(_range: NumberRange) {
+    if (isArrayEqual(range, _range)) {
       return;
     }
-    this.range = range;
-    this.rescale();
+    range = _range;
+    rescale();
   }
 
-  getRange() {
-    return this.range;
+  function rescale() {
+    factor = (range[1] - range[0]) / (domain[1] - domain[0]);
+    offset = range[1] - domain[1] * factor;
+    inverted = undefined;
   }
 
-  private rescale() {
-    const {domain, range} = this;
-    this.factor = (range[1] - range[0]) / (domain[1] - domain[0]);
-    this.offset = range[1] - domain[1] * this.factor;
-    this.inverted = undefined;
-  }
+  return {
+    scale,
+    invert,
+    setDomain,
+    setRange,
+    getFactor: () => factor,
+    getOffset: () => offset,
+    getDomain: () => domain,
+    getRange: () => range
+  };
 }

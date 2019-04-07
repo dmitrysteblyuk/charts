@@ -1,66 +1,54 @@
-import {Selection} from '../lib/selection';
 import {memoizeOne} from '../lib/utils';
 import {ChartScale, getExtendedDomain} from '../chart/chart-scale';
 import {SeriesData} from '../lib/series-data';
 import {binarySearch} from '../lib/binary-search';
 
-export interface SeriesProps {
-  color: string;
-  label: string;
-  enableTransitions: boolean;
-  hidden: boolean;
-  strokeWidth?: number;
-}
+export type BaseSeries = ReturnType<typeof createBaseSeries>;
 
-export abstract class BaseSeries implements SeriesProps {
-  color = '';
-  label = '';
-  hidden = false;
-  enableTransitions = true;
+export function createBaseSeries(
+  xScale: ChartScale,
+  yScale: ChartScale,
+  data: SeriesData,
+  draw: (context: CanvasRenderingContext2D) => void
+) {
+  let color = '';
+  let label = '';
+  let hidden = false;
+  let enableTransitions = true;
+  let pixelRatio = 1;
 
-  constructor(
-    readonly xScale: ChartScale,
-    readonly yScale: ChartScale,
-    private data: SeriesData
-  ) {}
+  const getYDomain = memoizeOne((
+    startIndex: number,
+    endIndex: number,
+    seriesData: SeriesData
+  ) => {
+    return seriesData.getRange(
+      startIndex + 1,
+      endIndex,
+      startIndex,
+      startIndex
+    ).map((index) => seriesData.y[index])
+  });
 
-  getColor() {
-    return this.color;
+  function resetData(_data: SeriesData) {
+    data = _data;
+    getYDomain.clearCache();
   }
 
-  getLabel() {
-    return this.label;
-  }
-
-  isHidden() {
-    return this.hidden;
-  }
-
-  getData() {
-    return this.data;
-  }
-
-  setData(data: SeriesData) {
-    this.data = data;
-    this.getYDomain.clearCache();
-  }
-
-  abstract render(container: Selection): void;
-
-  extendXDomain(xDomain: NumberRange): NumberRange {
-    const {x: dataX, size} = this.data;
+  function extendXDomain(xDomain: NumberRange): NumberRange {
+    const {x: dataX, size} = data;
     if (!dataX.length) {
       return xDomain;
     }
     return getExtendedDomain(xDomain, [dataX[0], dataX[size - 1]]);
   }
 
-  extendYDomain(yDomain: NumberRange): NumberRange {
-    const {x: dataX, size} = this.data;
+  function extendYDomain(yDomain: NumberRange): NumberRange {
+    const {x: dataX, size} = data;
     if (!size) {
       return yDomain;
     }
-    const xDomain = this.xScale.getDomain();
+    const xDomain = xScale.getDomain();
     const startIndex = Math.max(
       0,
       binarySearch(0, size, (index) => xDomain[0] < dataX[index]) - 1
@@ -70,28 +58,29 @@ export abstract class BaseSeries implements SeriesProps {
       binarySearch(startIndex, size, (index) => xDomain[1] <= dataX[index]) + 1
     );
 
-    this.prepareData();
-
-    const [minY, maxY] = this.getYDomain(startIndex, endIndex, this.data);
+    const [minY, maxY] = getYDomain(startIndex, endIndex, data);
     return getExtendedDomain(yDomain, [minY, maxY]);
   }
 
-  private getYDomain = memoizeOne((
-    startIndex: number,
-    endIndex: number,
-    data: SeriesData
-  ) => {
-    return data.getRange(
-      startIndex + 1,
-      endIndex,
-      startIndex,
-      startIndex
-    ).map((index) => data.y[index])
-  });
-
-  private prepareData() {
-    const [start, end] = this.xScale.getRange();
-    const pixels = Math.max(300, Math.min(Math.abs(end - start), 2000));
-    this.data.splitToClusters(pixels);
-  }
+  const instance = {
+    xScale,
+    yScale,
+    draw,
+    resetData,
+    extendXDomain,
+    extendYDomain,
+    // tslint:disable max-line-length
+    getColor: () => color,
+    getLabel: () => label,
+    isHidden: () => hidden,
+    getPixelRatio: () => pixelRatio,
+    getData: () => data,
+    setColor: (_: typeof color) => (color = _, instance),
+    setLabel: (_: typeof label) => (label = _, instance),
+    setHidden: (_: typeof hidden) => (hidden = _, instance),
+    setEnableTransitions: (_: typeof enableTransitions) => (enableTransitions = _, instance),
+    setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance)
+    // tslint:enable max-line-length
+  };
+  return instance;
 }

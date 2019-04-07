@@ -1,5 +1,5 @@
 .chart-tooltip {
-  position: fixed;
+  position: absolute;
   width: auto;
   height: auto;
   border-radius: 4px;

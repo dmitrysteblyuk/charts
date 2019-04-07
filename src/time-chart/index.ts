@@ -1,302 +1,301 @@
-import {Chart} from '../chart';
-import {Axis, AxisPosition, timePrecedence} from '../axis';
-import {Brush} from '../brush';
+import {createChart} from '../chart';
+import {
+  createAxis,
+  AxisPosition,
+  timePrecedence
+} from '../axis';
+import {createBrush} from '../brush';
 import {Selection} from '../lib/selection';
-import {setProps} from '../lib/utils';
-import {ValueScale, TimeScale, getExtendedDomain} from '../chart/chart-scale';
-import {BaseSeries, SeriesProps} from '../series';
-import {LineSeries} from '../series/line-series';
-import {Legend} from '../legend';
+import {
+  createValueScale,
+  createTimeScale,
+  getExtendedDomain
+} from '../chart/chart-scale';
+import {BaseSeries} from '../series';
+import {createLineSeries, LineSeries} from '../series/line-series';
+import {createLegend} from '../legend';
 import {SeriesData} from '../lib/series-data';
 import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
 import {roundRange} from '../lib/utils';
 import {getZoomFactorAndOffset} from './zoom-transform';
 import {axisTimeFormat} from '../lib/time-format';
-import {Tooltip} from '../tooltip';
+import {createTooltip} from '../tooltip';
 import {getNearestPoint} from './get-nearest-point';
 import {roundAuto} from '../lib/decimal-scale-ticks';
+import './index.css';
 
-export class TimeChart {
-  chartOuterWidth = 0;
-  chartOuterHeight = 0;
-  helperHeight = 0;
-  helperPadding = 10;
-  tooltipContainer: Selection<HTMLElement> | undefined;
-  paddings = [20, 20, 20, 20];
+export type TimeChart = ReturnType<typeof createTimeChart>;
 
-  readonly timeScale = new TimeScale();
-  readonly fullTimeScale = new TimeScale();
-  readonly valueScale = new ValueScale();
-  readonly fullValueScale = new ValueScale();
-  readonly brush = new Brush();
-  readonly legend = new Legend([]);
-  readonly tooltip = new Tooltip();
-  readonly helperChart = new Chart([]);
-  readonly mainChart = setProps(new Chart(
+export function createTimeChart() {
+  let outerWidth = 0;
+  let helperHeight = 65;
+  let innerWidth = 0;
+  let mainInnerHeight = 0;
+  let helperInnerHeight = 0;
+  let mainHeight = 0;
+  let pixelRatio = 1;
+
+  const timeScale = createTimeScale();
+  const fullTimeScale = createTimeScale();
+  const valueScale = createValueScale();
+  const fullValueScale = createValueScale();
+  const brush = createBrush();
+  const legend = createLegend([]);
+  const tooltip = createTooltip();
+  const paddings = [0, 20, 30, 20];
+  const helperPaddings = [0, 20, 10, 20];
+  const helperChart = createChart([]);
+  const mainChart = createChart(
     [
-      setProps(new Axis(AxisPosition.bottom, this.timeScale), {
-        tickFormat: axisTimeFormat,
-        displayGrid: false,
-        tickPrecedence: timePrecedence
-      }),
-      setProps(new Axis(AxisPosition.left, this.valueScale), {
-        tickFormat: roundAuto,
-        displayScale: false
-      })
+      createAxis(timeScale)
+        .setTickFormat(axisTimeFormat)
+        .setDisplayGrid(false)
+        .setTickPrecedence(timePrecedence)
+        .setTickCount(3),
+      createAxis(valueScale)
+        .setPosition(AxisPosition.left)
+        .setTickFormat(roundAuto)
+        .setDisplayScale(false)
     ]
-  ), {
-    paddings: [0, 0, 20, 0]
-  });
+  );
 
-  private isBrushing = false;
-  private brushLeft = 0;
-  private brushRight = 0;
+  let isBrushing = false;
+  let brushLeft = 0;
+  let brushRight = 0;
 
-  render(container: Selection) {
-    const {
-      chartOuterHeight,
-      helperHeight,
-      paddings,
-      helperPadding
-    } = this;
+  function render(container: Selection<HTMLDivElement>) {
+    innerWidth = outerWidth - paddings[1] - paddings[3];
+    mainInnerHeight = mainHeight - paddings[0] - paddings[2];
+    helperInnerHeight = helperHeight - helperPaddings[0] - helperPaddings[2];
 
-    const clipPath = container.renderOne('clipPath', 0);
-    clipPath.renderOne('rect', 0).attr({
-      x: paddings[3],
-      y: 0,
-      width: this.getChartWidth(),
-      height: chartOuterHeight
+    container.attr({
+      'class': 'chart-container',
+      style: `width: ${outerWidth}px`
     });
-    if (clipPath.isNew()) {
-      container.attr('clip-path', `url(#${clipPath.getId()})`);
-    }
 
-    this.renderLegend(container);
+    const svgContainer = container.renderOne<SVGElement>('svg', 'svg').attr({
+      width: outerWidth,
+      height: mainHeight + helperHeight,
+    });
 
-    const mainHeight = Math.max(
-      1,
-      chartOuterHeight -
-      helperHeight -
-      helperPadding -
-      (this.legend.getSize() + 20) -
-      paddings[0] -
-      paddings[2]
+    renderMain(container);
+
+    fullTimeScale.setMinDomain(timeScale.getDomain());
+    renderHelper(container);
+    const svgSelection = svgContainer.renderOne<SVGGElement>('g', 0)
+      .attr({
+        transform: `translate(${paddings[3]},${paddings[0]})`
+      });
+
+    renderBrush(svgSelection, container);
+
+    const mainInnerContainer = container.renderOne<HTMLDivElement>(
+      'div',
+      'rect',
+      {'class': 'main-inner-container'}
     );
 
-    const mainContainer = container.renderOne('g', 2).attr(
-      'transform',
-      `translate(${paddings[3]},${paddings[0]})`
-    );
-    setProps(this.mainChart, {
-      chartOuterWidth: this.getChartWidth(),
-      chartOuterHeight: mainHeight
-    }).render(
-      mainContainer
-    );
+    mainInnerContainer.setStyles({
+      width: `${outerWidth}px`,
+      height: `${mainInnerHeight}px`
+    });
 
-    this.fullTimeScale.setMinDomain(this.timeScale.getDomain());
-
-    const helperContainer = container.renderOne('g', 3);
-    helperContainer.attr(
-      'transform',
-      `translate(${paddings[3]},${mainHeight + paddings[0] + helperPadding})`
-    );
-    setProps(this.helperChart, {
-      chartOuterWidth: this.getChartWidth(),
-      chartOuterHeight: helperHeight
-    }).render(
-      helperContainer
-    );
-
-    const helperChartContainer = helperContainer.selectOne(0) as Selection;
-    const brushContainer = helperChartContainer.renderOne('g', 2);
-    this.renderBrush(brushContainer, container);
-
-    const mainChartContainer = mainContainer.selectOne(0) as Selection;
-    const lineContainer = mainChartContainer.renderOne('g', 2);
-    const rectSelection = mainChartContainer.renderOne('rect', 3);
-    this.renderRectForDragging(rectSelection, container);
-
-    this.renderTooltip(rectSelection, lineContainer);
+    bindZoomEvens(mainInnerContainer, container);
+    renderTooltip(mainInnerContainer, svgSelection);
+    renderLegend(container);
   }
 
-  addSeries(
-    data: SeriesData,
-    props: Partial<SeriesProps>,
-    helperProps?: Partial<SeriesProps>
+  function renderMain(container: Selection) {
+    const mainCanvas = container
+      .renderOne<HTMLCanvasElement>('canvas', 'main');
+    setCanvasSize(mainCanvas, outerWidth, mainHeight);
+
+    mainChart
+      .setOuterWidth(toCanvasSize(outerWidth))
+      .setOuterHeight(toCanvasSize(mainHeight))
+      .setPaddings(paddings.map(toCanvasSize))
+      .draw(mainCanvas.getContext());
+  }
+
+  function renderHelper(container: Selection) {
+    const helperCanvas = container
+      .renderOne<HTMLCanvasElement>('canvas', 'helper');
+
+    setCanvasSize(helperCanvas, outerWidth, helperHeight);
+    helperChart
+      .setOuterWidth(toCanvasSize(outerWidth))
+      .setOuterHeight(toCanvasSize(helperHeight))
+      .setPaddings(helperPaddings.map(toCanvasSize))
+      .draw(helperCanvas.getContext());
+  }
+
+  function setCanvasSize(
+    canvas: Selection<HTMLCanvasElement>,
+    width: number,
+    height: number
   ) {
-    const mainSeries = setProps(new LineSeries(
-      this.timeScale,
-      this.valueScale,
-      data
-    ), props as LineSeries);
-
-    const helperSeries = setProps(new LineSeries(
-      this.fullTimeScale,
-      this.fullValueScale,
-      data
-    ), {...props, ...helperProps} as LineSeries);
-
-    this.mainChart.series.push(mainSeries);
-    this.helperChart.series.push(helperSeries);
-    this.legend.seriesGroups.push([mainSeries, helperSeries]);
-  }
-
-  setEnableTransitions(enableTransitions: boolean) {
-    [this.mainChart, this.helperChart].forEach(({axes, series}) => {
-      (axes as (BaseSeries | Axis)[])
-        .concat(series)
-        .forEach((item) => setProps(item, {enableTransitions}));
+    canvas.attr({
+      'class': 'chart-canvas',
+      style: `width: ${width}px; height: ${height}px`,
+      width: toCanvasSize(width),
+      height: toCanvasSize(height)
     });
   }
 
-  private getChartWidth() {
-    const {chartOuterWidth, paddings} = this;
-    return Math.max(
-      1, chartOuterWidth - paddings[1] - paddings[3]
+  function toCanvasSize(size: number) {
+    return Math.round(size * pixelRatio);
+  }
+
+  function addSeries(
+    data: SeriesData,
+    callback: (series: LineSeries, isHelper?: boolean) => void
+  ) {
+    const mainSeries = createLineSeries(
+      timeScale,
+      valueScale,
+      data
+    );
+    callback(mainSeries);
+    const helperSeries = createLineSeries(
+      fullTimeScale,
+      fullValueScale,
+      data
+    );
+    callback(helperSeries, true);
+
+    mainChart.series.push(mainSeries);
+    helperChart.series.push(helperSeries);
+    legend.seriesGroups.push([mainSeries, helperSeries]);
+  }
+
+  function setEnableTransitions(enableTransitions: boolean) {
+    [mainChart, helperChart].forEach(({axes, series}) => {
+      series.forEach((item) => item.setEnableTransitions(enableTransitions));
+      axes.forEach((item) => item.setEnableTransitions(enableTransitions));
+    });
+  }
+
+  function getPointX(clientX: number, container: Selection) {
+    return Math.round(
+      (clientX - paddings[3] - container.getRect().left) *
+      pixelRatio
     );
   }
 
-  private getMainRect(rectSelection: Selection) {
-    return rectSelection.getRect();
-  }
-
-  private renderLegend(container: Selection) {
-    const legendContainer = container.renderOne('g', 1);
-    const {legend} = this;
-    setProps(legend, {
-      maxWidth: this.getChartWidth()
-    })
-      .render(legendContainer);
-    const yOffset = (
-      this.chartOuterHeight -
-      legend.getSize() -
-      this.paddings[2]
-    );
-    legendContainer.attr(
-      'transform',
-      `translate(${this.paddings[3] + legend.getPadding()},${yOffset})`
-    );
+  function renderLegend(container: Selection<HTMLDivElement>) {
+    const legendContainer = container.renderOne('div', 'legend', {
+      'class': 'legend-container'
+    });
+    legend.render(legendContainer);
 
     if (!legendContainer.isNew()) {
       return;
     }
-    legend.onClickEvent.on((seriesGroup) => {
+    legend.clickEvent.on((seriesGroup) => {
       const hidden = !seriesGroup[0].isHidden();
-      seriesGroup.forEach((series) => setProps(series, {hidden}));
-      this.render(container);
+      seriesGroup.forEach((series) => series.setHidden(hidden));
+      render(container);
     });
   }
 
-  private renderTooltip(rectSelection: Selection, lineContainer: Selection) {
-    const {tooltipContainer} = this;
-    if (!rectSelection.isNew() || !tooltipContainer) {
+  function renderTooltip(
+    mainInnerContainer: Selection<HTMLDivElement>,
+    svgSelection: Selection<SVGGElement>
+  ) {
+    const tooltipContainer = mainInnerContainer
+      .renderOne<HTMLDivElement>('div', 'tooltip');
+    const lineContainer = svgSelection.renderOne('g', 'line');
+
+    if (!mainInnerContainer.isNew()) {
       return;
     }
-    const {tooltip} = this;
+
     tooltipContainer.on('mouseleave', (event: MouseEvent) => {
       const relatedSelection = new Selection(event.relatedTarget as any);
-      if (relatedSelection.isSame(rectSelection)) {
+      if (relatedSelection.isDescendant(mainInnerContainer)) {
         return;
       }
       hideTooltip();
     });
 
-    rectSelection.on('mouseleave', (event: MouseEvent) => {
+    mainInnerContainer.on('mouseleave', (event: MouseEvent) => {
       const relatedSelection = new Selection(event.relatedTarget as any);
       if (relatedSelection.isDescendant(tooltipContainer)) {
         return;
       }
       hideTooltip();
     }).on('mousemove', ({clientX}: MouseEvent) => {
-      const rect = this.getMainRect(rectSelection);
-      const pointX = clientX - rect.left;
-      const results = this.mainChart.series.reduce((points, series) => {
-        if (series.isHidden()) {
-          return points;
-        }
-        const nearestPoint = getNearestPoint(
-          pointX, series.getData(), series.xScale, 20
+      const pointX = getPointX(clientX, mainInnerContainer);
+      interface Point {
+        distance: number;
+        index: number;
+        series: BaseSeries;
+      }
+      let firstPoint: Point | undefined;
+
+      const results = mainChart.series.reduce((points, series) => {
+        const nearest = !series.isHidden() && getNearestPoint(
+          pointX,
+          series.getData(),
+          series.xScale,
+          20
         );
-        if (!nearestPoint) {
-          return points;
-        }
-        const point = {series, ...nearestPoint};
-        const lastPoint = points[0];
+        const point = nearest && {series, ...nearest};
 
-        if (!points.length || point.distance < lastPoint.distance) {
-          return [point];
+        if (!point || firstPoint && point.distance > firstPoint.distance) {
+          return points.concat(null);
         }
 
-        const nextTime = point.series.getData().x[point.index];
-        const lastTime = lastPoint.series.getData().x[lastPoint.index];
-
-        if (nextTime !== lastTime) {
-          return points;
-        }
+        firstPoint = point;
         return points.concat(point);
-      }, [] as {distance: number, index: number, series: BaseSeries}[]);
+      }, [] as (Point | null)[]);
 
-      if (!results.length) {
+      if (!firstPoint) {
         hideTooltip();
         return;
       }
 
-      const {series: firstSeries, index: firstIndex} = results[0];
+      const {series: firstSeries, index: firstIndex} = firstPoint;
       const time = firstSeries.getData().x[firstIndex];
-      const lineX = firstSeries.xScale.scale(time);
-      const lineY2 = this.mainChart.getInnerHeight();
-      const left = Math.round(lineX + rect.left) - 20;
+      const lineX = firstSeries.xScale.scale(time) / pixelRatio;
+      const left = Math.round(lineX + paddings[3]) - 20;
+      const values = results.map((item) => {
+        return item ? item.series.getData().y[item.index] : 0;
+      });
 
-      setProps(tooltip, {
-        time,
-        left,
-        hidden: false,
-        series: results.map(({series}) => series),
-        values: results.map(({series, index}) => series.getData().y[index]),
-        top: rect.top,
-        lineX,
-        lineY1: 0,
-        lineY2
-      }).render(
-        tooltipContainer,
-        lineContainer
-      );
+      tooltip
+        .setTime(time)
+        .setLeft(left)
+        .setHidden(false)
+        .setSeries(results.map((item) => item && item.series))
+        .setValues(values)
+        .setLineX(lineX)
+        .setLineY2(mainInnerHeight)
+        .setPixelRatio(pixelRatio)
+        .render(tooltipContainer, lineContainer);
     });
 
     function hideTooltip() {
-      setProps(tooltip, {hidden: true}).render(
-        tooltipContainer as Selection<HTMLElement>,
-        lineContainer
-      );
+      tooltip.setHidden(true)
+        .render(tooltipContainer, lineContainer);
     }
   }
 
-  private renderRectForDragging(
-    rectSelection: Selection,
-    container: Selection
+  function bindZoomEvens(
+    mainInnerContainer: Selection<HTMLDivElement>,
+    container: Selection<HTMLDivElement>
   ) {
-    rectSelection.attr({
-      'width': this.mainChart.getInnerWidth(),
-      'height': this.mainChart.getInnerHeight()
-    });
-
-    if (!rectSelection.isNew()) {
+    if (!mainInnerContainer.isNew()) {
       return;
     }
-
-    rectSelection.attr({
-      'x': 0,
-      'y': 0,
-      'fill': 'transparent'
-    });
 
     let startWidth: number;
     let startDomain: NumberRange;
     let startPositions: ZoomPositions;
     let hasChanged: boolean;
 
-    onZoomEvents(rectSelection, (positions, mode) => {
+    onZoomEvents(mainInnerContainer, (positions, mode, event) => {
+      event.preventDefault();
       if (!hasChanged) {
         hasChanged = true;
       }
@@ -306,15 +305,15 @@ export class TimeChart {
         mode,
         startDomain,
         startWidth,
-        (clientX) => this.timeScale.invert().scale(
-          clientX - this.getMainRect(rectSelection).left
+        (clientX) => (
+          timeScale.invert().scale(getPointX(clientX, mainInnerContainer))
         )
       );
-      this.zoomMainChart(startDomain, factor, offset, container);
+      zoomMainChart(startDomain, factor, offset, container);
     }, (positions) => {
-      startDomain = this.timeScale.getDomain();
+      startDomain = timeScale.getDomain();
       startPositions = positions;
-      startWidth = this.mainChart.getInnerWidth();
+      startWidth = innerWidth;
     }, (mode) => {
       if (!hasChanged) {
         return;
@@ -326,11 +325,11 @@ export class TimeChart {
     });
   }
 
-  private zoomMainChart(
+  function zoomMainChart(
     [startTime, endTime]: NumberRange,
     factor: number,
     offset: number,
-    container: Selection
+    container: Selection<HTMLDivElement>
   ) {
     if (factor === 1 && offset === 0) {
       return;
@@ -338,102 +337,123 @@ export class TimeChart {
     const nextStartTime = factor * startTime + offset;
     const nextEndTime = factor * endTime + offset;
 
-    this.timeScale.setFixed(true);
-    this.timeScale.setDomain([nextStartTime, nextEndTime]);
+    timeScale.setFixed(true);
+    timeScale.setDomain([nextStartTime, nextEndTime]);
 
-    const currentFullDomain = this.fullTimeScale.getDomain();
+    const currentFullDomain = fullTimeScale.getDomain();
     const extendedFullDomain = getExtendedDomain(
       currentFullDomain,
       [nextStartTime, nextEndTime]
     );
 
     if (extendedFullDomain !== currentFullDomain) {
-      this.fullTimeScale.setExtendableOnly(true);
-      this.fullTimeScale.setDomain(extendedFullDomain);
+      fullTimeScale.setExtendableOnly(true);
+      fullTimeScale.setDomain(extendedFullDomain);
     }
-    this.render(container);
+    render(container);
   }
 
-  private renderBrush(
-    brushContainer: Selection,
-    timeChartContainer: Selection
+  function renderBrush(
+    svgSelection: Selection<SVGGElement>,
+    container: Selection<HTMLDivElement>
   ) {
-    const {brushLeft, brushRight} = this;
-    const brushWidth = this.helperChart.getInnerWidth();
-    const brushHeight = this.helperChart.getInnerHeight();
-    const brushExtent = (
-      this.isBrushing && this.brush.getWidth() === brushWidth
-        ? {width: brushWidth, left: brushLeft, right: brushRight}
-        : this.getBrushExtentFromTimeScale()
+    const brushContainer = svgSelection.renderOne('g', 'brush').attr({
+      'transform': `translate(0,${mainHeight - paddings[0]})`
+    });
+    const {width, left, right} = (
+      isBrushing && brush.getWidth() === innerWidth
+        ? {width: innerWidth, left: brushLeft, right: brushRight}
+        : getBrushExtentFromTimeScale()
     );
 
-    setProps(this.brush, {
-      height: brushHeight,
-      ...brushExtent
-    }).render(
-      brushContainer
-    );
+    brush.setHeight(helperInnerHeight)
+      .setWidth(width)
+      .setLeft(left)
+      .setRight(right)
+      .render(brushContainer);
 
     if (!brushContainer.isNew()) {
       return;
     }
 
-    this.brush.activeEvent.on((isActive) => {
-      this.isBrushing = isActive;
+    brush.activeEvent.on((isActive) => {
+      isBrushing = isActive;
       if (isActive) {
         return;
       }
-      this.render(timeChartContainer);
+      render(container);
     });
 
-    this.brush.changeEvent.on(({left, right}) => {
-      this.brushLeft = left;
-      this.brushRight = right;
+    brush.changeEvent.on((next) => {
+      brushLeft = next.left;
+      brushRight = next.right;
 
-      const reset = this.brush.isReset();
-      this.timeScale.setFixed(!reset);
+      const reset = brush.isReset();
+      timeScale.setFixed(!reset);
 
       if (reset) {
-        this.fullTimeScale.setExtendableOnly(false);
+        fullTimeScale.setExtendableOnly(false);
       } else {
-        this.setBrushExtentToTimeScale(left, right);
+        setBrushExtentToTimeScale(next.left, next.right);
       }
 
-      this.render(timeChartContainer);
+      render(container);
     });
   }
 
-  private setBrushExtentToTimeScale(left: number, right: number) {
+  function setBrushExtentToTimeScale(left: number, right: number) {
     if (!(left < right)) {
       return;
     }
-    const [minTime, maxTime] = this.fullTimeScale.getDomain();
-    const width = this.helperChart.getInnerWidth();
+    const [minTime, maxTime] = fullTimeScale.getDomain();
     const dateSpan = maxTime - minTime;
 
-    const startTime = minTime + dateSpan * left / width;
-    const endTime = minTime + dateSpan * right / width;
+    const startTime = minTime + dateSpan * left / innerWidth;
+    const endTime = minTime + dateSpan * right / innerWidth;
 
-    this.timeScale.setDomain([startTime, endTime]);
+    timeScale.setDomain([startTime, endTime]);
   }
 
-  private getBrushExtentFromTimeScale() {
-    const [startTime, endTime] = this.timeScale.getDomain();
-    const [minTime, maxTime] = this.fullTimeScale.getDomain();
-    const width = this.helperChart.getInnerWidth();
+  function getBrushExtentFromTimeScale() {
+    const [startTime, endTime] = timeScale.getDomain();
+    const [minTime, maxTime] = fullTimeScale.getDomain();
     const dateSpan = maxTime - minTime;
 
     if (!(dateSpan > 0)) {
-      return {width, left: 0, right: width};
+      return {width: innerWidth, left: 0, right: innerWidth};
     }
 
     let [left, right] = roundRange(
-      (startTime - minTime) / dateSpan * width,
-      (endTime - minTime) / dateSpan * width
+      (startTime - minTime) / dateSpan * innerWidth,
+      (endTime - minTime) / dateSpan * innerWidth
     );
-    left = Math.max(0, Math.min(left, width));
-    right = Math.max(left, Math.min(right, width));
+    left = Math.max(0, Math.min(left, innerWidth));
+    right = Math.max(left, Math.min(right, innerWidth));
 
-    return {width, left, right};
+    return {width: innerWidth, left, right};
   }
+
+  const instance = {
+    render,
+    timeScale,
+    addSeries,
+    setEnableTransitions,
+    mainChart,
+    helperChart,
+    setPixelRatio,
+    // tslint:disable max-line-length
+    setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance),
+    setHelperHeight: (_: typeof helperHeight) => (helperHeight = _, instance),
+    setMainHeight: (_: typeof mainHeight) => (mainHeight = _, instance)
+    // tslint:enable max-line-length
+  };
+
+  function setPixelRatio(_pixelRatio: number) {
+    pixelRatio = _pixelRatio;
+    mainChart.setPixelRatio(pixelRatio);
+    helperChart.setPixelRatio(pixelRatio);
+    return instance;
+  }
+
+  return instance;
 }
