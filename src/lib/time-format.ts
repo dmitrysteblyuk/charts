@@ -1,50 +1,35 @@
-const monthNames = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December'
-];
-const monthShortNames = monthNames.map((name) => name.substr(0, 3));
+const monthShortNames = (
+  'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
+);
 
 export function axisTimeFormat(
   time: number
 ): string {
   const date = new Date(time);
-  const milliseconds = date.getMilliseconds();
+  const milliseconds = date.getUTCMilliseconds();
   if (milliseconds) {
     const fraction = time % 1 && String(time).split('.')[1] || '';
     return `.${padding(milliseconds, 3)}${fraction}`;
   }
 
-  const seconds = date.getSeconds();
+  const seconds = date.getUTCSeconds();
   if (seconds) {
     return `:${padding(seconds)}`;
   }
 
-  const minutes = date.getMinutes();
-  const hours = date.getHours();
+  const minutes = date.getUTCMinutes();
+  const hours = date.getUTCHours();
   if (hours || minutes) {
     return `${padding(hours)}:${padding(minutes)}`;
   }
 
-  const day = date.getDate();
-  const month = date.getMonth();
+  const day = date.getUTCDate();
+  const month = date.getUTCMonth();
 
-  if (day > 1) {
+  if (day > 1 || month) {
     return `${monthShortNames[month]} ${day}`;
   }
-  if (month) {
-    return `${monthNames[month]}`;
-  }
-  return String(date.getFullYear());
+  return String(date.getUTCFullYear());
 }
 
 function padding(value: number, count = 2) {

@@ -69,20 +69,3 @@ function drawLine(
   }
   context.stroke();
 }
-
-// function getTransform(
-//   yScale: Scale,
-//   [vs0, vs1]: NumberRange,
-//   progress: number
-// ) {
-//   const [v0, v1] = yScale.getDomain();
-//   const [vn0, vn1] = [
-//     vs0 + (v0 - vs0) * progress,
-//     vs1 + (v1 - vs1) * progress
-//   ];
-//   const [yn0, yn1] = [vn0, vn1].map(yScale.scale);
-//   const [y0, y1] = [v0, v1].map(yScale.scale);
-//   const factor = (y1 - y0) / (yn1 - yn0);
-//   const offset = (yn1 * y0 - yn0 * y1) / (yn1 - yn0);
-//   return [factor, offset];
-// }

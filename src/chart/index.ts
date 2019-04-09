@@ -141,10 +141,7 @@ export function createChart(
       context.save();
       translateAxis(axis);
 
-      axis.setTickData(null)
-        .setAnimated(false)
-        .setHideOverlappingTicks(false)
-        .setGridSize(axis.isVertical() ? innerWidth : innerHeight)
+      axis.setGridSize(axis.isVertical() ? innerWidth : innerHeight)
         .draw(context);
       context.restore();
     });
@@ -184,11 +181,9 @@ export function createChart(
     series,
     draw,
     setPixelRatio,
-    // tslint:disable max-line-length
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance),
     setOuterHeight: (_: typeof outerHeight) => (outerHeight = _, instance),
     setPaddings: (_: typeof paddings) => (paddings = _, instance)
-    // tslint:enable max-line-length
   };
   return instance;
 }

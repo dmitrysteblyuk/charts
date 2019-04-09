@@ -1,9 +1,5 @@
 import {createChart} from '../chart';
-import {
-  createAxis,
-  AxisPosition,
-  timePrecedence
-} from '../axis';
+import {createAxis, AxisPosition} from '../axis';
 import {createBrush} from '../brush';
 import {Selection} from '../lib/selection';
 import {
@@ -47,13 +43,10 @@ export function createTimeChart() {
   const helperChart = createChart([]);
   const mainChart = createChart(
     [
-      createAxis(timeScale)
+      createAxis(AxisPosition.bottom, timeScale)
         .setTickFormat(axisTimeFormat)
-        .setDisplayGrid(false)
-        .setTickPrecedence(timePrecedence)
-        .setTickCount(3),
-      createAxis(valueScale)
-        .setPosition(AxisPosition.left)
+        .setDisplayGrid(false),
+      createAxis(AxisPosition.left, valueScale)
         .setTickFormat(roundAuto)
         .setDisplayScale(false)
     ]
@@ -166,13 +159,6 @@ export function createTimeChart() {
     mainChart.series.push(mainSeries);
     helperChart.series.push(helperSeries);
     legend.seriesGroups.push([mainSeries, helperSeries]);
-  }
-
-  function setEnableTransitions(enableTransitions: boolean) {
-    [mainChart, helperChart].forEach(({axes, series}) => {
-      series.forEach((item) => item.setEnableTransitions(enableTransitions));
-      axes.forEach((item) => item.setEnableTransitions(enableTransitions));
-    });
   }
 
   function getPointX(clientX: number, container: Selection) {
@@ -437,15 +423,12 @@ export function createTimeChart() {
     render,
     timeScale,
     addSeries,
-    setEnableTransitions,
     mainChart,
     helperChart,
     setPixelRatio,
-    // tslint:disable max-line-length
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance),
     setHelperHeight: (_: typeof helperHeight) => (helperHeight = _, instance),
     setMainHeight: (_: typeof mainHeight) => (mainHeight = _, instance)
-    // tslint:enable max-line-length
   };
 
   function setPixelRatio(_pixelRatio: number) {

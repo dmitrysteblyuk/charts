@@ -108,7 +108,7 @@ export function startAnimation(
   onStop: () => void,
   duration = 200
 ) {
-  let startTime: number | null = null;
+  let startTime: number | undefined;
 
   onRequest(requestAnimationFrame(function step(time) {
     if (startTime == null) {
@@ -119,9 +119,7 @@ export function startAnimation(
 
     if (progress < 1) {
       onRequest(requestAnimationFrame(step));
-      return;
-    }
-    if (onStop) {
+    } else {
       onStop();
     }
   }));

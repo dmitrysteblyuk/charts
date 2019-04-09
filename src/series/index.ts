@@ -14,7 +14,6 @@ export function createBaseSeries(
   let color = '';
   let label = '';
   let hidden = false;
-  let enableTransitions = true;
   let pixelRatio = 1;
 
   const getYDomain = memoizeOne((
@@ -69,7 +68,6 @@ export function createBaseSeries(
     resetData,
     extendXDomain,
     extendYDomain,
-    // tslint:disable max-line-length
     getColor: () => color,
     getLabel: () => label,
     isHidden: () => hidden,
@@ -78,9 +76,7 @@ export function createBaseSeries(
     setColor: (_: typeof color) => (color = _, instance),
     setLabel: (_: typeof label) => (label = _, instance),
     setHidden: (_: typeof hidden) => (hidden = _, instance),
-    setEnableTransitions: (_: typeof enableTransitions) => (enableTransitions = _, instance),
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance)
-    // tslint:enable max-line-length
   };
   return instance;
 }

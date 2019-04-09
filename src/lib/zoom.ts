@@ -119,7 +119,7 @@ export function onZoomEvents(
       return;
     }
     positions = nextPositions;
-    onZoomChange(nextPositions, mode as ZoomMode, event);
+    onZoomChange(nextPositions, mode!, event);
   }
 
   function onEnd(event: ZoomEvent) {
@@ -163,7 +163,7 @@ export function onZoomEvents(
     if (!onZoomEnd) {
       return;
     }
-    onZoomEnd(previousMode as ZoomMode);
+    onZoomEnd(previousMode!);
   }
 
   function getMousePositions(

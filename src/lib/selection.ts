@@ -59,7 +59,7 @@ export class Selection<EL extends AnyElement = AnyElement> {
   }
 
   getContext(this: Selection<HTMLCanvasElement>) {
-    return this.element.getContext('2d') as CanvasRenderingContext2D;
+    return this.element.getContext('2d')!;
   }
 
   isSame({element}: Selection) {
@@ -249,7 +249,7 @@ export class Selection<EL extends AnyElement = AnyElement> {
 
   private getSelectionId() {
     if (this.element.hasAttribute('id')) {
-      return this.element.getAttribute('id') as string;
+      return this.element.getAttribute('id')!;
     }
     const newId = `el-${Selection.countID++}`;
     this.element.setAttribute('id', newId);
@@ -368,10 +368,12 @@ function createChild<E extends AnyElement>(
   tagName: string,
   parent: AnyElement
 ): E {
-  const elementDocument = parent.ownerDocument as Document;
+  const elementDocument = parent.ownerDocument!;
 
   if (tagName === 'svg') {
-    return elementDocument.createElementNS(SVG_URI, tagName) as AnyElement as E;
+    return (
+      elementDocument.createElementNS(SVG_URI, tagName) as AnyElement as E
+    );
   }
   if (
     parent.namespaceURI === XHTML_URI &&

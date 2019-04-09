@@ -6,7 +6,10 @@ import {memoizeOne} from '../lib/utils';
 export type ChartScale = ReturnType<typeof createChartScale>;
 
 export function createChartScale(
-  calculateTicks: (count: number, domain: NumberRange) => NumberRange
+  calculateTicks: (count: number, domain: NumberRange) => {
+    ticks: number[],
+    startIndex?: number
+  }
 ) {
   const scale = createScale();
   let fixed = false;
@@ -32,11 +35,11 @@ export function createChartScale(
     isExtendableOnly: () => extendableOnly,
     getMinDomain: () => minDomain,
     isFixed: () => fixed,
-    // tslint:disable max-line-length
     setFixed: (_: typeof fixed) => (fixed = _, instance),
-    setExtendableOnly: (_: typeof extendableOnly) => (extendableOnly = _, instance),
+    setExtendableOnly: (
+      (_: typeof extendableOnly) => (extendableOnly = _, instance)
+    ),
     setMinDomain: (_: typeof minDomain) => (minDomain = _, instance)
-    // tslint:enable max-line-length
   };
   return instance;
 }

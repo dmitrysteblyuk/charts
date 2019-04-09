@@ -1,6 +1,5 @@
 import {ChartScale} from '../chart/chart-scale';
 import './index.css';
-import {dateUnits} from '../lib/time-scale-ticks';
 
 const axisTransformMatrix: (
   [
@@ -18,26 +17,23 @@ export const enum AxisPosition {top, right, bottom, left};
 
 export type Axis = ReturnType<typeof createAxis>;
 
-export function createAxis(scale: ChartScale) {
-  let position: AxisPosition = AxisPosition.bottom;
-  let displayLabels = true;
+export function createAxis(position: AxisPosition, scale: ChartScale) {
   let displayGrid = true;
   let displayScale = true;
-  let tickCount = 5;
-  let tickPadding = 10;
   let gridSize = 0;
-  let textColor = '#777';
-  let textSize = 11;
-  let textFont = 'px verdana, sans-serif';
-  let gridColor = '#ddd';
   let tickFormat: (tick: number) => string = String;
-  let animated = false;
-  let enableTransitions = true;
-  let hideOverlappingTicks = false;
-  let outsideSize = 0;
-  let tickPrecedence: (a: number, b: number) => number = () => 0;
-  let tickData: NumberRange | null = null;
   let pixelRatio = 1;
+
+  const textColor = '#777';
+  const textSize = 11;
+  const textFont = 'px verdana, sans-serif';
+  const gridColor = '#ddd';
+  const tickPadding = 10;
+  const tickCount = 5;
+  const vertical = (
+    position === AxisPosition.left ||
+    position === AxisPosition.right
+  );
 
   function draw(context: CanvasRenderingContext2D) {
     const matrix = axisTransformMatrix[position];
@@ -63,24 +59,10 @@ export function createAxis(scale: ChartScale) {
     context.stroke();
   }
 
-  function isVertical() {
-    return (
-      position === AxisPosition.left ||
-      position === AxisPosition.right
-    );
-  }
-
-  function getPosition() {
-    return position;
-  }
-
   function drawTicks(context: CanvasRenderingContext2D) {
-    const vertical = isVertical();
     const matrix = axisTransformMatrix[position];
-    const ticks = scale.getTicks(tickCount);
-    const tickOffsets = ticks.map((tick) => {
-      return Math.round(scale.scale(tick));
-    });
+    const {ticks, tickOpacities} = getTickData();
+    const tickOffsets = ticks.map(scale.scale);
 
     if (displayGrid) {
       tickOffsets.forEach((offset) => {
@@ -91,14 +73,11 @@ export function createAxis(scale: ChartScale) {
       });
     }
 
-    if (!displayLabels) {
-      return;
-    }
-
     context.fillStyle = textColor;
     context.font = textSize * pixelRatio + textFont;
 
     ticks.forEach((tick, index) => {
+      const offset = tickOffsets[index];
       const indent = tickPadding * (
         position === AxisPosition.left ||
         position === AxisPosition.bottom
@@ -117,10 +96,12 @@ export function createAxis(scale: ChartScale) {
       const x = vertical ? indent : 0;
       const y = vertical ? 0 : indent;
 
-      const offset = tickOffsets[index];
       context.translate(offset, 0);
       if (matrix) {
         context.transform(...matrix[1]);
+      }
+      if (tickOpacities) {
+        context.globalAlpha = tickOpacities[index];
       }
       context.fillText(tickFormat(tick), x, y);
       if (matrix) {
@@ -130,67 +111,46 @@ export function createAxis(scale: ChartScale) {
     });
   }
 
+  function getTickData() {
+    let count: number;
+    const range = scale.getRange();
+    const size = range[1] - range[0];
+    if (vertical) {
+      count = tickCount;
+    } else {
+      count = Math.round(size / 45 / pixelRatio);
+    }
+
+    const {ticks, startIndex} = scale.getTicks(count);
+    if (startIndex == null) {
+      return {
+        ticks,
+        tickOpacities: null
+      };
+    }
+
+    const space = size / ticks.length / pixelRatio;
+    const opacity = Math.max(0, Math.min((space - 45) / 20, 1));
+    const tickOpacities = ticks.map((_, index) => {
+      return (startIndex + index) % 2 ? opacity : 1;
+    });
+
+    return {
+      ticks,
+      tickOpacities
+    };
+  }
+
   const instance = {
     draw,
     scale,
-    isVertical,
-    getPosition,
-    // tslint:disable max-line-length
-    setPosition: (_: typeof position) => (position = _, instance),
-    setDisplayLabels: (_: typeof displayLabels) => (displayLabels = _, instance),
+    isVertical: () => vertical,
+    getPosition: () => position,
     setDisplayGrid: (_: typeof displayGrid) => (displayGrid = _, instance),
     setDisplayScale: (_: typeof displayScale) => (displayScale = _, instance),
-    setTickCount: (_: typeof tickCount) => (tickCount = _, instance),
-    setTickPadding: (_: typeof tickPadding) => (tickPadding = _, instance),
     setGridSize: (_: typeof gridSize) => (gridSize = _, instance),
-    setTextColor: (_: typeof textColor) => (textColor = _, instance),
-    setTextSize: (_: typeof textSize) => (textSize = _, instance),
-    setTextFont: (_: typeof textFont) => (textFont = _, instance),
-    setGridColor: (_: typeof gridColor) => (gridColor = _, instance),
     setTickFormat: (_: typeof tickFormat) => (tickFormat = _, instance),
-    setAnimated: (_: typeof animated) => (animated = _, instance),
-    setEnableTransitions: (_: typeof enableTransitions) => (enableTransitions = _, instance),
-    setHideOverlappingTicks: (_: typeof hideOverlappingTicks) => (hideOverlappingTicks = _, instance),
-    setOutsideSize: (_: typeof outsideSize) => (outsideSize = _, instance),
-    setTickPrecedence: (_: typeof tickPrecedence) => (tickPrecedence = _, instance),
-    setTickData: (_: typeof tickData) => (tickData = _, instance),
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance)
-    // tslint:enable max-line-length
   };
   return instance;
 }
-
-export function timePrecedence(a: number, b: number): number {
-  const dateA = new Date(a);
-  const dateB = new Date(b);
-  let valueA: number | undefined;
-  let valueB: number | undefined;
-  const unit = dateUnits.find(({get}) => {
-    valueA = get.call(dateA);
-    valueB = get.call(dateB);
-    return valueA !== 0 || valueB !== 0;
-  });
-
-  if (!unit) {
-    return 0;
-  }
-  if (valueA === 0) {
-    return 1;
-  }
-  if (valueB === 0) {
-    return -1;
-  }
-  return 0;
-}
-
-// function doRectsOverlap(a: Rect, b: Rect, space: number): boolean {
-//   const ax0 = a.left - space;
-//   const ax1 = ax0 + a.width + 2 * space;
-//   const ay0 = a.top - space;
-//   const ay1 = ay0 + a.height + 2 * space;
-//   const bx0 = b.left;
-//   const bx1 = bx0 + b.width;
-//   const by0 = b.top;
-//   const by1 = by0 + b.height;
-//   return ax1 > bx0 && bx1 > ax0 && ay1 > by0 && by1 > ay0;
-// }

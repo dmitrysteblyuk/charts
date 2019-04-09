@@ -44,9 +44,7 @@ function initializeCharts(
   renderCharts(charts);
 
   window.onresize = () => {
-    charts.forEach((chart) => chart.setEnableTransitions(false));
     renderCharts(charts);
-    charts.forEach((chart) => chart.setEnableTransitions(true));
   };
 }
 
