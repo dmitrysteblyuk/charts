@@ -17,11 +17,18 @@ export const enum AxisPosition {top, right, bottom, left};
 
 export type Axis = ReturnType<typeof createAxis>;
 
-export function createAxis(position: AxisPosition, scale: ChartScale) {
-  let displayGrid = true;
-  let displayScale = true;
+export function createAxis(
+  position: AxisPosition,
+  scale: ChartScale,
+  getTicks: (count: number, domain: NumberRange) => {
+    ticks: number[],
+    startIndex?: number
+  },
+  tickFormat: (tick: number) => string,
+  displayScale?: boolean,
+  displayGrid?: boolean
+) {
   let gridSize = 0;
-  let tickFormat: (tick: number) => string = String;
   let pixelRatio = 1;
 
   const textColor = '#777';
@@ -61,7 +68,7 @@ export function createAxis(position: AxisPosition, scale: ChartScale) {
 
   function drawTicks(context: CanvasRenderingContext2D) {
     const matrix = axisTransformMatrix[position];
-    const {ticks, tickOpacities} = getTickData();
+    const {ticks, getOpacity} = getTickData();
     const tickOffsets = ticks.map(scale.scale);
 
     if (displayGrid) {
@@ -100,8 +107,8 @@ export function createAxis(position: AxisPosition, scale: ChartScale) {
       if (matrix) {
         context.transform(...matrix[1]);
       }
-      if (tickOpacities) {
-        context.globalAlpha = tickOpacities[index];
+      if (getOpacity) {
+        context.globalAlpha = getOpacity(index);
       }
       context.fillText(tickFormat(tick), x, y);
       if (matrix) {
@@ -121,24 +128,24 @@ export function createAxis(position: AxisPosition, scale: ChartScale) {
       count = Math.round(size / 45 / pixelRatio);
     }
 
-    const {ticks, startIndex} = scale.getTicks(count);
-    if (startIndex == null) {
+    const {ticks, startIndex} = getTicks(count, scale.getDomain());
+    if (vertical) {
       return {
-        ticks,
-        tickOpacities: null
+        ticks
       };
     }
 
     const space = size / ticks.length / pixelRatio;
     const opacity = Math.max(0, Math.min((space - 45) / 20, 1));
-    const tickOpacities = ticks.map((_, index) => {
-      return (startIndex + index) % 2 ? opacity : 1;
-    });
 
     return {
       ticks,
-      tickOpacities
+      getOpacity
     };
+
+    function getOpacity(index: number) {
+      return (startIndex! + index) % 2 ? opacity : 1;
+    }
   }
 
   const instance = {
@@ -146,10 +153,7 @@ export function createAxis(position: AxisPosition, scale: ChartScale) {
     scale,
     isVertical: () => vertical,
     getPosition: () => position,
-    setDisplayGrid: (_: typeof displayGrid) => (displayGrid = _, instance),
-    setDisplayScale: (_: typeof displayScale) => (displayScale = _, instance),
     setGridSize: (_: typeof gridSize) => (gridSize = _, instance),
-    setTickFormat: (_: typeof tickFormat) => (tickFormat = _, instance),
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance)
   };
   return instance;

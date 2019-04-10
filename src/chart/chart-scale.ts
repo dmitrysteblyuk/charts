@@ -1,37 +1,15 @@
 import {createScale} from '../lib/scale';
-import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
-import {getTimeScaleTicks} from '../lib/time-scale-ticks';
-import {memoizeOne} from '../lib/utils';
 
 export type ChartScale = ReturnType<typeof createChartScale>;
 
-export function createChartScale(
-  calculateTicks: (count: number, domain: NumberRange) => {
-    ticks: number[],
-    startIndex?: number
-  }
-) {
+export function createChartScale() {
   const scale = createScale();
   let fixed = false;
   let extendableOnly = false;
   let minDomain: NumberRange = [Infinity, -Infinity];
-  const getTicks = memoizeOne(
-    (count: number) => calculateTicks(count, scale.getDomain())
-  );
-
-  function setDomain(domain: NumberRange) {
-    const previousDomain = scale.getDomain();
-    scale.setDomain(domain);
-    if (previousDomain === scale.getDomain()) {
-      return;
-    }
-    getTicks.clearCache();
-  }
 
   const instance = {
     ...scale,
-    getTicks,
-    setDomain,
     isExtendableOnly: () => extendableOnly,
     getMinDomain: () => minDomain,
     isFixed: () => fixed,
@@ -43,9 +21,6 @@ export function createChartScale(
   };
   return instance;
 }
-
-export const createValueScale = () => createChartScale(getDecimalScaleTicks);
-export const createTimeScale = () => createChartScale(getTimeScaleTicks);
 
 export function getExtendedDomain(
   domain: NumberRange,

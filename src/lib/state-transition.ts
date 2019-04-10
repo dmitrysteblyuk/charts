@@ -1,4 +1,3 @@
-import {startAnimation, stopAnimation} from './utils';
 
 export function createStateTransition<S>(
   onUpdate: (state: S) => void,
@@ -9,8 +8,8 @@ export function createStateTransition<S>(
     callback: (progress: number) => void,
     onNewId: (id: any) => void,
     onStop: () => void
-  ) => void) = startAnimation,
-  stopTransition = stopAnimation
+  ) => void),
+  stopTransition: (id: any) => void
 ) {
   let currentState: S;
   let startState: S;

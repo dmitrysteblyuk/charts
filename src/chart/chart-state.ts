@@ -1,5 +1,6 @@
 import {ChartScale} from './chart-scale';
-import {easeOutCubic, isArrayEqual, every} from '../lib/utils';
+import {isArrayEqual, every} from '../lib/utils';
+import {easeOutCubic} from '../lib/animation';
 import {SeriesData} from '../lib/series-data';
 
 export type State = Readonly<{

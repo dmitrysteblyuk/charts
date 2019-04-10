@@ -6,7 +6,6 @@ import './index.css';
 export type Tooltip = ReturnType<typeof createTooltip>;
 
 export function createTooltip() {
-  let top = 20;
   let left = 0;
   let time = 0;
   let values: number[] = [];
@@ -14,11 +13,12 @@ export function createTooltip() {
   let hidden = true;
   let prevHidden = hidden;
   let lineX = 0;
-  let lineY1 = 0;
   let lineY2 = 0;
   let pixelRatio = 1;
 
-  let timeFormat = (dateTime: number) => {
+  const top = 20;
+  const lineY1 = 0;
+  const timeFormat = (dateTime: number) => {
     const date = new Date(dateTime);
     if (date.getUTCSeconds() || date.getUTCMinutes() || date.getUTCHours()) {
       return date.toUTCString();
@@ -44,8 +44,8 @@ export function createTooltip() {
       timeFormat(time)
     );
 
-    const valueSelection = container.renderOne<HTMLElement>('div', 1, {
-      'class': 'chart-tooltip-values'
+    const valueSelection = container.renderOne('div', 1, (selection) => {
+      selection.setAttrs({'class': 'chart-tooltip-values'});
     });
 
     values.forEach((value, index) => {
@@ -68,22 +68,25 @@ export function createTooltip() {
     });
 
     const rect = container.getRect();
-    lineContainer.renderOne('line', 0, {
-      'stroke': '#ddd'
-    }).attr({
+    lineContainer.renderOne('line', 0).setAttrs({
+      'stroke': '#ddd',
       'x1': lineX,
       'x2': lineX,
-      'y1': Math.min(lineY1 + rect.height + top, lineY2),
+      'y1': Math.min(lineY1 + (rect ? rect.height : 0) + top, lineY2),
       'y2': lineY2
     });
 
     const circlesContainer = lineContainer.renderOne('g', 1);
     values.forEach((value, index) => {
-      const selection = circlesContainer.renderOne('circle', index, {
-        'stroke-width': 2,
-        'r': 5,
-        'fill': 'white'
-      });
+      const selection = circlesContainer.renderOne(
+        'circle',
+        index,
+        (circleSelection) => circleSelection.setAttrs({
+          'stroke-width': 2,
+          'r': 5,
+          'fill': 'white'
+        })
+      );
 
       const item = series[index];
       if (!item) {
@@ -93,14 +96,17 @@ export function createTooltip() {
 
       selection.setStyles({
         display: null
-      }).attr({
+      }).setAttrs({
         'stroke': item.getColor(),
         'cx': lineX,
         'cy': item.yScale.scale(value) / pixelRatio
       });
     });
 
-    const leftPosition = Math.min(left, window.innerWidth - rect.width - 5);
+    const leftPosition = Math.min(
+      left,
+      window.innerWidth - (rect ? rect.width : 0) - 5
+    );
     container.setStyles({
       'top': `${top}px`,
       'left': `${leftPosition}px`
@@ -111,16 +117,17 @@ export function createTooltip() {
     container: Selection<HTMLElement>,
     lineContainer: Selection
   ) {
-    container.attr(
-      'class',
-      hidden ? 'chart-tooltip fade' : 'chart-tooltip appear'
-    );
-    lineContainer.attr('class', hidden ? 'fade' : 'appear');
+    container.setAttrs({
+      'class': hidden ? 'chart-tooltip fade' : 'chart-tooltip appear'
+    });
+    lineContainer.setAttrs({
+      'class': hidden ? 'fade' : 'appear'
+    });
 
     if (hidden) {
       timerId = setTimeout(() => {
         container.setStyles({'display': 'none'});
-        lineContainer.attr('styles', 'display: none');
+        lineContainer.setStyles({'display': 'none'});
         timerId = null;
       }, 500);
       return;
@@ -131,22 +138,19 @@ export function createTooltip() {
       timerId = null;
     }
     container.setStyles({'display': null});
-    lineContainer.attr('styles', undefined);
+    lineContainer.setStyles({'display': null});
   }
 
   const instance = {
     render,
-    setTop: (_: typeof top) => (top = _, instance),
     setLeft: (_: typeof left) => (left = _, instance),
     setTime: (_: typeof time) => (time = _, instance),
     setValues: (_: typeof values) => (values = _, instance),
     setSeries: (_: typeof series) => (series = _, instance),
     setHidden: (_: typeof hidden) => (hidden = _, instance),
     setLineX: (_: typeof lineX) => (lineX = _, instance),
-    setLineY1: (_: typeof lineY1) => (lineY1 = _, instance),
     setLineY2: (_: typeof lineY2) => (lineY2 = _, instance),
-    setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance),
-    setTimeFormat: (_: typeof timeFormat) => (timeFormat = _, instance)
+    setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance)
   };
   return instance;
 }

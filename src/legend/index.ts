@@ -11,31 +11,31 @@ export function createLegend(seriesGroups: BaseSeries[][]) {
   function render(container: Selection) {
     seriesGroups.forEach((group, index) => {
       const [series] = group;
-      const itemSelection = container.renderOne('div', index, {
-        'role': 'button',
-        'class': 'legend-item'
+      const itemSelection = container.renderOne('div', index, (selection) => {
+        selection.setAttrs({
+          'role': 'button',
+          'class': 'legend-item'
+        }).on(
+          'click',
+          () => clickEvent.emit(group)
+        );
       });
 
       const color = series.getColor();
       const background = series.isHidden() ? 'none' : color;
 
-      itemSelection.renderOne('div', 0, {
+      itemSelection.renderOne('div', 0, (selection) => selection.setAttrs({
         'class': 'legend-circle'
-      }).setStyles({
+      })).setStyles({
         background,
         'borderColor': color
       });
 
-      itemSelection.renderOne('div', 1, {
+      itemSelection.renderOne('div', 1, (selection) => selection.setAttrs({
         'class': 'legend-text'
-      }).text(
+      })).text(
         series.getLabel()
       );
-
-      if (!itemSelection.isNew()) {
-        return;
-      }
-      itemSelection.on('click', () => clickEvent.emit(group));
     });
   }
 

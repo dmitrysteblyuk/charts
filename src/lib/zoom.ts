@@ -14,7 +14,6 @@ export function onZoomEvents(
   onZoomStart: (
     initialPositions: ZoomPositions,
     mode: ZoomMode,
-    target: Selection,
     event: Event
   ) => void,
   onZoomEnd?: (mode: ZoomMode) => void
@@ -153,8 +152,7 @@ export function onZoomEvents(
     nextMode: ZoomMode,
     event: Event
   ) {
-    const target = new Selection(event.target as any);
-    onZoomStart(positions = initialPositions, mode = nextMode, target, event);
+    onZoomStart(positions = initialPositions, mode = nextMode, event);
   }
 
   function endZoom() {

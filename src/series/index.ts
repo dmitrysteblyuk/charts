@@ -1,4 +1,4 @@
-import {memoizeOne} from '../lib/utils';
+import {memoizeOne} from '../lib/memoize-one';
 import {ChartScale, getExtendedDomain} from '../chart/chart-scale';
 import {SeriesData} from '../lib/series-data';
 import {binarySearch} from '../lib/binary-search';
@@ -29,10 +29,10 @@ export function createBaseSeries(
     ).map((index) => seriesData.y[index])
   });
 
-  function resetData(_data: SeriesData) {
-    data = _data;
-    getYDomain.clearCache();
-  }
+  // function resetData(_data: SeriesData) {
+  //   data = _data;
+  //   getYDomain.clearCache();
+  // }
 
   function extendXDomain(xDomain: NumberRange): NumberRange {
     const {x: dataX, size} = data;
@@ -65,7 +65,7 @@ export function createBaseSeries(
     xScale,
     yScale,
     draw,
-    resetData,
+    // resetData,
     extendXDomain,
     extendYDomain,
     getColor: () => color,

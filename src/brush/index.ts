@@ -27,46 +27,47 @@ export function createBrush() {
 
   function render(container: Selection) {
     reset = !(left > 0 || right < width);
+    let isNew: boolean | undefined;
 
-    const rectSelection = container.renderOne('rect', 0, {
-      'x': '0',
-      'y': '0',
-      'stroke': color,
-      'fill': 'transparent'
-    }).attr({
+    const rectSelection = container.renderOne('rect', 5, (selection) => {
+      selection.setAttrs({
+        'x': '0',
+        'y': '0',
+        'stroke': color,
+        'fill': 'transparent'
+      });
+      isNew = true;
+    }).setAttrs({
       'width': width,
       'height': height
     });
 
-    const leftRect = container.renderOne('rect', 1, {
-      'fill': color,
-      'x': '0',
-      'y': '0'
-    }).attr({
+    container.renderOne('rect', 0, (selection) => {
+      selection.setAttrs({
+        'fill': color,
+        'x': '0',
+        'y': '0'
+      }).on('click', onResetClick);
+    }).setAttrs({
       'width': left,
       'height': height
     });
-    if (leftRect.isNew()) {
-      leftRect.on('click', () => onResetClick());
-    }
 
-    const rightRect = container.renderOne('rect', 2, {
-      'fill': color,
-      'y': '0'
-    });
-    rightRect.attr({
+    container.renderOne('rect', 1, (selection) => {
+      selection.setAttrs({
+        'fill': color,
+        'y': '0'
+      }).on('click', onResetClick);
+    }).setAttrs({
       'x': right,
       'width': width - right,
       'height': height
     });
-    if (rightRect.isNew()) {
-      rightRect.on('click', () => onResetClick());
-    }
 
-    const centerRect = container.renderOne('rect', 3);
-    centerRect.attr('style', reset ? 'display: none' : '');
+    const centerRect = container.renderOne('rect', 2);
+    centerRect.setStyles({'display': reset ? 'none' : null});
     if (!reset) {
-      centerRect.attr({
+      centerRect.setAttrs({
         'fill': defaultFill,
         'x': left,
         'width': right - left,
@@ -75,7 +76,7 @@ export function createBrush() {
       });
     }
 
-    container.renderOne('rect', 4).attr({
+    const leftHandle = container.renderOne('rect', 3).setAttrs({
       'fill': defaultFill,
       'x': left - borderWidth,
       'width': borderWidth * 2,
@@ -83,7 +84,7 @@ export function createBrush() {
       'y': 0
     });
 
-    container.renderOne('rect', 5).attr({
+    const rightHandle = container.renderOne('rect', 4).setAttrs({
       'fill': defaultFill,
       'x': right - borderWidth,
       'width': borderWidth * 2,
@@ -91,10 +92,16 @@ export function createBrush() {
       'y': 0
     });
 
-    if (!container.isNew()) {
+    if (!isNew) {
       return;
     }
-    initializeDragEvents(container, rectSelection);
+    bindDragEvents(
+      container,
+      rectSelection,
+      centerRect,
+      leftHandle,
+      rightHandle
+    );
   }
 
   function onResetClick() {
@@ -108,9 +115,12 @@ export function createBrush() {
     });
   }
 
-  function initializeDragEvents(
+  function bindDragEvents(
     container: Selection,
-    rectSelection: Selection
+    rectSelection: Selection,
+    centerRect: Selection,
+    leftHandle: Selection,
+    rightHandle: Selection
   ) {
     let behaviour: Behaviour | undefined;
     let startLeft = 0;
@@ -203,7 +213,7 @@ export function createBrush() {
         left: nextLeft,
         right: nextRight
       });
-    }, ([[initialX]], mode, target) => {
+    }, ([[initialX]], mode, {target}: {target: any}) => {
       if (mode !== ZoomMode.Drag) {
         return;
       }
@@ -211,18 +221,17 @@ export function createBrush() {
       draggedBeforeClick = false;
       sumDiffX = 0;
       currentWidth = width;
-      const index = container.getChildIndex(target);
 
       behaviour = (
         reset ? Behaviour.selectNew
-          : index === 3 ? Behaviour.move
-          : index === 4 ? Behaviour.resizeLeft
-          : index === 5 ? Behaviour.resizeRight
+          : centerRect.isConnectedTo(target) ? Behaviour.move
+          : leftHandle.isConnectedTo(target) ? Behaviour.resizeLeft
+          : rightHandle.isConnectedTo(target) ? Behaviour.resizeRight
           : Behaviour.selectNew
       );
 
       if (behaviour === Behaviour.selectNew) {
-        const startX = Math.round(initialX - rectSelection.getRect().left);
+        const startX = Math.round(initialX - rectSelection.getRect()!.left);
         startLeft = startRight = limit(startX);
         return;
       }

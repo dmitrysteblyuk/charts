@@ -1,6 +1,7 @@
 import {Axis, AxisPosition} from '../axis';
 import {ChartScale, getExtendedDomain} from './chart-scale';
 import {groupBy, isArrayEqual} from '../lib/utils';
+import {startAnimation, stopAnimation} from '../lib/animation';
 import {BaseSeries} from '../series';
 import {createStateTransition} from '../lib/state-transition';
 import {
@@ -14,12 +15,12 @@ export type Chart = ReturnType<typeof createChart>;
 
 export function createChart(
   axes: Axis[],
-  series: BaseSeries[] = []
+  series: BaseSeries[]
 ) {
   let pixelRatio = 1;
   let outerWidth = 0;
   let outerHeight = 0;
-  let paddings: NumberRange = [0, 0, 0, 0];
+  let paddings: NumberRange;
   let innerWidth = 0;
   let innerHeight = 0;
   let context: CanvasRenderingContext2D;
@@ -28,7 +29,9 @@ export function createChart(
     onStateUpdate,
     isStateEqual,
     isTransitionStateEqual,
-    getIntermediateState
+    getIntermediateState,
+    startAnimation,
+    stopAnimation
   );
 
   function draw(_context: CanvasRenderingContext2D) {

@@ -4,8 +4,10 @@ import {SeriesData} from './lib/series-data';
 import {Selection} from './lib/selection';
 import './index.css';
 
-const rootSelection = new Selection(document.body)
-  .renderOne<SVGElement>('div', 'rootContainer');
+const rootSelection = (
+  new Selection(document.body)
+    .renderOne<HTMLDivElement>('div', 'rootContainer')
+);
 
 function initializeCharts(
   json: {
