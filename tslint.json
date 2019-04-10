@@ -68,7 +68,7 @@
       "check-else",
       "check-whitespace"
     ],
-    "prefer-const": true,
+    "prefer-const": [true, {"destructuring": "all"}],
     "quotemark": [
       true,
       "single"
@@ -77,10 +77,10 @@
     "semicolon": [
       "always"
     ],
-    // "triple-equals": [
-    //   true,
-    //   "allow-null-check"
-    // ],
+    "triple-equals": [
+      true,
+      "allow-null-check"
+    ],
     "typedef-whitespace": [
       true,
       {

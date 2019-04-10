@@ -77,7 +77,7 @@ export class Selection<T extends AnyElement = AnyElement> {
 
     for (const name in newAttrs) {
       const value = newAttrs[name];
-      if (checkChanges && attrs[name] == value) {
+      if (checkChanges && attrs[name] === value) {
         continue;
       }
       attrs[name] = value;
@@ -101,7 +101,7 @@ export class Selection<T extends AnyElement = AnyElement> {
 
     for (const name in newStyles) {
       const value = (newStyles as any)[name];
-      if (checkChanges && (styles as any)[name] == value) {
+      if (checkChanges && (styles as any)[name] === value) {
         continue;
       }
       (styles as any)[name] = value;
@@ -115,7 +115,7 @@ export class Selection<T extends AnyElement = AnyElement> {
   }
 
   text(innerText: Primitive): this {
-    if (this.textValue == innerText) {
+    if (this.textValue === innerText) {
       return this;
     }
 
@@ -141,19 +141,7 @@ export class Selection<T extends AnyElement = AnyElement> {
   }
 
   isConnectedTo(element: AnyElement) {
-    return this.connectedElement == element;
-  }
-
-  hasDescendant(element: AnyElement | null) {
-    const {connectedElement} = this;
-    if (!connectedElement || !element) {
-      return false;
-    }
-    do {
-      if (element == connectedElement) {
-        return;
-      }
-    } while (element = element.parentElement);
+    return this.connectedElement === element;
   }
 }
 

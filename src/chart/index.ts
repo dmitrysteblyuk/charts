@@ -1,21 +1,22 @@
 import {Axis, AxisPosition} from '../axis';
 import {ChartScale, getExtendedDomain} from './chart-scale';
-import {groupBy, isArrayEqual} from '../lib/utils';
+import {groupBy, getLinearScale} from '../lib/utils';
 import {startAnimation, stopAnimation} from '../lib/animation';
-import {BaseSeries} from '../series';
+import {AnySeries} from '../series';
 import {createStateTransition} from '../lib/state-transition';
 import {
   State,
   isStateEqual,
-  isTransitionStateEqual,
-  getIntermediateState
+  shouldTransition,
+  getIntermediateState,
+  getFinalTransitionState
 } from './chart-state';
 
-export type Chart = ReturnType<typeof createChart>;
+export type Chart = Readonly<ReturnType<typeof createChart>>;
 
 export function createChart(
   axes: Axis[],
-  series: BaseSeries[]
+  series: AnySeries[]
 ) {
   let pixelRatio = 1;
   let outerWidth = 0;
@@ -28,7 +29,7 @@ export function createChart(
   const stateTransition = createStateTransition(
     onStateUpdate,
     isStateEqual,
-    isTransitionStateEqual,
+    shouldTransition,
     getIntermediateState,
     startAnimation,
     stopAnimation
@@ -37,59 +38,47 @@ export function createChart(
   function draw(_context: CanvasRenderingContext2D) {
     context = _context;
 
-    const {scales: xScales, domains: xDomains} = getDomains(
+    setDomains(
       ({xScale}) => xScale,
-      ({extendXDomain}) => extendXDomain
+      ({getExtendedXDomain}) => getExtendedXDomain
     );
-    setDomains(xScales, xDomains);
-
-    const {scales: yScales, domains: yDomains} = getDomains(
+    setDomains(
       ({yScale}) => yScale,
-      ({extendYDomain}) => extendYDomain
+      ({getExtendedYDomain}) => getExtendedYDomain
     );
+    setRanges();
 
-    const {xRanges, yRanges} = setRanges(xScales, yScales);
-
-    const seriesData = series.map(
-      (item) => item.isHidden() ? null : item.getData()
-    );
-
-    stateTransition({
-      yScales,
-      yDomains,
-      xDomains,
-      yRanges,
-      xRanges,
-      seriesData
-    });
+    stateTransition(getFinalTransitionState(series));
   }
 
-  function onStateUpdate({yScales, yDomains}: State) {
-    setDomains(yScales, yDomains);
-
+  function onStateUpdate({yDomains}: State) {
     context.clearRect(0, 0, outerWidth, outerHeight);
     context.translate(paddings[3], paddings[0]);
+
+    series.forEach(({xScale, yScale}, index) => {
+      xScale.setScale(getLinearScale(xScale.getDomain(), xScale.getRange()));
+      yScale.setDomain(yDomains[index]);
+      yScale.setScale(getLinearScale(yDomains[index], yScale.getRange()));
+    });
+
     drawAxes();
     drawSeries();
     context.translate(-paddings[3], -paddings[0]);
   }
 
-  function setDomains(scales: ChartScale[], domains: NumberRange[]) {
-    scales.forEach((scale, index) => scale.setDomain(domains[index]));
-  }
-
-  function getDomains(
-    getScale: (series: BaseSeries) => ChartScale,
-    getDomainExtender: (series: BaseSeries) => (
-      (this: BaseSeries, domain: NumberRange) => NumberRange
+  function setDomains(
+    getChartScale: (series: AnySeries) => ChartScale,
+    getDomainExtender: (series: AnySeries) => (
+      (domain: NumberRange) => NumberRange
     )
   ) {
     const groups = groupBy(
       series,
-      (a, b) => getScale(a) === getScale(b)
+      (a, b) => getChartScale(a) === getChartScale(b)
     );
-    const scales = groups.map((group) => getScale(group[0]));
-    const domains = scales.map((scale, index) => {
+    const chartScales = groups.map((group) => getChartScale(group[0]));
+
+    chartScales.forEach((scale, index) => {
       const currentDomain = scale.getDomain();
       if (scale.isFixed()) {
         return currentDomain;
@@ -99,11 +88,12 @@ export function createChart(
           ? currentDomain
           : [Infinity, -Infinity]
       );
+
       let domain = groups[index].reduce((result, item) => {
         if (item.isHidden()) {
           return result;
         }
-        return getDomainExtender(item).call(item, result);
+        return getDomainExtender(item)(result);
       }, startDomain);
 
       if (domain[0] > domain[1]) {
@@ -114,14 +104,8 @@ export function createChart(
       if (!(domain[0] < domain[1])) {
         domain = [domain[0] - 1, domain[1] + 1];
       }
-
-      if (isArrayEqual(domain, currentDomain)) {
-        return currentDomain;
-      }
-      return domain;
+      scale.setDomain(domain);
     });
-
-    return {scales, domains};
   }
 
   function setPixelRatio(_pixelRatio: number) {
@@ -131,11 +115,15 @@ export function createChart(
   }
 
   function drawSeries() {
-    series.forEach((item, _index) => {
+    series.forEach((item) => {
       if (item.isHidden()) {
         return;
       }
-      item.draw(context);
+      item.draw(
+        context,
+        item.xData.x,
+        item.yData.map(({y}) => y)
+      );
     });
   }
 
@@ -150,7 +138,7 @@ export function createChart(
     });
   }
 
-  function setRanges(xScales: ChartScale[], yScales: ChartScale[]) {
+  function setRanges() {
     innerWidth = Math.max(
       1, outerWidth - paddings[1] - paddings[3]
     );
@@ -158,16 +146,10 @@ export function createChart(
       1, outerHeight - paddings[0] - paddings[2]
     );
 
-    const xRanges = xScales.map((scale) => {
-      scale.setRange([0, innerWidth]);
-      return scale.getRange();
+    series.forEach(({xScale, yScale}) => {
+      xScale.setRange([0, innerWidth]);
+      yScale.setRange([innerHeight, 0]);
     });
-    const yRanges = yScales.map((scale) => {
-      scale.setRange([innerHeight, 0]);
-      return scale.getRange();
-    });
-
-    return {xRanges, yRanges};
   }
 
   function translateAxis(axis: Axis) {

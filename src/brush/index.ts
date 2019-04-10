@@ -6,7 +6,7 @@ import {EventEmitter} from '../lib/event-emitter';
 const enum Behaviour {selectNew, resizeLeft, resizeRight, move};
 const defaultFill = 'transparent';
 
-export type Brush = ReturnType<typeof createBrush>;
+export type Brush = Readonly<ReturnType<typeof createBrush>>;
 
 export function createBrush() {
   const changeEvent = new EventEmitter<{

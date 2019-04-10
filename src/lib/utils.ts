@@ -1,12 +1,3 @@
-export function forEach<T>(
-  object: T,
-  iterator: (value: T[keyof T], key: keyof T) => void
-) {
-  for (const key in object) {
-    iterator(object[key], key);
-  }
-}
-
 export function every<T>(
   object: T,
   checker: (value: T[keyof T], key: keyof T) => boolean
@@ -17,17 +8,6 @@ export function every<T>(
     }
   }
   return true;
-}
-
-export function map<T extends {}, V>(
-  object: T,
-  mapper: (value: T[keyof T], key: keyof T) => V
-) {
-  const output = {} as {[key in keyof T]: V};
-  for (const key in object) {
-    output[key] = mapper(object[key], key);
-  }
-  return output;
 }
 
 export function groupBy<T>(array: T[], isSameGroup: (a: T, b: T) => boolean) {
@@ -70,6 +50,8 @@ export function isArrayEqual<T>(
   return true;
 }
 
-export function isPositive(x: number): boolean {
-  return x > 0 && isFinite(x);
+export function getLinearScale([d0, d1]: NumberRange, [r0, r1]: NumberRange) {
+  const factor = (r1 - r0) / (d1 - d0);
+  const offset = r1 - d1 * factor;
+  return (x: number) => factor * x + offset;
 }

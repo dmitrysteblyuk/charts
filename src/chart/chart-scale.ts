@@ -1,25 +1,46 @@
-import {createScale} from '../lib/scale';
+import {getLinearScale, isArrayEqual} from '../lib/utils';
 
-export type ChartScale = ReturnType<typeof createChartScale>;
+export type ChartScale = Readonly<ReturnType<typeof createChartScale>>;
 
 export function createChartScale() {
-  const scale = createScale();
+  let domain: NumberRange = [0, 1];
+  let range: NumberRange = [0, 1]
+  let minDomain: NumberRange = [Infinity, -Infinity];
   let fixed = false;
   let extendableOnly = false;
-  let minDomain: NumberRange = [Infinity, -Infinity];
+  let scale = getLinearScale(domain, range);
 
-  const instance = {
-    ...scale,
-    isExtendableOnly: () => extendableOnly,
+  function setDomain(_domain: NumberRange) {
+    if (isArrayEqual(domain, _domain)) {
+      return;
+    }
+    domain = _domain;
+  }
+
+  function setRange(_range: NumberRange) {
+    if (isArrayEqual(range, _range)) {
+      return;
+    }
+    range = _range;
+  }
+
+  return {
+    setDomain,
+    setRange,
+    getScale: () => scale,
+    getInvertedScale: () => getLinearScale(range, domain),
+    getDomain: () => domain,
+    getRange: () => range,
     getMinDomain: () => minDomain,
     isFixed: () => fixed,
-    setFixed: (_: typeof fixed) => (fixed = _, instance),
+    isExtendableOnly: () => extendableOnly,
+    setScale: (_: typeof scale) => (scale = _),
+    setFixed: (_: typeof fixed) => (fixed = _),
+    setMinDomain: (_: typeof minDomain) => (minDomain = _),
     setExtendableOnly: (
-      (_: typeof extendableOnly) => (extendableOnly = _, instance)
-    ),
-    setMinDomain: (_: typeof minDomain) => (minDomain = _, instance)
+      (_: typeof extendableOnly) => (extendableOnly = _)
+    )
   };
-  return instance;
 }
 
 export function getExtendedDomain(

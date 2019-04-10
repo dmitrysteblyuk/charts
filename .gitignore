@@ -7,6 +7,8 @@
 /built
 
 /dist
+/chart-data
+/screenshots
 
 # misc
 .DS_Store

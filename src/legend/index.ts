@@ -1,12 +1,12 @@
 import {Selection} from '../lib/selection';
-import {BaseSeries} from '../series';
+import {AnySeries} from '../series';
 import {EventEmitter} from '../lib/event-emitter';
 import './index.css';
 
-export type Legend = ReturnType<typeof createLegend>;
+export type Legend = Readonly<ReturnType<typeof createLegend>>;
 
-export function createLegend(seriesGroups: BaseSeries[][]) {
-  const clickEvent = new EventEmitter<BaseSeries[]>();
+export function createLegend(seriesGroups: AnySeries[][]) {
+  const clickEvent = new EventEmitter<AnySeries[]>();
 
   function render(container: Selection) {
     seriesGroups.forEach((group, index) => {

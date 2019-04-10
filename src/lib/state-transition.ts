@@ -1,9 +1,9 @@
 
 export function createStateTransition<S>(
   onUpdate: (state: S) => void,
-  isEqual: (a: S, b: S) => boolean,
-  isTransitionEqual: (a: S, b: S) => boolean,
-  getIntermediate: (a: S, b: S, progress: number) => S,
+  isStateEqual: (a: S, b: S) => boolean,
+  shouldTransition: (a: S, b: S) => boolean,
+  getIntermediateState: (a: S, b: S, progress: number) => S,
   startTransition: ((
     callback: (progress: number) => void,
     onNewId: (id: any) => void,
@@ -13,14 +13,14 @@ export function createStateTransition<S>(
 ) {
   let currentState: S;
   let startState: S;
-  let finalState: S;
+  let finalState: S | undefined;
   let transitionId: any;
 
   function setNewState(newState: S) {
-    const skip = currentState && isEqual(currentState, newState);
+    const skip = currentState && isStateEqual(currentState, newState);
     const updateOnly = !skip && (
       !currentState ||
-      isTransitionEqual(currentState, newState)
+      shouldTransition(currentState, newState)
     );
 
     if (skip || updateOnly) {
@@ -28,7 +28,9 @@ export function createStateTransition<S>(
         stopTransition(transitionId);
         transitionId = null;
       }
+
       currentState = newState;
+      finalState = undefined;
       if (!skip) {
         onUpdate(newState);
       }
@@ -45,8 +47,8 @@ export function createStateTransition<S>(
     startTransition((progress) => {
       currentState = (
         progress < 1
-          ? getIntermediate(startState, finalState, progress)
-          : finalState
+          ? getIntermediateState(startState, finalState!, progress)
+          : finalState!
       );
       onUpdate(currentState);
     }, (

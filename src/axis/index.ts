@@ -15,7 +15,7 @@ const axisTransformMatrix: (
 
 export const enum AxisPosition {top, right, bottom, left};
 
-export type Axis = ReturnType<typeof createAxis>;
+export type Axis = Readonly<ReturnType<typeof createAxis>>;
 
 export function createAxis(
   position: AxisPosition,
@@ -69,7 +69,7 @@ export function createAxis(
   function drawTicks(context: CanvasRenderingContext2D) {
     const matrix = axisTransformMatrix[position];
     const {ticks, getOpacity} = getTickData();
-    const tickOffsets = ticks.map(scale.scale);
+    const tickOffsets = ticks.map(scale.getScale());
 
     if (displayGrid) {
       tickOffsets.forEach((offset) => {

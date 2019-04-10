@@ -1,5 +1,3 @@
-import {isPositive} from './utils';
-
 export function getDecimalScaleTicks(
   count: number,
   domain: NumberRange
@@ -16,7 +14,7 @@ export function getDecimalScaleTicks(
 
 export function rangeTicks(step: number, domain: NumberRange) {
   const ticks: number[] = [];
-  if (!isPositive(step)) {
+  if (!(step > 0 && isFinite(step))) {
     return {ticks};
   }
 

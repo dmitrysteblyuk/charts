@@ -1,15 +1,15 @@
 import {Selection} from '../lib/selection';
-import {BaseSeries} from '../series';
+import {AnySeries} from '../series';
 import {roundAuto} from '../lib/decimal-scale-ticks';
 import './index.css';
 
-export type Tooltip = ReturnType<typeof createTooltip>;
+export type Tooltip = Readonly<ReturnType<typeof createTooltip>>;
 
 export function createTooltip() {
   let left = 0;
   let time = 0;
   let values: number[] = [];
-  let series: (BaseSeries | null)[] = [];
+  let series: (AnySeries | null)[] = [];
   let hidden = true;
   let prevHidden = hidden;
   let lineX = 0;
@@ -99,7 +99,7 @@ export function createTooltip() {
       }).setAttrs({
         'stroke': item.getColor(),
         'cx': lineX,
-        'cy': item.yScale.scale(value) / pixelRatio
+        'cy': item.yScale.getScale()(value) / pixelRatio
       });
     });
 

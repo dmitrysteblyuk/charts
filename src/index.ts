@@ -1,6 +1,9 @@
-import './array-polyfill';
 import {TimeChart, createTimeChart} from './time-chart';
-import {SeriesData} from './lib/series-data';
+import {createSeriesXData, createSeriesYData} from './lib/series-data';
+// import {drawLineSeries} from './series/line';
+// import {drawBarSeries} from './series/bar';
+import {drawStackedLineSeries} from './series/stacked-line';
+import {createSeries, SeriesType} from './series';
 import {Selection} from './lib/selection';
 import './index.css';
 
@@ -18,31 +21,49 @@ function initializeCharts(
 ) {
   const charts = json.map((config) => {
     const chart = createTimeChart();
+
     const ids = Object.keys(config['names']);
-    const x = (
+    const x = new Float64Array((
       config['columns'].find(([id]) => id === 'x') || []
-    ).slice(1) as number[];
+    ).slice(1) as number[]);
 
     ids.forEach((yId) => {
-      const y = (
+      const y = new Float64Array((
         config['columns'].find(([id]) => id === yId) || []
-      ).slice(1) as number[];
+      ).slice(1) as number[]);
+
       const label = config['names'][yId];
       const color = config['colors'][yId];
 
-      chart.addSeries(new SeriesData(x, y), (series, isHelper) => {
-        series.setStrokeWidth(isHelper ? 1 : 2)
-          .setLabel(label)
-          .setColor(color);
+      const [mainSeries, helperSeries] = [0, 1].map(isHelper => {
+        const series = createSeries(
+          isHelper ? chart.fullTimeScale : chart.timeScale,
+          isHelper ? chart.fullValueScale : chart.valueScale,
+          createSeriesXData(x),
+          [createSeriesYData(y)],
+          drawStackedLineSeries,
+          SeriesType.StackedLine
+        );
+
+        series.setLabel(label)
+          .setColor(color)
+          .setStrokeWidth(isHelper ? 1 : 2);
+
+        return series;
       });
+
+      chart.addSeries(mainSeries, helperSeries);
     });
 
-    chart.timeScale.setFixed(true)
-      .setDomain([x[Math.floor(x.length * 0.75)], x[x.length - 1]]);
+    const x0 = x[Math.floor(x.length * 0.75)];
+    const x1 = x[x.length - 1]/* + x[1] - x[0]*/;
+    chart.timeScale.setFixed(true);
+    chart.timeScale.setDomain([x0, x1]);
 
     return chart;
   });
 
+  (window as any)['charts'] = charts;
   renderCharts(charts);
 
   window.onresize = () => {
