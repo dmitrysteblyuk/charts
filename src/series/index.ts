@@ -1,4 +1,5 @@
-import {SeriesXData, SeriesYData} from '../lib/series-data';
+import {memoize} from '../lib/memoize';
+import {getXExtent, getYDomain} from './data';
 import {ChartScale, getExtendedDomain} from '../chart/chart-scale';
 
 export type AnySeries = Readonly<ReturnType<typeof createSeries>>;
@@ -10,19 +11,15 @@ export const enum SeriesType {
   Percentage
 };
 
-export function isStacked(type: SeriesType) {
-  return type >= SeriesType.StackedBar;
-}
-
 export function createSeries(
   xScale: ChartScale,
   yScale: ChartScale,
-  xData: SeriesXData,
-  yData: SeriesYData[],
+  xData: NumericData,
+  yData: MultipleData,
   drawSeries: (
     context: CanvasRenderingContext2D,
     xArray: NumericData,
-    yArrays: NumericData[],
+    yArrays: MultipleData,
     scaleX: (x: number) => number,
     scaleY: (y: number) => number,
     startIndex: number,
@@ -37,11 +34,14 @@ export function createSeries(
   let hidden = false;
   let pixelRatio = 1;
   let strokeWidth = 2;
+  const stacked = type >= SeriesType.StackedBar;
+  const getSeriesYDomain = memoize(getYDomain, 1);
+  const getSeriesXExtent = memoize(getXExtent, 1);
 
   function draw(
     context: CanvasRenderingContext2D,
     xArray: NumericData,
-    yArrays: NumericData[]
+    yArrays: MultipleData
   ) {
     const [startIndex, endIndex] = getExtent();
     drawSeries(
@@ -58,12 +58,13 @@ export function createSeries(
   }
 
   function getExtendedXDomain(domain: NumberRange) {
-    let [x0, x1] = xData.getDomain();
+    const x0 = xData[0];
+    let x1 = xData[xData.length - 1];
     if (
       type === SeriesType.Bar ||
       type === SeriesType.StackedBar
     ) {
-      x1 += xData.x[1] - x0;
+      x1 += xData[1] - x0;
     }
     return getExtendedDomain(domain, [x0, x1]);
   }
@@ -77,22 +78,29 @@ export function createSeries(
 
     return getExtendedDomain(
       domain,
-      yData[0].getDomain(startIndex, endIndex, min, max)
+      getSeriesYDomain(getMainYData(), startIndex, endIndex, min, max)
     );
+  }
+
+  function getMainYData() {
+    return yData[+stacked];
   }
 
   function getExtent() {
     const [x0, x1] = xScale.getDomain();
-    return xData.getExtent(x0, x1);
+    return getSeriesXExtent(xData, x0, x1);
   }
 
   const instance = {
     draw,
-    type,
+    stacked,
     xScale,
     yScale,
     xData,
-    yData,
+    getMainYData,
+    getOwnYData: () => yData[0],
+    getYData: () => yData,
+    setYData: (_: typeof yData) => (yData = _),
     getExtendedXDomain,
     getExtendedYDomain,
     getColor: () => color,
@@ -105,4 +113,28 @@ export function createSeries(
     setStrokeWidth: (_: typeof strokeWidth) => (strokeWidth = _, instance)
   };
   return instance;
+}
+
+export function getSeriesData(
+  allSeries: AnySeries[],
+  getStackedData: (a: NumericData, b: NumericData) => NumericData,
+  getOwnYData: (series: AnySeries, index: number) => NumericData | null
+): MultipleData[] {
+  let previousData: MultipleData | undefined;
+  return allSeries.map((series, index) => {
+    const yData = series.stacked && getOwnYData(series, index);
+    if (!yData) {
+      return series.getYData();
+    }
+
+    return previousData = (
+      previousData
+        ? [
+          yData,
+          getStackedData(yData, previousData[1]),
+          previousData[1]
+        ]
+        : [yData, yData]
+    );
+  });
 }

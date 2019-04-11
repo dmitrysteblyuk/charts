@@ -8,13 +8,16 @@ export function createChartScale() {
   let minDomain: NumberRange = [Infinity, -Infinity];
   let fixed = false;
   let extendableOnly = false;
-  let scale = getLinearScale(domain, range);
+  let scale: (x: number) => number;
+
+  resetScale();
 
   function setDomain(_domain: NumberRange) {
     if (isArrayEqual(domain, _domain)) {
       return;
     }
     domain = _domain;
+    resetScale();
   }
 
   function setRange(_range: NumberRange) {
@@ -22,6 +25,11 @@ export function createChartScale() {
       return;
     }
     range = _range;
+    resetScale();
+  }
+
+  function resetScale() {
+    scale = getLinearScale(domain, range);
   }
 
   return {
@@ -34,7 +42,6 @@ export function createChartScale() {
     getMinDomain: () => minDomain,
     isFixed: () => fixed,
     isExtendableOnly: () => extendableOnly,
-    setScale: (_: typeof scale) => (scale = _),
     setFixed: (_: typeof fixed) => (fixed = _),
     setMinDomain: (_: typeof minDomain) => (minDomain = _),
     setExtendableOnly: (

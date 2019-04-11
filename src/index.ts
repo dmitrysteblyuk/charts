@@ -1,5 +1,4 @@
 import {TimeChart, createTimeChart} from './time-chart';
-import {createSeriesXData, createSeriesYData} from './lib/series-data';
 // import {drawLineSeries} from './series/line';
 // import {drawBarSeries} from './series/bar';
 import {drawStackedLineSeries} from './series/stacked-line';
@@ -39,8 +38,8 @@ function initializeCharts(
         const series = createSeries(
           isHelper ? chart.fullTimeScale : chart.timeScale,
           isHelper ? chart.fullValueScale : chart.valueScale,
-          createSeriesXData(x),
-          [createSeriesYData(y)],
+          x,
+          [y],
           drawStackedLineSeries,
           SeriesType.StackedLine
         );

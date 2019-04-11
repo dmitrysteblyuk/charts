@@ -1,14 +1,14 @@
 import {Axis, AxisPosition} from '../axis';
 import {ChartScale, getExtendedDomain} from './chart-scale';
-import {groupBy, getLinearScale} from '../lib/utils';
+import {groupByRight} from '../lib/utils';
 import {startAnimation, stopAnimation} from '../lib/animation';
 import {AnySeries} from '../series';
 import {createStateTransition} from '../lib/state-transition';
 import {
   State,
   isStateEqual,
-  shouldTransition,
-  getIntermediateState,
+  getTransitionReason,
+  getIntermediateStateFactory,
   getFinalTransitionState
 } from './chart-state';
 
@@ -16,7 +16,8 @@ export type Chart = Readonly<ReturnType<typeof createChart>>;
 
 export function createChart(
   axes: Axis[],
-  series: AnySeries[]
+  series: AnySeries[],
+  getStackedData: (a: NumericData, b: NumericData) => NumericData
 ) {
   let pixelRatio = 1;
   let outerWidth = 0;
@@ -29,8 +30,8 @@ export function createChart(
   const stateTransition = createStateTransition(
     onStateUpdate,
     isStateEqual,
-    shouldTransition,
-    getIntermediateState,
+    getTransitionReason,
+    getIntermediateStateFactory(getStackedData),
     startAnimation,
     stopAnimation
   );
@@ -51,18 +52,16 @@ export function createChart(
     stateTransition(getFinalTransitionState(series));
   }
 
-  function onStateUpdate({yDomains}: State) {
+  function onStateUpdate({yDomains, yData, visibility}: State) {
     context.clearRect(0, 0, outerWidth, outerHeight);
     context.translate(paddings[3], paddings[0]);
 
-    series.forEach(({xScale, yScale}, index) => {
-      xScale.setScale(getLinearScale(xScale.getDomain(), xScale.getRange()));
+    series.forEach(({yScale}, index) => {
       yScale.setDomain(yDomains[index]);
-      yScale.setScale(getLinearScale(yDomains[index], yScale.getRange()));
     });
 
     drawAxes();
-    drawSeries();
+    drawSeries(yData, visibility);
     context.translate(-paddings[3], -paddings[0]);
   }
 
@@ -72,7 +71,7 @@ export function createChart(
       (domain: NumberRange) => NumberRange
     )
   ) {
-    const groups = groupBy(
+    const groups = groupByRight(
       series,
       (a, b) => getChartScale(a) === getChartScale(b)
     );
@@ -89,7 +88,17 @@ export function createChart(
           : [Infinity, -Infinity]
       );
 
-      let domain = groups[index].reduce((result, item) => {
+      let group = groups[index];
+      const oneItem = (
+        group[0].xScale === scale
+          ? group[0]
+          : group.find((item) => !item.isHidden() && item.stacked)
+      );
+      if (oneItem && oneItem.xScale !== scale) {
+        group = [oneItem];
+      }
+
+      let domain = group.reduce((result, item) => {
         if (item.isHidden()) {
           return result;
         }
@@ -114,16 +123,12 @@ export function createChart(
     axes.forEach((item) => item.setPixelRatio(pixelRatio));
   }
 
-  function drawSeries() {
-    series.forEach((item) => {
-      if (item.isHidden()) {
+  function drawSeries(yData: MultipleData[], visibility: number[]) {
+    series.forEach((item, index) => {
+      if (!visibility[index]) {
         return;
       }
-      item.draw(
-        context,
-        item.xData.x,
-        item.yData.map(({y}) => y)
-      );
+      item.draw(context, item.xData, yData[index]);
     });
   }
 

@@ -1,23 +1,22 @@
 import {ChartScale} from '../chart/chart-scale';
-import {SeriesXData} from '../lib/series-data';
 import {binarySearch} from '../lib/binary-search';
 
 export function getNearestPoint(
   centerX: number,
-  {x: times, size}: SeriesXData,
+  xData: NumericData,
   xScale: ChartScale,
   maxDistance: number
 ) {
   const scaleX = xScale.getScale();
   const time = xScale.getInvertedScale()(centerX);
-  const i1 = binarySearch(0, size, (index) => time < times[index]);
+  const i1 = binarySearch(0, xData.length, (index) => time < xData[index]);
   const i0 = i1 - 1;
 
   return [i0, i1].reduce((result, index) => {
-    if (index < 0 || index >= size) {
+    if (index < 0 || index >= xData.length) {
       return result;
     }
-    const distance = Math.abs(centerX - scaleX(times[index]));
+    const distance = Math.abs(centerX - scaleX(xData[index]));
     if (distance > maxDistance || result && distance >= result.distance) {
       return result;
     }

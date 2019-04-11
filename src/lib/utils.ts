@@ -1,3 +1,14 @@
+export function map<T, V>(
+  array: ArrayLike<T>,
+  mapper: (item: T, index: number) => V
+): V[] {
+  const result = new Array<V>(array.length);
+  for (let index = 0; index < array.length; index++) {
+    result[index] = mapper(array[index], index);
+  }
+  return result;
+}
+
 export function every<T>(
   object: T,
   checker: (value: T[keyof T], key: keyof T) => boolean
@@ -10,8 +21,11 @@ export function every<T>(
   return true;
 }
 
-export function groupBy<T>(array: T[], isSameGroup: (a: T, b: T) => boolean) {
-  return array.reduce<T[][]>((result, item) => {
+export function groupByRight<T>(
+  array: T[],
+  isSameGroup: (a: T, b: T) => boolean
+) {
+  return array.reduceRight<T[][]>((result, item) => {
     const index = result.findIndex((group) => isSameGroup(group[0], item));
     if (index < 0) {
       result.push([item]);

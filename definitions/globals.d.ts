@@ -4,6 +4,7 @@ type Dictionary<T, K extends string | number = string> = {
 
 type NumberRange = ReadonlyArray<number>;
 type NumericData = ArrayLike<number>;
+type MultipleData = ReadonlyArray<NumericData>;
 
 type Rect = Readonly<{
   top: number;

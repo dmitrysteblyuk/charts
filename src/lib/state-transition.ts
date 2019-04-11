@@ -1,9 +1,13 @@
-
 export function createStateTransition<S>(
   onUpdate: (state: S) => void,
-  isStateEqual: (a: S, b: S) => boolean,
-  shouldTransition: (a: S, b: S) => boolean,
-  getIntermediateState: (a: S, b: S, progress: number) => S,
+  isStateEqual: (from: S, to: S) => boolean,
+  getTransitionReason: (from: S, to: S) => number,
+  getIntermediateState: (
+    from: S,
+    to: S,
+    progress: number,
+    reason: number
+  ) => S,
   startTransition: ((
     callback: (progress: number) => void,
     onNewId: (id: any) => void,
@@ -11,43 +15,38 @@ export function createStateTransition<S>(
   ) => void),
   stopTransition: (id: any) => void
 ) {
-  let currentState: S;
-  let startState: S;
-  let finalState: S | undefined;
+  let currentState: S | undefined;
   let transitionId: any;
 
   function setNewState(newState: S) {
-    const skip = currentState && isStateEqual(currentState, newState);
-    const updateOnly = !skip && (
+    if (transitionId != null) {
+      stopTransition(transitionId);
+      transitionId = null;
+    }
+
+    let equal: boolean | undefined;
+    let reason: number;
+
+    if (
       !currentState ||
-      shouldTransition(currentState, newState)
-    );
-
-    if (skip || updateOnly) {
-      if (transitionId != null) {
-        stopTransition(transitionId);
-        transitionId = null;
-      }
-
+      (equal = isStateEqual(currentState, newState)) ||
+      (reason = getTransitionReason(currentState, newState)) === -1
+    ) {
       currentState = newState;
-      finalState = undefined;
-      if (!skip) {
+
+      if (!equal) {
         onUpdate(newState);
       }
       return;
     }
 
-    finalState = newState;
-
-    if (transitionId != null) {
-      return;
-    }
-    startState = currentState;
+    const startState = currentState;
+    const finalState = newState;
 
     startTransition((progress) => {
       currentState = (
         progress < 1
-          ? getIntermediateState(startState, finalState!, progress)
+          ? getIntermediateState(startState!, finalState!, progress, reason)
           : finalState!
       );
       onUpdate(currentState);

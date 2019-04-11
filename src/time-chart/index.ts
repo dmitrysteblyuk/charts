@@ -5,7 +5,7 @@ import {Selection} from '../lib/selection';
 import {createChartScale, getExtendedDomain} from '../chart/chart-scale';
 import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
 import {getTimeScaleTicks} from '../lib/time-scale-ticks';
-import {AnySeries} from '../series';
+import {AnySeries, getSeriesData} from '../series';
 import {createLegend} from '../legend';
 import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
 import {roundRange} from '../lib/utils';
@@ -15,7 +15,7 @@ import {axisTimeFormat} from '../lib/time-format';
 import {createTooltip} from '../tooltip';
 import {getNearestPoint} from './get-nearest-point';
 import {roundAuto} from '../lib/decimal-scale-ticks';
-import {getStackedSeriesData} from '../lib/series-data';
+import {calculateStackedData} from '../series/data';
 import './index.css';
 
 export type TimeChart = Readonly<ReturnType<typeof createTimeChart>>;
@@ -38,7 +38,8 @@ export function createTimeChart() {
   const tooltip = createTooltip();
   const paddings = [20, 10, 30, 10];
   const helperPaddings = [0, 0, 10, 0];
-  const helperChart = createChart([], []);
+  const getStackedData = memoize(calculateStackedData, 10);
+  const helperChart = createChart([], [], calculateStackedData);
   const mainChart = createChart(
     [
       createAxis(
@@ -57,7 +58,8 @@ export function createTimeChart() {
         true
       )
     ],
-    []
+    [],
+    calculateStackedData
   );
 
   let isBrushing = false;
@@ -83,6 +85,8 @@ export function createTimeChart() {
       height: mainHeight + helperHeight,
     });
 
+    setSeriesData(mainChart.series);
+    setSeriesData(helperChart.series);
     renderMain();
 
     fullTimeScale.setMinDomain(timeScale.getDomain());
@@ -112,6 +116,18 @@ export function createTimeChart() {
 
     renderTooltip(mainInnerContainer, svgSelection);
     renderLegend();
+  }
+
+  function setSeriesData(series: AnySeries[]) {
+    getSeriesData(
+      series,
+      getStackedData,
+      ({isHidden, getOwnYData}) => (
+        isHidden() ? null : getOwnYData()
+      )
+    ).forEach((yData, index) => {
+      series[index].setYData(yData);
+    });
   }
 
   function renderMain() {
@@ -255,11 +271,11 @@ export function createTimeChart() {
       }
 
       const {series: firstSeries, index: firstIndex} = firstPoint;
-      const time = firstSeries.xData.x[firstIndex];
+      const time = firstSeries.xData[firstIndex];
       const lineX = firstSeries.xScale.getScale()(time) / pixelRatio;
       const left = Math.round(lineX + paddings[3]) - 20;
       const values = results.map((item) => {
-        return item ? item.series.yData[0].y[item.index] : 0;
+        return item ? item.series.getMainYData()[item.index] : 0;
       });
 
       tooltip
@@ -426,7 +442,6 @@ export function createTimeChart() {
   }
 
   const instance = {
-    getStackedSeriesData: memoize(getStackedSeriesData, 10),
     render,
     addSeries,
     mainChart,

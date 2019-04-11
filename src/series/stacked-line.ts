@@ -1,7 +1,7 @@
 export function drawStackedLineSeries(
   context: CanvasRenderingContext2D,
   x: NumericData,
-  [y1, y0]: NumericData[],
+  [_, y1, y0]: MultipleData,
   scaleX: (x: number) => number,
   scaleY: (y: number) => number,
   startIndex: number,

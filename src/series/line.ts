@@ -1,7 +1,7 @@
 export function drawLineSeries(
   context: CanvasRenderingContext2D,
   x: NumericData,
-  [y]: NumericData[],
+  [y]: MultipleData,
   scaleX: (x: number) => number,
   scaleY: (y: number) => number,
   startIndex: number,
