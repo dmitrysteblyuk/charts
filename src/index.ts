@@ -1,8 +1,10 @@
 import {TimeChart, createTimeChart} from './time-chart';
 import {drawLineSeries} from './series/line';
 import {drawBarSeries} from './series/bar';
+import {drawPieSeries} from './series/pie';
 import {drawStackedLineSeries} from './series/stacked-line';
 import {createSeries, AnySeries} from './series';
+import {Chart} from './chart';
 import {Selection} from './lib/selection';
 import './index.css';
 
@@ -19,56 +21,62 @@ function initializeCharts(
   }[]
 ) {
   const charts = json.map((config, index) => {
-    const chart = createTimeChart();
+    const timeChart = createTimeChart();
 
     const ids = Object.keys(config['names']);
-    const x = (
-      config['columns'].find(([id]) => id === 'x') || []
-    ).slice(1) as number[];
+    const xData = (
+      (config['columns'].find(([id]) => id === 'x') || []) as number[]
+    ).slice(1);
+    const yData = ids.map((yId) => (
+      (config['columns'].find(([id]) => id === yId) || []) as number[]
+    ).slice(1));
+    const zoomedXData = xData.slice(20, 60);
+    const zoomedYData = yData.map((data) => data.slice(20, 60));
+
     const line = index === 0;
     const percentage = index > 2;
     const stacked = index >= 2;
     const bar = index === 1;
 
-    ids.forEach((yId) => {
-      const y = (
-        config['columns'].find(([id]) => id === yId) || []
-      ).slice(1) as number[];
-
+    ids.forEach((yId, seriesIndex) => {
       const label = config['names'][yId];
       const color = config['colors'][yId];
 
-      const [mainSeries, helperSeries] = [false, true].map(isHelper => {
+      const [mainSeries, helperSeries] = [
+        timeChart.mainChart,
+        timeChart.helperChart
+      ].map((chart, chartIndex) => {
         return initializeSeries(
+          timeChart,
           chart,
-          isHelper,
-          x,
-          y,
+          !chartIndex,
+          xData,
+          yData[seriesIndex],
           stacked,
           percentage,
           bar,
           line,
           color,
-          label
+          label,
+          zoomedXData,
+          zoomedYData[seriesIndex]
         );
       });
 
-      chart.addSeries(mainSeries, helperSeries);
+      timeChart.addSeries(mainSeries, helperSeries);
     });
 
-    const x0 = x[Math.floor(x.length * 0.75)];
-    const x1 = x[x.length - 1] + (bar ? x[1] - x[0] : 0);
-    chart.timeScale.setFixed(true);
-    chart.timeScale.setDomain([x0, x1]);
+    const x0 = xData[Math.floor(xData.length * 0.75)];
+    const x1 = xData[xData.length - 1] + (bar ? xData[1] - xData[0] : 0);
+    timeChart.timeScale.setFixed(true).setDomain([x0, x1]);
 
     if (percentage) {
-      [chart.valueScale, chart.fullValueScale].forEach((scale) => {
-        scale.setFixed(true);
-        scale.setDomain([0, 1]);
+      [timeChart.valueScale, timeChart.fullValueScale].forEach((scale) => {
+        scale.setFixed(true).setDomain([0, 1]);
       });
     }
 
-    return chart;
+    return timeChart;
   });
 
   (window as any)['charts'] = charts;
@@ -80,55 +88,109 @@ function initializeCharts(
 }
 
 function initializeSeries(
-  chart: TimeChart,
-  isHelper: boolean,
-  x: number[],
-  y: number[],
+  {
+    fullTimeScale,
+    fullValueScale,
+    timeScale,
+    valueScale
+  }: TimeChart,
+  {getXExtent}: Chart,
+  isMain: boolean,
+  xData: number[],
+  yData: number[],
   stacked: boolean,
   percentage: boolean,
   bar: boolean,
   line: boolean,
   color: string,
-  label: string
+  label: string,
+  zoomedXData: number[],
+  zoomedYData: number[]
 ) {
-  const xScale = isHelper ? chart.fullTimeScale : chart.timeScale;
-  const yScale = isHelper ? chart.fullValueScale : chart.valueScale;
+  const strokeWidth = isMain ? 2 : 1;
+  const xScale = isMain ? timeScale : fullTimeScale;
+  const yScale = isMain ? valueScale : fullValueScale;
   const baseSeries = createSeries(
     xScale,
     yScale,
-    x,
-    [y],
+    xData,
+    [yData],
     stacked ? drawStackedLineSeries
       : bar ? drawBarSeries
       : drawLineSeries,
     stacked,
     percentage,
-    bar
+    bar,
+    false,
+    color,
+    label,
+    strokeWidth,
+    getXExtent
   );
+  const zoomedSeries: AnySeries[] = [];
 
   if (line) {
-    const zoomedSeries = createSeries(
+    zoomedSeries.push(createSeries(
       xScale,
       yScale,
-      x.slice(20, 40),
-      [y.slice(20, 40)],
+      zoomedXData,
+      [zoomedYData],
       stacked ? drawStackedLineSeries
         : bar ? drawBarSeries
         : drawLineSeries,
       stacked,
       percentage,
-      bar
-    ).setDisplay(false);
-    return [baseSeries, zoomedSeries].map(setOptions);
+      bar,
+      false,
+      color,
+      label,
+      strokeWidth,
+      getXExtent
+    ));
   }
 
-  return [setOptions(baseSeries)];
-
-  function setOptions(item: AnySeries) {
-    return item.setLabel(label)
-      .setColor(color)
-      .setStrokeWidth(isHelper ? 1 : 2)
+  if (percentage && !isMain) {
+    zoomedSeries.push(createSeries(
+      xScale,
+      yScale,
+      zoomedXData,
+      [zoomedYData],
+      stacked ? drawStackedLineSeries
+        : bar ? drawBarSeries
+        : drawLineSeries,
+      stacked,
+      percentage,
+      bar,
+      false,
+      color,
+      label,
+      strokeWidth,
+      getXExtent
+    ));
   }
+
+  if (percentage && isMain) {
+    zoomedSeries.push(createSeries(
+      xScale,
+      yScale,
+      zoomedXData,
+      [zoomedYData],
+      drawPieSeries,
+      false,
+      false,
+      false,
+      true,
+      color,
+      label,
+      strokeWidth,
+      getXExtent
+    ));
+  }
+
+  return [baseSeries, ...zoomedSeries].map((item, index) => (
+    item.setDisplay(!index)
+      .setStackIndex(+!index)
+  ));
 }
 
 function renderCharts(charts: TimeChart[]) {

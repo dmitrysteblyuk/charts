@@ -1,15 +1,17 @@
-export function drawStackedLineSeries(
-  context: CanvasRenderingContext2D,
-  x: NumericData,
-  [_, y1, y0]: MultipleData,
-  scaleX: (x: number) => number,
-  scaleY: (y: number) => number,
-  startIndex: number,
-  endIndex: number,
-  color: string,
-  _lineWidth: number,
-  visibility: number
-) {
+import {DrawSeries} from './';
+
+export const drawStackedLineSeries: DrawSeries = (
+  context,
+  x,
+  [_ownYData, y1, y0],
+  scaleX,
+  scaleY,
+  startIndex,
+  endIndex,
+  color,
+  _lineWidth,
+  visibility
+) => {
   context.fillStyle = color;
   context.globalAlpha = 0.7 * (
     y1 || y0 ? 1 : visibility
@@ -38,4 +40,4 @@ export function drawStackedLineSeries(
 
   context.closePath();
   context.fill();
-}
+};

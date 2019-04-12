@@ -10,16 +10,22 @@ export function every<T>(
   return true;
 }
 
-export function groupByRight<T>(
+export interface ItemGroup<T, K> {
+  items: T[];
+  key: K;
+}
+
+export function groupBy<T, K>(
   array: T[],
-  isSameGroup: (a: T, b: T) => boolean
+  getGroupKey: (a: T) => K
 ) {
-  return array.reduceRight<T[][]>((result, item) => {
-    const index = result.findIndex((group) => isSameGroup(group[0], item));
+  return array.reduce<ItemGroup<T, K>[]>((result, item) => {
+    const key = getGroupKey(item);
+    const index = result.findIndex((group) => group.key === key);
     if (index < 0) {
-      result.push([item]);
+      result.push({items: [item], key});
     } else {
-      result[index].push(item);
+      result[index].items.push(item);
     }
     return result;
   }, []);

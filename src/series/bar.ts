@@ -1,15 +1,17 @@
-export function drawBarSeries(
-  context: CanvasRenderingContext2D,
-  x: NumericData,
-  [y]: MultipleData,
-  scaleX: (x: number) => number,
-  scaleY: (y: number) => number,
-  startIndex: number,
-  endIndex: number,
-  color: string,
-  _lineWidth: number,
-  visibility: number
-) {
+import {DrawSeries} from './';
+
+export const drawBarSeries: DrawSeries = (
+  context,
+  x,
+  [y],
+  scaleX,
+  scaleY,
+  startIndex,
+  endIndex,
+  color,
+  _lineWidth,
+  visibility
+) => {
   context.fillStyle = color;
   context.globalAlpha = 0.7 * visibility;
   context.beginPath();
@@ -29,4 +31,4 @@ export function drawBarSeries(
   context.lineTo(scaleX(x[startIndex]), scaleY(0));
   context.closePath();
   context.fill();
-}
+};

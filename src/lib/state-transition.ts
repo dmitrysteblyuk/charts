@@ -45,11 +45,11 @@ export function createStateTransition<S, T>(
           : finalState
       );
       onUpdate(currentState);
-    }, (
-      (id: any) => (transitionId = id)
-    ), (
-      () => (transitionId = null)
-    ));
+    }, (id: any) => {
+      transitionId = id;
+    }, () => {
+      transitionId = null
+    });
   }
 
   return setNewState;

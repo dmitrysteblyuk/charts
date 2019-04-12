@@ -32,7 +32,7 @@ export function createScale() {
     scale = getLinearScale(domain, range);
   }
 
-  return {
+  const instance = {
     setDomain,
     setRange,
     getScale: () => scale,
@@ -42,12 +42,13 @@ export function createScale() {
     getMinDomain: () => minDomain,
     isFixed: () => fixed,
     isExtendableOnly: () => extendableOnly,
-    setFixed: (_: typeof fixed) => (fixed = _),
-    setMinDomain: (_: typeof minDomain) => (minDomain = _),
+    setFixed: (_: typeof fixed) => (fixed = _, instance),
+    setMinDomain: (_: typeof minDomain) => (minDomain = _, instance),
     setExtendableOnly: (
-      (_: typeof extendableOnly) => (extendableOnly = _)
+      (_: typeof extendableOnly) => (extendableOnly = _, instance)
     )
   };
+  return instance;
 }
 
 export function getExtendedDomain(

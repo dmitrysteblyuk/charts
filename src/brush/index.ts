@@ -54,9 +54,9 @@ export function createBrush() {
       'width': width - right
     });
 
-    const centerRect = container.renderOne('rect', 2, (selection) => (
-      selection.setAttrs(common)
-    )).setStyles({
+    const centerRect = container.renderOne('rect', 2, (selection) => {
+      selection.setAttrs(common);
+    }).setStyles({
       'display': reset ? 'none' : null
     });
 
@@ -67,16 +67,16 @@ export function createBrush() {
       });
     }
 
-    const leftHandle = container.renderOne('rect', 3, (selection) => (
-      selection.setAttrs(common)
-    )).setAttrs({
+    const leftHandle = container.renderOne('rect', 3, (selection) => {
+      selection.setAttrs(common);
+    }).setAttrs({
       'x': left - borderWidth,
       'width': borderWidth * 2
     });
 
-    const rightHandle = container.renderOne('rect', 4, (selection) => (
-      selection.setAttrs(common)
-    )).setAttrs({
+    const rightHandle = container.renderOne('rect', 4, (selection) => {
+      selection.setAttrs(common);
+    }).setAttrs({
       'x': right - borderWidth,
       'width': borderWidth * 2
     });

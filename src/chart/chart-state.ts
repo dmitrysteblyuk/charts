@@ -1,6 +1,13 @@
-import {isArrayEqual, every} from '../lib/utils';
+import {isArrayEqual, every, groupBy, ItemGroup} from '../lib/utils';
 import {easeOutCubic} from '../lib/animation';
-import {AnySeries, getSeriesData} from '../series';
+import {
+  XExtentCalculator,
+  PercentageDataCalculator,
+  StackedDataCalculator,
+  getSeriesData
+} from './series-data';
+import {AnySeries} from '../series';
+import {ChartScale} from './chart-scale';
 
 export type State = Readonly<{
   series: AnySeries[];
@@ -9,43 +16,63 @@ export type State = Readonly<{
   xRanges: NumberRange[];
   yRanges: NumberRange[];
   visibilities: number[];
+  displayed: boolean[];
   yData: MultipleData[];
   ownYData: NumericData[];
+  byXScale: ItemGroup<AnySeries, ChartScale>[];
+  byYScale: ItemGroup<AnySeries, ChartScale>[];
 }>;
 
 type TransitionTriggersMutable = Partial<{
   yDomainChange: boolean,
+  xDomainChange: boolean,
   stackChange: boolean,
+  pieChange: boolean,
   visibilityChange: boolean
 }>;
 export type TransitionTriggers = Readonly<TransitionTriggersMutable>;
 
 export function getFinalTransitionState(series: AnySeries[]): State {
-  const xDomains = series.map(({xScale}) => xScale.getDomain());
-  const xRanges = series.map(({xScale}) => xScale.getRange());
-  const yDomains = series.map(({yScale}) => yScale.getDomain());
-  const yRanges = series.map(({yScale}) => yScale.getRange());
-  const visibilities = series.map((item) => +item.toDraw());
-  const yData = series.map((item) => item.getYData());
+  const byXScale = groupBy(series, ({xScale}) => xScale);
+  const byYScale = groupBy(series, ({yScale}) => yScale);
+
+  const xDomains = byXScale.map(({key}) => key.getDomain());
+  const xRanges = byXScale.map(({key}) => key.getRange());
+  const yDomains = byYScale.map(({key}) => key.getDomain());
+  const yRanges = byYScale.map(({key}) => key.getRange());
+
+  const visibilities = series.map(({toDraw}) => +toDraw());
+  const displayed = series.map(({isDisplayed}) => isDisplayed());
+  const yData = series.map(({getYData}) => getYData());
   const ownYData = yData.map(([data]) => data);
 
   const state = {
-    series,
     xDomains,
     xRanges,
     yDomains,
     yRanges,
     visibilities,
+    displayed,
+    ownYData,
+    // skip from equality checks
+    series,
     yData,
-    ownYData
+    byXScale,
+    byYScale
   };
   return state;
 }
 
-const skipChecks = {yData: true} as Dictionary<boolean, keyof State>;
+const skipEqualityChecks = {
+  series: true,
+  yData: true,
+  byXScale: true,
+  byYScale: true
+} as Dictionary<boolean, keyof State>;
+
 export function isStateEqual(from: State, to: State) {
   return every(from, (items: any[], key) => {
-    return skipChecks[key] || isArrayEqual(items, to[key]);
+    return skipEqualityChecks[key] || isArrayEqual(items, to[key]);
   });
 }
 
@@ -55,18 +82,29 @@ export function getTransitionTriggers(
 ): TransitionTriggers | null {
   const triggers: TransitionTriggersMutable = {};
   let isChanged = false;
-  let stackChange: boolean | undefined;
 
   if (
     from.visibilities.some((visibilities, index) => (
       visibilities !== to.visibilities[index] && (
-        !from.series[index].stacked ||
-        (stackChange = true)
+        !to.series[index].stacked ||
+        (triggers.stackChange = true)
+      ) && (
+        !to.series[index].pie ||
+        (triggers.pieChange = true)
       )
     ))
   ) {
     triggers.visibilityChange = isChanged = true;
-    triggers.stackChange = stackChange;
+  }
+
+  if (
+    from.xDomains.some((xDomains, index) => (
+      xDomains !== to.xDomains[index] &&
+      to.byXScale[index].items.some(({pie}) => pie) &&
+      (triggers.pieChange = true)
+    ))
+  ) {
+    triggers.xDomainChange = isChanged = true;
   }
 
   if (!isArrayEqual(from.yDomains, to.yDomains)) {
@@ -80,8 +118,9 @@ export function getTransitionTriggers(
 }
 
 export function getIntermediateStateFactory(
-  getStackedData: (a: NumericData, b: NumericData) => NumericData,
-  getPercentageData: (...stackedData: NumericData[]) => NumericData[]
+  getStackedData: StackedDataCalculator,
+  getPercentageData: PercentageDataCalculator,
+  getXExtent: XExtentCalculator
 ) {
   return getIntermediateState;
 
@@ -91,47 +130,49 @@ export function getIntermediateStateFactory(
     progress: number,
     triggers: TransitionTriggers
   ): State {
-    let {yDomains, yData, visibilities} = from;
+    const next = {...from};
     const eased = easeOutCubic(progress);
 
     if (triggers.visibilityChange) {
-      visibilities = visibilities.map((v0, index) => {
+      next.visibilities = from.visibilities.map((v0, index) => {
         const v1 = to.visibilities[index]
         return v0 + (v1 - v0) * eased;
       });
     }
 
-    if (triggers.stackChange) {
-      yData = getSeriesData(
-        from.series,
+    ([next.xDomains, next.yDomains] = (
+      [
+        [from.xDomains, to.xDomains, triggers.xDomainChange],
+        [from.yDomains, to.yDomains, triggers.yDomainChange]
+      ] as [NumberRange[], NumberRange[], boolean][]
+    ).map(([fromDomains, toDomains, hasTriggered]) => {
+      if (!hasTriggered) {
+        return fromDomains;
+      }
+
+      return fromDomains.map((domain, domainIndex) => {
+        const toDomain = toDomains[domainIndex];
+        if (domain === toDomain) {
+          return domain;
+        }
+        return domain.map((y0, index) => {
+          return y0 + (toDomain[index] - y0) * eased;
+        });
+      });
+    }));
+
+    if (triggers.stackChange || triggers.pieChange) {
+      next.yData = getSeriesData(
+        to.series,
+        next.visibilities,
         getStackedData,
         getPercentageData,
-        (_, index) => {
-          const data = from.ownYData[index];
-          const toShow = to.visibilities[index];
-
-          if (toShow === from.visibilities[index]) {
-            return toShow ? data : null;
-          }
-          return data.map((value) => value * visibilities[index]);
-        }
+        getXExtent,
+        [to.xDomains[0], from.xDomains[0]],
+        eased
       );
     }
 
-    if (triggers.yDomainChange) {
-      yDomains = yDomains.map((domain, domainIndex) => {
-        return domain.map((y0, index) => {
-          const y1 = to.yDomains[domainIndex][index];
-          return y0 + (y1 - y0) * eased;
-        });
-      });
-    }
-
-    return {
-      ...from,
-      visibilities,
-      yData,
-      yDomains
-    };
+    return next;
   }
 }

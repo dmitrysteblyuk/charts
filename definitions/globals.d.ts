@@ -5,6 +5,7 @@ type Dictionary<T, K extends string | number = string> = {
 type NumberRange = ReadonlyArray<number>;
 type NumericData = ArrayLike<number> & {
   map: <V>(mapper: (value: number, index: number) => V) => V[];
+  forEach: (iterator: (value: number, index: number) => void) => void;
 };
 type MultipleData = ReadonlyArray<NumericData>;
 

@@ -5,7 +5,7 @@ import {Selection} from '../lib/selection';
 import {createScale, getExtendedDomain} from '../chart/chart-scale';
 import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
 import {getTimeScaleTicks} from '../lib/time-scale-ticks';
-import {AnySeries, getSeriesData} from '../series';
+import {AnySeries} from '../series';
 import {createLegend} from '../legend';
 import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
 import {roundRange} from '../lib/utils';
@@ -15,7 +15,12 @@ import {axisTimeFormat} from '../lib/time-format';
 import {createTooltip} from '../tooltip';
 import {getNearestPoint} from './get-nearest-point';
 import {roundAuto} from '../lib/decimal-scale-ticks';
-import {calculateStackedData, calculatePercentageData} from '../series/data';
+import {
+  calculateStackedData,
+  calculatePercentageData,
+  XExtentCalculator,
+  getSeriesData
+} from '../chart/series-data';
 import './index.css';
 
 export type TimeChart = Readonly<ReturnType<typeof createTimeChart>>;
@@ -46,7 +51,8 @@ export function createTimeChart() {
     [],
     [],
     calculateStackedData,
-    calculatePercentageData
+    calculatePercentageData,
+    setSeriesYData
   );
   const mainChart = createChart(
     [
@@ -68,7 +74,8 @@ export function createTimeChart() {
     ],
     [],
     calculateStackedData,
-    calculatePercentageData
+    calculatePercentageData,
+    setSeriesYData
   );
   const mainConfig = {
     chart: mainChart,
@@ -95,22 +102,23 @@ export function createTimeChart() {
     container = _container;
     innerWidth = outerWidth - mainPaddings[1] - mainPaddings[3];
 
-    setSeriesData(mainChart.series);
-    setSeriesData(helperChart.series);
-
     const chartContainers = [mainConfig, helperConfig].map(renderChart);
     renderBrush(chartContainers[1]);
     renderLegend();
   }
 
-  function setSeriesData(series: AnySeries[]) {
+  function setSeriesYData(
+    series: AnySeries[],
+    getXExtent: XExtentCalculator
+  ) {
     getSeriesData(
       series,
+      series.map(({toDraw}) => +toDraw()),
       getStackedData,
       getPercentageData,
-      ({toDraw, getOwnYData}) => (
-        toDraw() ? getOwnYData() : null
-      )
+      getXExtent,
+      [timeScale.getDomain()],
+      0
     ).forEach((yData, index) => {
       series[index].setYData(yData);
     });
@@ -118,14 +126,14 @@ export function createTimeChart() {
 
   function renderChart(config: ChartConfig, index: number) {
     const {chart, height, paddings, offsets, onRender} = config;
-    const chartContainer = container.renderOne('div', index, (selection) => (
+    const chartContainer = container.renderOne('div', index, (selection) => {
       onRender(selection.setAttrs({
         'class': 'chart'
       }).setStyles({
         'padding': offsets.map((value) => `${value}px`).join(' '),
         'height': `${height}px`
-      }))
-    ));
+      }));
+    });
 
     const width = outerWidth - offsets[1] - offsets[3];
     const canvas = (

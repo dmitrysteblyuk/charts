@@ -1,15 +1,17 @@
-export function drawLineSeries(
-  context: CanvasRenderingContext2D,
-  x: NumericData,
-  [y]: MultipleData,
-  scaleX: (x: number) => number,
-  scaleY: (y: number) => number,
-  startIndex: number,
-  endIndex: number,
-  color: string,
-  lineWidth: number,
-  visibility: number
-) {
+import {DrawSeries} from './';
+
+export const drawLineSeries: DrawSeries = (
+  context,
+  x,
+  [y],
+  scaleX,
+  scaleY,
+  startIndex,
+  endIndex,
+  color,
+  lineWidth,
+  visibility
+) => {
   context.globalAlpha = visibility;
   context.strokeStyle = color;
   context.beginPath();
@@ -20,4 +22,4 @@ export function drawLineSeries(
     context.lineTo(scaleX(x[index]), scaleY(y[index]));
   }
   context.stroke();
-}
+};

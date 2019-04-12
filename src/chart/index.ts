@@ -1,6 +1,7 @@
 import {Axis, AxisPosition} from '../axis';
 import {ChartScale, getExtendedDomain} from './chart-scale';
-import {groupByRight} from '../lib/utils';
+import {memoize} from '../lib/memoize';
+import {groupBy} from '../lib/utils';
 import {startAnimation, stopAnimation} from '../lib/animation';
 import {AnySeries} from '../series';
 import {createStateTransition} from '../lib/state-transition';
@@ -11,14 +12,21 @@ import {
   getIntermediateStateFactory,
   getFinalTransitionState
 } from './chart-state';
+import {
+  calculateXExtent,
+  StackedDataCalculator,
+  PercentageDataCalculator,
+  XExtentCalculator
+} from './series-data';
 
 export type Chart = Readonly<ReturnType<typeof createChart>>;
 
 export function createChart(
   axes: Axis[],
   series: AnySeries[],
-  getStackedData: (a: NumericData, b: NumericData) => NumericData,
-  getPercentageData: (...stackedData: NumericData[]) => NumericData[]
+  getStackedData: StackedDataCalculator,
+  getPercentageData: PercentageDataCalculator,
+  setSeriesYData: (series: AnySeries[], getXExtent: XExtentCalculator) => void
 ) {
   let pixelRatio = 1;
   let outerWidth = 0;
@@ -28,11 +36,16 @@ export function createChart(
   let innerHeight = 0;
   let context: CanvasRenderingContext2D;
 
+  const getXExtent = memoize(calculateXExtent, 1);
   const stateTransition = createStateTransition(
     onStateUpdate,
     isStateEqual,
     getTransitionTriggers,
-    getIntermediateStateFactory(getStackedData, getPercentageData),
+    getIntermediateStateFactory(
+      getStackedData,
+      getPercentageData,
+      getXExtent
+    ),
     startAnimation,
     stopAnimation
   );
@@ -44,6 +57,7 @@ export function createChart(
       ({xScale}) => xScale,
       ({getExtendedXDomain}) => getExtendedXDomain
     );
+    setSeriesYData(series, getXExtent);
     setDomains(
       ({yScale}) => yScale,
       ({getExtendedYDomain}) => getExtendedYDomain
@@ -53,16 +67,22 @@ export function createChart(
     stateTransition(getFinalTransitionState(series));
   }
 
-  function onStateUpdate({yDomains, yData, visibilities}: State) {
+  function onStateUpdate({
+    yDomains,
+    yData,
+    visibilities,
+    displayed,
+    byYScale
+  }: State) {
     context.clearRect(0, 0, outerWidth, outerHeight);
     context.translate(paddings[3], paddings[0]);
 
-    series.forEach(({yScale}, index) => {
-      yScale.setDomain(yDomains[index]);
+    byYScale.forEach(({key}, index) => {
+      key.setDomain(yDomains[index]);
     });
 
     drawAxes();
-    drawSeries(yData, visibilities);
+    drawSeries(yData, visibilities, displayed);
     context.translate(-paddings[3], -paddings[0]);
   }
 
@@ -72,37 +92,30 @@ export function createChart(
       (domain: NumberRange) => NumberRange
     )
   ) {
-    const groups = groupByRight(
-      series,
-      (a, b) => getChartScale(a) === getChartScale(b)
-    );
-    const chartScales = groups.map((group) => getChartScale(group[0]));
+    const filtered = series.filter(({toDraw}) => toDraw()).reverse();
 
-    chartScales.forEach((scale, index) => {
-      const currentDomain = scale.getDomain();
+    groupBy(filtered, getChartScale).forEach(({key: scale, items}) => {
       if (scale.isFixed()) {
-        return currentDomain;
+        return;
       }
+
+      const currentDomain = scale.getDomain();
       const startDomain = (
         scale.isExtendableOnly()
           ? currentDomain
           : [Infinity, -Infinity]
       );
 
-      let group = groups[index];
       const oneItem = (
-        group[0].xScale === scale
-          ? group[0]
-          : group.find((item) => item.toDraw() && item.stacked)
+        items[0].xScale === scale
+          ? items[0]
+          : items.find(({stacked}) => stacked)
       );
       if (oneItem && oneItem.xScale !== scale) {
-        group = [oneItem];
+        items = [oneItem];
       }
 
-      let domain = group.reduce((result, item) => {
-        if (!item.toDraw()) {
-          return result;
-        }
+      let domain = items.reduce((result, item) => {
         return getDomainExtender(item)(result);
       }, startDomain);
 
@@ -118,9 +131,13 @@ export function createChart(
     });
   }
 
-  function drawSeries(yData: MultipleData[], visibilities: number[]) {
+  function drawSeries(
+    yData: MultipleData[],
+    visibilities: number[],
+    displayed: boolean[]
+  ) {
     series.forEach((item, index) => {
-      if (!visibilities[index]) {
+      if (!visibilities[index] || !displayed[index]) {
         return;
       }
       item.setPixelRatio(pixelRatio).draw(
@@ -179,6 +196,7 @@ export function createChart(
     axes,
     series,
     draw,
+    getXExtent,
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance),
     setOuterHeight: (_: typeof outerHeight) => (outerHeight = _, instance),
     setPaddings: (_: typeof paddings) => (paddings = _, instance),
