@@ -8,9 +8,9 @@ export function drawStackedLineSeries(
   endIndex: number,
   color: string
 ) {
-  context.beginPath();
   context.fillStyle = color;
   context.globalAlpha = 0.7;
+  context.beginPath();
 
   if (y1) {
     context.moveTo(scaleX(x[startIndex]), scaleY(y1[startIndex]));

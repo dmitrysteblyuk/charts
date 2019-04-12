@@ -10,9 +10,9 @@ export function drawLineSeries(
   lineWidth: number,
   visibility: number
 ) {
-  context.beginPath();
   context.globalAlpha = visibility;
   context.strokeStyle = color;
+  context.beginPath();
   context.lineWidth = lineWidth;
   context.moveTo(scaleX(x[startIndex]), scaleY(y[startIndex]));
 

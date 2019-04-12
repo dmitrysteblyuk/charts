@@ -10,9 +10,9 @@ export function drawBarSeries(
   _lineWidth: number,
   visibility: number
 ) {
-  context.beginPath();
   context.fillStyle = color;
   context.globalAlpha = 0.7 * visibility;
+  context.beginPath();
   let lastX = scaleX(x[startIndex]);
   let lastY = scaleY(y[startIndex]);
   context.moveTo(lastX, lastY);

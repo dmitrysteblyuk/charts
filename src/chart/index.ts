@@ -135,13 +135,17 @@ export function createChart(
 
   function drawAxes() {
     axes.forEach((axis) => {
-      context.save();
-      translateAxis(axis);
-
+      const translate = getAxisTranslate(axis);
+      if (translate) {
+        context.translate(...translate[0]);
+      }
       axis.setPixelRatio(pixelRatio)
         .setGridSize(axis.isVertical() ? innerWidth : innerHeight)
         .draw(context);
-      context.restore();
+      if (translate) {
+        context.translate(...translate[1]);
+      }
+      context.globalAlpha = 1;
     });
   }
 
@@ -159,12 +163,15 @@ export function createChart(
     });
   }
 
-  function translateAxis(axis: Axis) {
+  function getAxisTranslate(
+    axis: Axis
+  ): [[number, number], [number, number]] | undefined {
     const position = axis.getPosition();
     if (position === AxisPosition.right) {
-      context.translate(innerWidth, 0);
-    } else if (position === AxisPosition.bottom) {
-      context.translate(0, innerHeight);
+      return [[innerWidth, 0], [-innerWidth, 0]];
+    }
+    if (position === AxisPosition.bottom) {
+      return [[0, innerHeight], [0, -innerHeight]];
     }
   }
 

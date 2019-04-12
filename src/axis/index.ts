@@ -40,10 +40,9 @@ export function createAxis(
     position === AxisPosition.left ||
     position === AxisPosition.right
   );
+  const matrix = axisTransformMatrix[position];
 
   function draw(context: CanvasRenderingContext2D) {
-    const matrix = axisTransformMatrix[position];
-
     if (matrix) {
       context.transform(...matrix[0]);
     }
@@ -51,6 +50,10 @@ export function createAxis(
     context.strokeStyle = gridColor;
     drawScale(context);
     drawTicks(context);
+
+    if (matrix) {
+      context.transform(...matrix[1]);
+    }
   }
 
   function drawScale(context: CanvasRenderingContext2D) {
@@ -66,7 +69,6 @@ export function createAxis(
   }
 
   function drawTicks(context: CanvasRenderingContext2D) {
-    const matrix = axisTransformMatrix[position];
     const {ticks, getOpacity} = getTickData();
     const tickOffsets = ticks.map(scale.getScale());
 
