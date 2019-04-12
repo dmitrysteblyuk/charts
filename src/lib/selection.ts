@@ -164,32 +164,35 @@ export class Selection<T extends AnyElement = AnyElement> {
     return false;
   }
 
-  toggle(toHide: boolean, timeout = DEFAULT_DURATION) {
-    const className = toHide ? 'fade' : 'appear';
+  toggle(shouldShow: boolean, timeout = DEFAULT_DURATION) {
+    const className = shouldShow ? 'appear' : 'fade';
     const classes = this.attrs && this.attrs['class'] as string | undefined;
+    const previousShown = !this.styles || this.styles['display'] !== 'none';
 
-    this.setAttrs({
+    if (this.hideTimerId != null) {
+      if (shouldShow) {
+        clearTimeout(this.hideTimerId);
+        this.hideTimerId = null;
+      }
+    } if (shouldShow) {
+      this.setStyles({'display': null});
+    } else {
+      this.hideTimerId = setTimeout(() => {
+        this.setStyles({'display': 'none'});
+        this.hideTimerId = null;
+      }, timeout);
+    }
+
+    if (previousShown === shouldShow) {
+      return this;
+    }
+    return this.setAttrs({
       'class': (
         classes &&
         classes.replace(/(\s*)\b(fade|appear)\b|$/, ` ${className}`) ||
         className
       )
     });
-
-    if (this.hideTimerId != null) {
-      if (!toHide) {
-        clearTimeout(this.hideTimerId);
-        this.hideTimerId = null;
-      }
-    } if (toHide) {
-      this.hideTimerId = setTimeout(() => {
-        this.setStyles({'display': 'none'});
-        this.hideTimerId = null;
-      }, timeout);
-    } else {
-      this.setStyles({'display': null});
-    }
-    return this;
   }
 }
 

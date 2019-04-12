@@ -2,7 +2,7 @@ import {createChart, Chart} from '../chart';
 import {createAxis, AxisPosition} from '../axis';
 import {createBrush} from '../brush';
 import {Selection} from '../lib/selection';
-import {createChartScale, getExtendedDomain} from '../chart/chart-scale';
+import {createScale, getExtendedDomain} from '../chart/chart-scale';
 import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
 import {getTimeScaleTicks} from '../lib/time-scale-ticks';
 import {AnySeries, getSeriesData} from '../series';
@@ -33,10 +33,10 @@ export function createTimeChart() {
   let pixelRatio = 1;
 
   const mainPaddings = [10, 10, 20, 10];
-  const timeScale = createChartScale();
-  const fullTimeScale = createChartScale();
-  const valueScale = createChartScale();
-  const fullValueScale = createChartScale();
+  const timeScale = createScale();
+  const fullTimeScale = createScale();
+  const valueScale = createScale();
+  const fullValueScale = createScale();
   const brush = createBrush();
   const legend = createLegend([]);
   const tooltip = createTooltip(mainPaddings[0]);
@@ -108,8 +108,8 @@ export function createTimeChart() {
       series,
       getStackedData,
       getPercentageData,
-      ({isHidden, getOwnYData}) => (
-        isHidden() ? null : getOwnYData()
+      ({toDraw, getOwnYData}) => (
+        toDraw() ? getOwnYData() : null
       )
     ).forEach((yData, index) => {
       series[index].setYData(yData);
@@ -175,16 +175,27 @@ export function createTimeChart() {
   function onMainChartRender(mainContainer: Selection) {
     bindZoomEvents(mainContainer);
     bindTooltipEvents(mainContainer);
+    mainContainer.on('dblclick', () => {
+      toggleZoomedSeries();
+    });
+  }
+
+  function toggleZoomedSeries() {
+    mainChart.series.concat(helperChart.series).forEach((series) => {
+      series.setDisplay(!series.isDisplayed());
+    });
+    timeScale.setFixed(false);
+    render(container);
   }
 
   function toCanvasSize(size: number) {
     return Math.round(size * pixelRatio);
   }
 
-  function addSeries(mainSeries: AnySeries, helperSeries: AnySeries) {
-    mainChart.series.push(mainSeries);
-    helperChart.series.push(helperSeries);
-    legend.seriesGroups.push([mainSeries, helperSeries]);
+  function addSeries(mainSeries: AnySeries[], helperSeries: AnySeries[]) {
+    mainChart.series.push(...mainSeries);
+    helperChart.series.push(...helperSeries);
+    legend.seriesGroups.push([...mainSeries, ...helperSeries]);
   }
 
   function getPointX(clientX: number, innerContainer: Selection) {
@@ -225,7 +236,7 @@ export function createTimeChart() {
       let firstPoint: Point | undefined;
 
       const results = mainChart.series.reduce((points, series) => {
-        const nearest = !series.isHidden() && getNearestPoint(
+        const nearest = series.toDraw() && getNearestPoint(
           pointX,
           series.xData,
           series.xScale,
@@ -258,7 +269,7 @@ export function createTimeChart() {
       tooltip
         .setTime(time)
         .setLeft(left)
-        .setHidden(false)
+        .show(true)
         .setSeries(results.map((item) => item && item.series))
         .setValues(values)
         .setLineX(lineX)
@@ -270,7 +281,7 @@ export function createTimeChart() {
     );
 
     function hideTooltip() {
-      tooltip.setHidden(true);
+      tooltip.show(false);
       renderTooltip();
     }
 

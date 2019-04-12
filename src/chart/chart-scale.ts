@@ -1,8 +1,8 @@
 import {getLinearScale, isArrayEqual} from '../lib/utils';
 
-export type ChartScale = Readonly<ReturnType<typeof createChartScale>>;
+export type ChartScale = Readonly<ReturnType<typeof createScale>>;
 
-export function createChartScale() {
+export function createScale() {
   let domain: NumberRange = [0, 1];
   let range: NumberRange = [0, 1]
   let minDomain: NumberRange = [Infinity, -Infinity];

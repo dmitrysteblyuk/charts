@@ -25,11 +25,11 @@ export function getFinalTransitionState(series: AnySeries[]): State {
   const xRanges = series.map(({xScale}) => xScale.getRange());
   const yDomains = series.map(({yScale}) => yScale.getDomain());
   const yRanges = series.map(({yScale}) => yScale.getRange());
-  const visibilities = series.map((item) => item.isHidden() ? 0 : 1);
+  const visibilities = series.map((item) => +item.toDraw());
   const yData = series.map((item) => item.getYData());
   const ownYData = yData.map(([data]) => data);
 
-  return {
+  const state = {
     series,
     xDomains,
     xRanges,
@@ -39,6 +39,7 @@ export function getFinalTransitionState(series: AnySeries[]): State {
     yData,
     ownYData
   };
+  return state;
 }
 
 const skipChecks = {yData: true} as Dictionary<boolean, keyof State>;

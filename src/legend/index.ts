@@ -21,6 +21,12 @@ export function createLegend(seriesGroups: AnySeries[][]) {
         );
       });
 
+      const displayed = group.some(({isDisplayed}) => isDisplayed());
+      itemSelection.toggle(displayed);
+      if (!displayed) {
+        return;
+      }
+
       const color = series.getColor();
       const background = series.isHidden() ? 'none' : color;
 

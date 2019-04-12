@@ -32,6 +32,7 @@ export function createSeries(
   percentage: boolean,
   bar: boolean
 ) {
+  let displayed = true;
   let color = '';
   let label = '';
   let hidden = false;
@@ -109,9 +110,12 @@ export function createSeries(
     getColor: () => color,
     getLabel: () => label,
     isHidden: () => hidden,
+    isDisplayed: () => displayed,
+    toDraw: () => displayed && !hidden,
     setColor: (_: typeof color) => (color = _, instance),
     setLabel: (_: typeof label) => (label = _, instance),
     setHidden: (_: typeof hidden) => (hidden = _, instance),
+    setDisplay: (_: typeof displayed) => (displayed = _, instance),
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance),
     setStrokeWidth: (_: typeof strokeWidth) => (strokeWidth = _, instance)
   };

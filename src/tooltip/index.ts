@@ -10,7 +10,7 @@ export function createTooltip(chartPaddingTop: number) {
   let time = 0;
   let values: number[] = [];
   let series: (AnySeries | null)[] = [];
-  let hidden = true;
+  let shouldShow = false;
   let lineX = 0;
   let lineY2 = 0;
   let pixelRatio = 1;
@@ -25,9 +25,9 @@ export function createTooltip(chartPaddingTop: number) {
   };
 
   function render(lineContainer: Selection, container: Selection) {
-    container.toggle(hidden);
-    lineContainer.toggle(hidden);
-    if (hidden) {
+    container.toggle(shouldShow);
+    lineContainer.toggle(shouldShow);
+    if (!shouldShow) {
       return;
     }
 
@@ -109,7 +109,7 @@ export function createTooltip(chartPaddingTop: number) {
     setTime: (_: typeof time) => (time = _, instance),
     setValues: (_: typeof values) => (values = _, instance),
     setSeries: (_: typeof series) => (series = _, instance),
-    setHidden: (_: typeof hidden) => (hidden = _, instance),
+    show: (_: typeof shouldShow) => (shouldShow = _, instance),
     setLineX: (_: typeof lineX) => (lineX = _, instance),
     setLineY2: (_: typeof lineY2) => (lineY2 = _, instance),
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance)

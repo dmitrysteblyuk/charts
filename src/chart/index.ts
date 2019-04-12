@@ -93,14 +93,14 @@ export function createChart(
       const oneItem = (
         group[0].xScale === scale
           ? group[0]
-          : group.find((item) => !item.isHidden() && item.stacked)
+          : group.find((item) => item.toDraw() && item.stacked)
       );
       if (oneItem && oneItem.xScale !== scale) {
         group = [oneItem];
       }
 
       let domain = group.reduce((result, item) => {
-        if (item.isHidden()) {
+        if (!item.toDraw()) {
           return result;
         }
         return getDomainExtender(item)(result);

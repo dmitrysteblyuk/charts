@@ -2,7 +2,7 @@ import {TimeChart, createTimeChart} from './time-chart';
 import {drawLineSeries} from './series/line';
 import {drawBarSeries} from './series/bar';
 import {drawStackedLineSeries} from './series/stacked-line';
-import {createSeries} from './series';
+import {createSeries, AnySeries} from './series';
 import {Selection} from './lib/selection';
 import './index.css';
 
@@ -25,6 +25,7 @@ function initializeCharts(
     const x = (
       config['columns'].find(([id]) => id === 'x') || []
     ).slice(1) as number[];
+    const line = index === 0;
     const percentage = index > 2;
     const stacked = index >= 2;
     const bar = index === 1;
@@ -37,25 +38,19 @@ function initializeCharts(
       const label = config['names'][yId];
       const color = config['colors'][yId];
 
-      const [mainSeries, helperSeries] = [0, 1].map(isHelper => {
-        const series = createSeries(
-          isHelper ? chart.fullTimeScale : chart.timeScale,
-          isHelper ? chart.fullValueScale : chart.valueScale,
+      const [mainSeries, helperSeries] = [false, true].map(isHelper => {
+        return initializeSeries(
+          chart,
+          isHelper,
           x,
-          [y],
-          stacked ? drawStackedLineSeries
-            : bar ? drawBarSeries
-            : drawLineSeries,
+          y,
           stacked,
           percentage,
-          bar
+          bar,
+          line,
+          color,
+          label
         );
-
-        series.setLabel(label)
-          .setColor(color)
-          .setStrokeWidth(isHelper ? 1 : 2);
-
-        return series;
       });
 
       chart.addSeries(mainSeries, helperSeries);
@@ -82,6 +77,58 @@ function initializeCharts(
   window.onresize = () => {
     renderCharts(charts);
   };
+}
+
+function initializeSeries(
+  chart: TimeChart,
+  isHelper: boolean,
+  x: number[],
+  y: number[],
+  stacked: boolean,
+  percentage: boolean,
+  bar: boolean,
+  line: boolean,
+  color: string,
+  label: string
+) {
+  const xScale = isHelper ? chart.fullTimeScale : chart.timeScale;
+  const yScale = isHelper ? chart.fullValueScale : chart.valueScale;
+  const baseSeries = createSeries(
+    xScale,
+    yScale,
+    x,
+    [y],
+    stacked ? drawStackedLineSeries
+      : bar ? drawBarSeries
+      : drawLineSeries,
+    stacked,
+    percentage,
+    bar
+  );
+
+  if (line) {
+    const zoomedSeries = createSeries(
+      xScale,
+      yScale,
+      x.slice(20, 40),
+      [y.slice(20, 40)],
+      stacked ? drawStackedLineSeries
+        : bar ? drawBarSeries
+        : drawLineSeries,
+      stacked,
+      percentage,
+      bar
+    ).setDisplay(false);
+    return [baseSeries, zoomedSeries].map(setOptions);
+  }
+
+  return [setOptions(baseSeries)];
+
+  function setOptions(item: AnySeries) {
+    return item.setLabel(label)
+      .setColor(color)
+      .setStrokeWidth(isHelper ? 1 : 2)
+  }
 }
 
 function renderCharts(charts: TimeChart[]) {

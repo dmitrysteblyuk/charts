@@ -6,10 +6,14 @@ export function drawStackedLineSeries(
   scaleY: (y: number) => number,
   startIndex: number,
   endIndex: number,
-  color: string
+  color: string,
+  _lineWidth: number,
+  visibility: number
 ) {
   context.fillStyle = color;
-  context.globalAlpha = 0.7;
+  context.globalAlpha = 0.7 * (
+    y1 || y0 ? 1 : visibility
+  );
   context.beginPath();
 
   if (y1) {
