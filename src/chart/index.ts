@@ -17,7 +17,8 @@ export type Chart = Readonly<ReturnType<typeof createChart>>;
 export function createChart(
   axes: Axis[],
   series: AnySeries[],
-  getStackedData: (a: NumericData, b: NumericData) => NumericData
+  getStackedData: (a: NumericData, b: NumericData) => NumericData,
+  getPercentageData: (...stackedData: NumericData[]) => NumericData[]
 ) {
   let pixelRatio = 1;
   let outerWidth = 0;
@@ -31,7 +32,7 @@ export function createChart(
     onStateUpdate,
     isStateEqual,
     getTransitionTriggers,
-    getIntermediateStateFactory(getStackedData),
+    getIntermediateStateFactory(getStackedData, getPercentageData),
     startAnimation,
     stopAnimation
   );

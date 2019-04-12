@@ -1,4 +1,4 @@
-import {isArrayEqual, every, map} from '../lib/utils';
+import {isArrayEqual, every} from '../lib/utils';
 import {easeOutCubic} from '../lib/animation';
 import {AnySeries, getSeriesData} from '../series';
 
@@ -40,9 +40,10 @@ export function getFinalTransitionState(series: AnySeries[]): State {
   };
 }
 
+const skipChecks = {yData: true} as Dictionary<boolean, keyof State>;
 export function isStateEqual(from: State, to: State) {
   return every(from, (items: any[], key) => {
-    return key === 'yData' || isArrayEqual(items, to[key]);
+    return skipChecks[key] || isArrayEqual(items, to[key]);
   });
 }
 
@@ -72,7 +73,8 @@ export function getTransitionTriggers(
 }
 
 export function getIntermediateStateFactory(
-  getStackedData: (a: NumericData, b: NumericData) => NumericData
+  getStackedData: (a: NumericData, b: NumericData) => NumericData,
+  getPercentageData: (...stackedData: NumericData[]) => NumericData[]
 ) {
   return getIntermediateState;
 
@@ -91,15 +93,20 @@ export function getIntermediateStateFactory(
         return v0 + (v1 - v0) * eased;
       });
 
-      yData = getSeriesData(from.series, getStackedData, (_, index) => {
-        const data = from.ownYData[index];
-        const toShow = to.visibility[index];
+      yData = getSeriesData(
+        from.series,
+        getStackedData,
+        getPercentageData,
+        (_, index) => {
+          const data = from.ownYData[index];
+          const toShow = to.visibility[index];
 
-        if (toShow === from.visibility[index]) {
-          return toShow ? data : null;
+          if (toShow === from.visibility[index]) {
+            return toShow ? data : null;
+          }
+          return data.map((value) => value * visibility[index]);
         }
-        return map(data, (value) => value * visibility[index]);
-      });
+      );
     }
 
     if (triggers.yDomainChange) {

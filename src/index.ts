@@ -1,6 +1,6 @@
 import {TimeChart, createTimeChart} from './time-chart';
-// import {drawLineSeries} from './series/line';
-// import {drawBarSeries} from './series/bar';
+import {drawLineSeries} from './series/line';
+import {drawBarSeries} from './series/bar';
 import {drawStackedLineSeries} from './series/stacked-line';
 import {createSeries} from './series';
 import {Selection} from './lib/selection';
@@ -18,18 +18,21 @@ function initializeCharts(
     names: {[id: string]: string}
   }[]
 ) {
-  const charts = json.map((config) => {
+  const charts = json.map((config, index) => {
     const chart = createTimeChart();
 
     const ids = Object.keys(config['names']);
-    const x = new Float64Array((
+    const x = (
       config['columns'].find(([id]) => id === 'x') || []
-    ).slice(1) as number[]);
+    ).slice(1) as number[];
+    const percentage = index > 2;
+    const stacked = index >= 2;
+    const bar = index === 1;
 
     ids.forEach((yId) => {
-      const y = new Float64Array((
+      const y = (
         config['columns'].find(([id]) => id === yId) || []
-      ).slice(1) as number[]);
+      ).slice(1) as number[];
 
       const label = config['names'][yId];
       const color = config['colors'][yId];
@@ -40,10 +43,12 @@ function initializeCharts(
           isHelper ? chart.fullValueScale : chart.valueScale,
           x,
           [y],
-          drawStackedLineSeries,
-          true,
-          true,
-          false
+          stacked ? drawStackedLineSeries
+            : bar ? drawBarSeries
+            : drawLineSeries,
+          stacked,
+          percentage,
+          bar
         );
 
         series.setLabel(label)
@@ -57,9 +62,16 @@ function initializeCharts(
     });
 
     const x0 = x[Math.floor(x.length * 0.75)];
-    const x1 = x[x.length - 1]/* + x[1] - x[0]*/;
+    const x1 = x[x.length - 1] + (bar ? x[1] - x[0] : 0);
     chart.timeScale.setFixed(true);
     chart.timeScale.setDomain([x0, x1]);
+
+    if (percentage) {
+      [chart.valueScale, chart.fullValueScale].forEach((scale) => {
+        scale.setFixed(true);
+        scale.setDomain([0, 1]);
+      });
+    }
 
     return chart;
   });

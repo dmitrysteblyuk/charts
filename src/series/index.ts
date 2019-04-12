@@ -69,18 +69,18 @@ export function createSeries(
 
   function getExtendedYDomain(domain: NumberRange) {
     let [min, max] = domain;
-    if (stacked) {
+    if (stacked || bar) {
       min = Math.min(min, 0);
     }
     const [startIndex, endIndex] = getExtent();
 
     return getExtendedDomain(
       domain,
-      getSeriesYDomain(getMainYData(), startIndex, endIndex, min, max)
+      getSeriesYDomain(getMainYData()!, startIndex, endIndex, min, max)
     );
   }
 
-  function getMainYData() {
+  function getMainYData(): NumericData | undefined {
     return yData[+stacked];
   }
 
@@ -118,15 +118,24 @@ export function createSeries(
 export function getSeriesData(
   allSeries: AnySeries[],
   getStackedData: (a: NumericData, b: NumericData) => NumericData,
+  getPercentageData: (...stackedData: NumericData[]) => NumericData[],
   getOwnYData: (series: AnySeries, index: number) => NumericData | null
 ): MultipleData[] {
-  let previousData: MultipleData | undefined;
-  return allSeries.map((series, index) => {
-    const yData = series.stacked && getOwnYData(series, index);
-    if (!yData) {
-      return series.getYData();
+  const currentData = allSeries.map((series) => series.getYData());
+  const toCalculate = allSeries.reduce<number[]>((indices, series, index) => {
+    if (series.stacked && getOwnYData(series, index)) {
+      indices.push(index);
     }
+    return indices;
+  }, []);
 
+  if (!toCalculate.length) {
+    return currentData;
+  }
+
+  let previousData: MultipleData | undefined;
+  const nextData = toCalculate.map((index) => {
+    const yData = getOwnYData(allSeries[index], index)!;
     return previousData = (
       previousData
         ? [
@@ -137,4 +146,20 @@ export function getSeriesData(
         : [yData, yData]
     );
   });
+
+  if (allSeries[toCalculate[0]].percentage) {
+    const percentageData = getPercentageData(
+      ...nextData.map((data) => data[1])
+    );
+    nextData.forEach((data, index) => {
+      data[1] = percentageData[index];
+      data[2] = percentageData[index - 1];
+    });
+  }
+
+  toCalculate.forEach((seriesIndex, index) => {
+    currentData[seriesIndex] = nextData[index];
+  });
+
+  return currentData;
 }

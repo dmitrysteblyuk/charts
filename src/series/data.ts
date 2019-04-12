@@ -49,3 +49,13 @@ export function calculateStackedData(
   }
   return sum;
 }
+
+export function calculatePercentageData(
+  ...stackedData: NumericData[]
+): NumericData[] {
+  // console.log('percentage', stackedData);
+  const sum = stackedData.pop()!;
+  return stackedData.map((data) => {
+    return data.map((value, index) => sum[index] && (value / sum[index]));
+  });
+}

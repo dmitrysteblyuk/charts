@@ -15,7 +15,7 @@ import {axisTimeFormat} from '../lib/time-format';
 import {createTooltip} from '../tooltip';
 import {getNearestPoint} from './get-nearest-point';
 import {roundAuto} from '../lib/decimal-scale-ticks';
-import {calculateStackedData} from '../series/data';
+import {calculateStackedData, calculatePercentageData} from '../series/data';
 import './index.css';
 
 export type TimeChart = Readonly<ReturnType<typeof createTimeChart>>;
@@ -41,7 +41,13 @@ export function createTimeChart() {
   const legend = createLegend([]);
   const tooltip = createTooltip(mainPaddings[0]);
   const getStackedData = memoize(calculateStackedData, 10);
-  const helperChart = createChart([], [], calculateStackedData);
+  const getPercentageData = memoize(calculatePercentageData, 10);
+  const helperChart = createChart(
+    [],
+    [],
+    calculateStackedData,
+    calculatePercentageData
+  );
   const mainChart = createChart(
     [
       createAxis(
@@ -61,7 +67,8 @@ export function createTimeChart() {
       )
     ],
     [],
-    calculateStackedData
+    calculateStackedData,
+    calculatePercentageData
   );
   const mainConfig = {
     chart: mainChart,
@@ -100,6 +107,7 @@ export function createTimeChart() {
     getSeriesData(
       series,
       getStackedData,
+      getPercentageData,
       ({isHidden, getOwnYData}) => (
         isHidden() ? null : getOwnYData()
       )
@@ -239,7 +247,8 @@ export function createTimeChart() {
       const lineX = firstSeries.xScale.getScale()(time) / pixelRatio;
       const left = Math.round(lineX + mainPaddings[3]) - 20;
       const values = results.map((item) => {
-        return item ? item.series.getMainYData()[item.index] : 0;
+        const yData = item && item.series.getMainYData();
+        return item ? (yData ? yData[item.index] : 1) : 0;
       });
 
       tooltip

@@ -11,10 +11,16 @@ export function drawStackedLineSeries(
   context.beginPath();
   context.fillStyle = color;
   context.globalAlpha = 0.7;
-  context.moveTo(scaleX(x[startIndex]), scaleY(y1[startIndex]));
 
-  for (let index = startIndex + 1; index < endIndex; index++) {
-    context.lineTo(scaleX(x[index]), scaleY(y1[index]));
+  if (y1) {
+    context.moveTo(scaleX(x[startIndex]), scaleY(y1[startIndex]));
+
+    for (let index = startIndex + 1; index < endIndex; index++) {
+      context.lineTo(scaleX(x[index]), scaleY(y1[index]));
+    }
+  } else {
+    context.moveTo(scaleX(x[startIndex]), scaleY(1));
+    context.lineTo(scaleX(x[endIndex - 1]), scaleY(1));
   }
 
   if (y0) {

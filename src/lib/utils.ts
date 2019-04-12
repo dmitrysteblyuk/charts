@@ -1,14 +1,3 @@
-export function map<T, V>(
-  array: ArrayLike<T>,
-  mapper: (item: T, index: number) => V
-): V[] {
-  const result = new Array<V>(array.length);
-  for (let index = 0; index < array.length; index++) {
-    result[index] = mapper(array[index], index);
-  }
-  return result;
-}
-
 export function every<T>(
   object: T,
   checker: (value: T[keyof T], key: keyof T) => boolean
