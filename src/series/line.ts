@@ -7,9 +7,11 @@ export function drawLineSeries(
   startIndex: number,
   endIndex: number,
   color: string,
-  lineWidth: number
+  lineWidth: number,
+  visibility: number
 ) {
   context.beginPath();
+  context.globalAlpha = visibility;
   context.strokeStyle = color;
   context.lineWidth = lineWidth;
   context.moveTo(scaleX(x[startIndex]), scaleY(y[startIndex]));

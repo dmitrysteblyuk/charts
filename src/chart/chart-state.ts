@@ -8,14 +8,15 @@ export type State = Readonly<{
   yDomains: NumberRange[];
   xRanges: NumberRange[];
   yRanges: NumberRange[];
-  visibility: number[];
+  visibilities: number[];
   yData: MultipleData[];
   ownYData: NumericData[];
 }>;
 
 type TransitionTriggersMutable = Partial<{
   yDomainChange: boolean,
-  stackChange: boolean
+  stackChange: boolean,
+  visibilityChange: boolean
 }>;
 export type TransitionTriggers = Readonly<TransitionTriggersMutable>;
 
@@ -24,7 +25,7 @@ export function getFinalTransitionState(series: AnySeries[]): State {
   const xRanges = series.map(({xScale}) => xScale.getRange());
   const yDomains = series.map(({yScale}) => yScale.getDomain());
   const yRanges = series.map(({yScale}) => yScale.getRange());
-  const visibility = series.map((item) => item.isHidden() ? 0 : 1);
+  const visibilities = series.map((item) => item.isHidden() ? 0 : 1);
   const yData = series.map((item) => item.getYData());
   const ownYData = yData.map(([data]) => data);
 
@@ -34,7 +35,7 @@ export function getFinalTransitionState(series: AnySeries[]): State {
     xRanges,
     yDomains,
     yRanges,
-    visibility,
+    visibilities,
     yData,
     ownYData
   };
@@ -53,13 +54,18 @@ export function getTransitionTriggers(
 ): TransitionTriggers | null {
   const triggers: TransitionTriggersMutable = {};
   let isChanged = false;
+  let stackChange: boolean | undefined;
 
   if (
-    from.visibility.some((visibility, index) => (
-      visibility !== to.visibility[index] && from.series[index].stacked
+    from.visibilities.some((visibilities, index) => (
+      visibilities !== to.visibilities[index] && (
+        !from.series[index].stacked ||
+        (stackChange = true)
+      )
     ))
   ) {
-    triggers.stackChange = isChanged = true;
+    triggers.visibilityChange = isChanged = true;
+    triggers.stackChange = stackChange;
   }
 
   if (!isArrayEqual(from.yDomains, to.yDomains)) {
@@ -84,27 +90,29 @@ export function getIntermediateStateFactory(
     progress: number,
     triggers: TransitionTriggers
   ): State {
-    let {yDomains, yData, visibility} = from;
+    let {yDomains, yData, visibilities} = from;
     const eased = easeOutCubic(progress);
 
-    if (triggers.stackChange) {
-      visibility = visibility.map((v0, index) => {
-        const v1 = to.visibility[index]
+    if (triggers.visibilityChange) {
+      visibilities = visibilities.map((v0, index) => {
+        const v1 = to.visibilities[index]
         return v0 + (v1 - v0) * eased;
       });
+    }
 
+    if (triggers.stackChange) {
       yData = getSeriesData(
         from.series,
         getStackedData,
         getPercentageData,
         (_, index) => {
           const data = from.ownYData[index];
-          const toShow = to.visibility[index];
+          const toShow = to.visibilities[index];
 
-          if (toShow === from.visibility[index]) {
+          if (toShow === from.visibilities[index]) {
             return toShow ? data : null;
           }
-          return data.map((value) => value * visibility[index]);
+          return data.map((value) => value * visibilities[index]);
         }
       );
     }
@@ -120,7 +128,7 @@ export function getIntermediateStateFactory(
 
     return {
       ...from,
-      visibility,
+      visibilities,
       yData,
       yDomains
     };

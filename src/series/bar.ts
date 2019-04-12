@@ -6,11 +6,13 @@ export function drawBarSeries(
   scaleY: (y: number) => number,
   startIndex: number,
   endIndex: number,
-  color: string
+  color: string,
+  _lineWidth: number,
+  visibility: number
 ) {
   context.beginPath();
   context.fillStyle = color;
-  context.globalAlpha = 0.7;
+  context.globalAlpha = 0.7 * visibility;
   let lastX = scaleX(x[startIndex]);
   let lastY = scaleY(y[startIndex]);
   context.moveTo(lastX, lastY);

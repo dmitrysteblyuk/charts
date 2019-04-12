@@ -25,7 +25,8 @@ export function createSeries(
     startIndex: number,
     endIndex: number,
     color: string,
-    lineWidth: number
+    lineWidth: number,
+    visibility: number
   ) => void,
   stacked: boolean,
   percentage: boolean,
@@ -42,7 +43,8 @@ export function createSeries(
   function draw(
     context: CanvasRenderingContext2D,
     xArray: NumericData,
-    yArrays: MultipleData
+    yArrays: MultipleData,
+    visibility: number
   ) {
     const [startIndex, endIndex] = getExtent();
     drawSeries(
@@ -54,7 +56,8 @@ export function createSeries(
       startIndex,
       endIndex,
       color,
-      pixelRatio * strokeWidth
+      pixelRatio * strokeWidth,
+      visibility
     );
   }
 

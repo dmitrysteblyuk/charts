@@ -53,7 +53,7 @@ export function createChart(
     stateTransition(getFinalTransitionState(series));
   }
 
-  function onStateUpdate({yDomains, yData, visibility}: State) {
+  function onStateUpdate({yDomains, yData, visibilities}: State) {
     context.clearRect(0, 0, outerWidth, outerHeight);
     context.translate(paddings[3], paddings[0]);
 
@@ -62,7 +62,7 @@ export function createChart(
     });
 
     drawAxes();
-    drawSeries(yData, visibility);
+    drawSeries(yData, visibilities);
     context.translate(-paddings[3], -paddings[0]);
   }
 
@@ -118,14 +118,19 @@ export function createChart(
     });
   }
 
-  function drawSeries(yData: MultipleData[], visibility: number[]) {
+  function drawSeries(yData: MultipleData[], visibilities: number[]) {
     series.forEach((item, index) => {
-      if (!visibility[index]) {
+      if (!visibilities[index]) {
         return;
       }
-      item.setPixelRatio(pixelRatio)
-        .draw(context, item.xData, yData[index]);
+      item.setPixelRatio(pixelRatio).draw(
+        context,
+        item.xData,
+        yData[index],
+        visibilities[index]
+      );
     });
+    context.globalAlpha = 1;
   }
 
   function drawAxes() {
