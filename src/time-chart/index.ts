@@ -211,7 +211,11 @@ export function createTimeChart() {
   }
 
   function bindTooltipEvents(mainContainer: Selection) {
-    mainContainer.on('mousemove', ({clientX}: MouseEvent) => {
+    mainContainer.on('mousemove', ({clientX, target}: MouseEvent) => {
+      if (getTooltipContainer().hasDescendant(target as any)) {
+        return;
+      }
+
       const pointX = getPointX(clientX, mainContainer);
       interface Point {
         distance: number;
@@ -259,24 +263,28 @@ export function createTimeChart() {
         .setValues(values)
         .setLineX(lineX)
         .setLineY2(getInnerHeight(mainConfig))
-        .setPixelRatio(pixelRatio)
-        .render(getTooltipContainer(), getTooltipSvg());
+        .setPixelRatio(pixelRatio);
+      renderTooltip();
     }).on(
       'mouseleave', hideTooltip
     );
 
     function hideTooltip() {
-      tooltip.setHidden(true).render(getTooltipContainer(), getTooltipSvg());
+      tooltip.setHidden(true);
+      renderTooltip();
+    }
+
+    function renderTooltip() {
+      tooltip.render(
+        renderSvg(mainContainer, mainConfig),
+        getTooltipContainer()
+      );
     }
 
     function getTooltipContainer() {
       return mainContainer.renderOne('div', 'tooltip', selection => (
         selection.setAttrs({'class': 'tooltip'})
       ));
-    }
-
-    function getTooltipSvg() {
-      return renderSvg(mainContainer, mainConfig);
     }
   }
 

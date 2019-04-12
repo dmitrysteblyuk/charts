@@ -1,5 +1,6 @@
 const {requestAnimationFrame, cancelAnimationFrame} = window;
 
+export const DEFAULT_DURATION = 200;
 export function stopAnimation(requestId: number) {
   cancelAnimationFrame(requestId);
 }
@@ -8,7 +9,7 @@ export function startAnimation(
   callback: (progress: number) => void,
   onRequest: (requestId: number) => void,
   onStop: () => void,
-  duration = 200
+  duration = DEFAULT_DURATION
 ) {
   let startTime: number | undefined;
 

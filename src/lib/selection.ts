@@ -1,4 +1,6 @@
 import {EventEmitter} from './event-emitter';
+import {DEFAULT_DURATION} from './animation';
+import './selection.css';
 
 type AnyElement = Element & ElementCSSInlineStyle & GlobalEventHandlers;
 type Primitive = string | boolean | number | null | undefined;
@@ -11,6 +13,7 @@ export class Selection<T extends AnyElement = AnyElement> {
   private attrs?: Dictionary<Primitive>;
   private eventEmitters: Dictionary<EventEmitter<Event, EventOptions>> = {};
   private textValue?: Primitive;
+  private hideTimerId: number | null | undefined;
 
   constructor(
     private connectedElement?: T,
@@ -142,6 +145,51 @@ export class Selection<T extends AnyElement = AnyElement> {
 
   isConnectedTo(element: AnyElement) {
     return this.connectedElement === element;
+  }
+
+  hasDescendant(element: AnyElement | null) {
+    const {connectedElement} = this;
+    if (!connectedElement) {
+      return false;
+    }
+    for (
+      let parentElement = element;
+      parentElement;
+      {parentElement} = parentElement
+    ) {
+      if (parentElement === connectedElement) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  toggle(toHide: boolean, timeout = DEFAULT_DURATION) {
+    const className = toHide ? 'fade' : 'appear';
+    const classes = this.attrs && this.attrs['class'] as string | undefined;
+
+    this.setAttrs({
+      'class': (
+        classes &&
+        classes.replace(/(\s*)\b(fade|appear)\b|$/, ` ${className}`) ||
+        className
+      )
+    });
+
+    if (this.hideTimerId != null) {
+      if (!toHide) {
+        clearTimeout(this.hideTimerId);
+        this.hideTimerId = null;
+      }
+    } if (toHide) {
+      this.hideTimerId = setTimeout(() => {
+        this.setStyles({'display': 'none'});
+        this.hideTimerId = null;
+      }, timeout);
+    } else {
+      this.setStyles({'display': null});
+    }
+    return this;
   }
 }
 

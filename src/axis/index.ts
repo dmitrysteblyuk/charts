@@ -1,5 +1,4 @@
 import {ChartScale} from '../chart/chart-scale';
-import './index.css';
 
 const axisTransformMatrix: (
   [

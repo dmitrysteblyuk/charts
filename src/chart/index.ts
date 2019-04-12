@@ -154,7 +154,7 @@ export function createChart(
     );
 
     series.forEach(({xScale, yScale}) => {
-      xScale.setRange([0, innerWidth]);
+      xScale.setRange([-paddings[3], innerWidth + paddings[1]]);
       yScale.setRange([innerHeight, 0]);
     });
   }

@@ -24,13 +24,9 @@ export function createTooltip(chartPaddingTop: number) {
     return date.toDateString();
   };
 
-  function render(container: Selection, lineContainer: Selection) {
-    container.setAttrs({
-      'class': hidden ? 'tooltip fade' : 'tooltip appear'
-    });
-    lineContainer.setAttrs({
-      'class': hidden ? 'fade' : 'appear'
-    });
+  function render(lineContainer: Selection, container: Selection) {
+    container.toggle(hidden);
+    lineContainer.toggle(hidden);
     if (hidden) {
       return;
     }
@@ -103,7 +99,7 @@ export function createTooltip(chartPaddingTop: number) {
       window.innerWidth - (rect ? rect.width : 0) - 5
     );
     container.setStyles({
-      'transform': `translateX(${leftPosition}px)`
+      'left': `${leftPosition}px`
     });
   }
 
