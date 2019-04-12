@@ -2,9 +2,9 @@ import {onZoomEvents, ZoomMode} from '../lib/zoom';
 import {Selection} from '../lib/selection';
 import {roundRange} from '../lib/utils';
 import {EventEmitter} from '../lib/event-emitter';
+import './index.css';
 
 const enum Behaviour {selectNew, resizeLeft, resizeRight, move};
-const defaultFill = 'transparent';
 
 export type Brush = Readonly<ReturnType<typeof createBrush>>;
 
@@ -19,8 +19,6 @@ export function createBrush() {
   let height = 0;
   let left = 0;
   let right = 0;
-  const color = 'rgba(0, 25, 100, 0.1)';
-  const borderWidth = 10;
 
   let reset = true;
   let draggedBeforeClick = false;
@@ -29,79 +27,46 @@ export function createBrush() {
     reset = !(left > 0 || right < width);
     let isNew: boolean | undefined;
 
-    const rectSelection = container.renderOne('rect', 5, (selection) => {
-      selection.setAttrs({
-        'x': '0',
-        'y': '0',
-        'stroke': color,
-        'fill': 'transparent'
-      });
+    container.renderOne('div', 0, (selection) => {
+      selection.setAttrs({'class': 'brush-reset-left'})
+        .on('click', onResetClick);
       isNew = true;
-    }).setAttrs({
-      'width': width,
-      'height': height
+    }).setStyles({
+      'transform': `scaleX(${left / width})`
     });
 
-    container.renderOne('rect', 0, (selection) => {
-      selection.setAttrs({
-        'fill': color,
-        'x': '0',
-        'y': '0'
-      }).on('click', onResetClick);
-    }).setAttrs({
-      'width': left,
-      'height': height
+    const centerRect = container.renderOne('div', 1, (selection) => (
+      selection.setAttrs({'class': 'brush-center'})
+    )).setStyles({
+      'display': reset ? 'none' : null,
+      'transform': `translateX(${left}px) scaleX(${(right - left) / width})`
     });
 
-    container.renderOne('rect', 1, (selection) => {
-      selection.setAttrs({
-        'fill': color,
-        'y': '0'
-      }).on('click', onResetClick);
-    }).setAttrs({
-      'x': right,
-      'width': width - right,
-      'height': height
+    container.renderOne('div', 2, (selection) => {
+      selection.setAttrs({'class': 'brush-reset-right'})
+        .on('click', onResetClick);
+    }).setStyles({
+      'transform': `scaleX(${(width - right) / width})`
     });
 
-    const centerRect = container.renderOne('rect', 2);
-    centerRect.setStyles({'display': reset ? 'none' : null});
-    if (!reset) {
-      centerRect.setAttrs({
-        'fill': defaultFill,
-        'x': left,
-        'width': right - left,
-        'height': height,
-        'y': 0
-      });
-    }
-
-    const leftHandle = container.renderOne('rect', 3).setAttrs({
-      'fill': defaultFill,
-      'x': left - borderWidth,
-      'width': borderWidth * 2,
-      'height': height,
-      'y': 0
+    const leftHandle = container.renderOne('div', 3, (selection) => (
+      selection.setAttrs({'class': 'brush-handle-left'})
+    )).setStyles({
+      'display': reset ? 'none' : null,
+      'transform': `translateX(${left}px)`
     });
 
-    const rightHandle = container.renderOne('rect', 4).setAttrs({
-      'fill': defaultFill,
-      'x': right - borderWidth,
-      'width': borderWidth * 2,
-      'height': height,
-      'y': 0
+    const rightHandle = container.renderOne('div', 4, (selection) => (
+      selection.setAttrs({'class': 'brush-handle-right'})
+    )).setStyles({
+      'display': reset ? 'none' : null,
+      'transform': `translateX(${right}px)`
     });
 
     if (!isNew) {
       return;
     }
-    bindDragEvents(
-      container,
-      rectSelection,
-      centerRect,
-      leftHandle,
-      rightHandle
-    );
+    bindDragEvents(container, centerRect, leftHandle, rightHandle);
   }
 
   function onResetClick() {
@@ -117,7 +82,6 @@ export function createBrush() {
 
   function bindDragEvents(
     container: Selection,
-    rectSelection: Selection,
     centerRect: Selection,
     leftHandle: Selection,
     rightHandle: Selection
@@ -231,7 +195,7 @@ export function createBrush() {
       );
 
       if (behaviour === Behaviour.selectNew) {
-        const startX = Math.round(initialX - rectSelection.getRect()!.left);
+        const startX = Math.round(initialX - container.getRect()!.left);
         startLeft = startRight = limit(startX);
         return;
       }

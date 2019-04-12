@@ -24,7 +24,7 @@ export class Selection<T extends AnyElement = AnyElement> {
   renderOne<E extends AnyElement>(
     tagName: string,
     key: Key,
-    onInititialRender?: (newChild: Selection<E>) => void
+    onInitialRender?: (newChild: Selection<E>) => void
   ): Selection<E> {
     const child = this.selectOne<E>(key);
     if (child) {
@@ -40,8 +40,8 @@ export class Selection<T extends AnyElement = AnyElement> {
     this.childrenByKey[key] = newChild;
     // console.log('render new', tagName, key);
 
-    if (onInititialRender) {
-      onInititialRender(newChild);
+    if (onInitialRender) {
+      onInitialRender(newChild);
     }
 
     return newChild;

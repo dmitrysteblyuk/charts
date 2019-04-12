@@ -7,7 +7,7 @@ import {createStateTransition} from '../lib/state-transition';
 import {
   State,
   isStateEqual,
-  getTransitionReason,
+  getTransitionTriggers,
   getIntermediateStateFactory,
   getFinalTransitionState
 } from './chart-state';
@@ -30,7 +30,7 @@ export function createChart(
   const stateTransition = createStateTransition(
     onStateUpdate,
     isStateEqual,
-    getTransitionReason,
+    getTransitionTriggers,
     getIntermediateStateFactory(getStackedData),
     startAnimation,
     stopAnimation
@@ -117,18 +117,13 @@ export function createChart(
     });
   }
 
-  function setPixelRatio(_pixelRatio: number) {
-    pixelRatio = _pixelRatio;
-    series.forEach((item) => item.setPixelRatio(pixelRatio));
-    axes.forEach((item) => item.setPixelRatio(pixelRatio));
-  }
-
   function drawSeries(yData: MultipleData[], visibility: number[]) {
     series.forEach((item, index) => {
       if (!visibility[index]) {
         return;
       }
-      item.draw(context, item.xData, yData[index]);
+      item.setPixelRatio(pixelRatio)
+        .draw(context, item.xData, yData[index]);
     });
   }
 
@@ -137,7 +132,8 @@ export function createChart(
       context.save();
       translateAxis(axis);
 
-      axis.setGridSize(axis.isVertical() ? innerWidth : innerHeight)
+      axis.setPixelRatio(pixelRatio)
+        .setGridSize(axis.isVertical() ? innerWidth : innerHeight)
         .draw(context);
       context.restore();
     });
@@ -170,10 +166,10 @@ export function createChart(
     axes,
     series,
     draw,
-    setPixelRatio,
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance),
     setOuterHeight: (_: typeof outerHeight) => (outerHeight = _, instance),
-    setPaddings: (_: typeof paddings) => (paddings = _, instance)
+    setPaddings: (_: typeof paddings) => (paddings = _, instance),
+    setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance)
   };
   return instance;
 }

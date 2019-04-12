@@ -2,13 +2,13 @@ import {TimeChart, createTimeChart} from './time-chart';
 // import {drawLineSeries} from './series/line';
 // import {drawBarSeries} from './series/bar';
 import {drawStackedLineSeries} from './series/stacked-line';
-import {createSeries, SeriesType} from './series';
+import {createSeries} from './series';
 import {Selection} from './lib/selection';
 import './index.css';
 
 const rootSelection = (
   new Selection(document.body)
-    .renderOne<HTMLDivElement>('div', 'rootContainer')
+    .renderOne('div', 'rootContainer')
 );
 
 function initializeCharts(
@@ -41,7 +41,9 @@ function initializeCharts(
           x,
           [y],
           drawStackedLineSeries,
-          SeriesType.StackedLine
+          true,
+          true,
+          false
         );
 
         series.setLabel(label)
@@ -71,18 +73,14 @@ function initializeCharts(
 }
 
 function renderCharts(charts: TimeChart[]) {
-  const chartOuterHeight = 300;
   const chartOuterWidth = 500;
 
   charts.forEach((chart, index) => {
-    const container = rootSelection.renderOne<HTMLDivElement>('div', index)
-      .setStyles({
-        width: `${chartOuterWidth}px`,
-        height: `${chartOuterHeight}px`
-      });
+    const container = rootSelection.renderOne('div', index)
+      .setAttrs({'class': 'time-chart'})
+      .setStyles({width: `${chartOuterWidth}px`});
 
     chart
-      .setMainHeight(chartOuterHeight - 65)
       .setOuterWidth(chartOuterWidth)
       .setPixelRatio(window.devicePixelRatio)
       .render(container);

@@ -6,3 +6,11 @@ body {
 * {
   box-sizing: border-box;
 }
+
+div.time-chart {
+  display: inline-block;
+  font-family: verdana, sans-serif;
+  font-size: 12px;
+  position: relative;
+  margin: 10px;
+}

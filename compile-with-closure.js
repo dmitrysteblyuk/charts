@@ -5,6 +5,7 @@ const zlib = require('zlib');
 
 const emitEmptyFiles = [
   './built/axis/index.css',
+  './built/brush/index.css',
   './built/legend/index.css',
   './built/tooltip/index.css',
   './built/time-chart/index.css',

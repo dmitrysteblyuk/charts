@@ -1,13 +1,8 @@
-export function createStateTransition<S>(
+export function createStateTransition<S, T>(
   onUpdate: (state: S) => void,
   isStateEqual: (from: S, to: S) => boolean,
-  getTransitionReason: (from: S, to: S) => number,
-  getIntermediateState: (
-    from: S,
-    to: S,
-    progress: number,
-    reason: number
-  ) => S,
+  getTransitionTriggers: (from: S, to: S) => T | null,
+  getIntermediateState: (from: S, to: S, progress: number, triggers: T) => S,
   startTransition: ((
     callback: (progress: number) => void,
     onNewId: (id: any) => void,
@@ -25,12 +20,12 @@ export function createStateTransition<S>(
     }
 
     let equal: boolean | undefined;
-    let reason: number;
+    let triggers: T | null;
 
     if (
       !currentState ||
       (equal = isStateEqual(currentState, newState)) ||
-      (reason = getTransitionReason(currentState, newState)) === -1
+      (triggers = getTransitionTriggers(currentState, newState)) == null
     ) {
       currentState = newState;
 
@@ -46,8 +41,8 @@ export function createStateTransition<S>(
     startTransition((progress) => {
       currentState = (
         progress < 1
-          ? getIntermediateState(startState!, finalState!, progress, reason)
-          : finalState!
+          ? getIntermediateState(startState, finalState, progress, triggers!)
+          : finalState
       );
       onUpdate(currentState);
     }, (

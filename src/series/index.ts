@@ -27,14 +27,15 @@ export function createSeries(
     color: string,
     lineWidth: number
   ) => void,
-  type: SeriesType
+  stacked: boolean,
+  percentage: boolean,
+  bar: boolean
 ) {
   let color = '';
   let label = '';
   let hidden = false;
   let pixelRatio = 1;
   let strokeWidth = 2;
-  const stacked = type >= SeriesType.StackedBar;
   const getSeriesYDomain = memoize(getYDomain, 1);
   const getSeriesXExtent = memoize(getXExtent, 1);
 
@@ -60,10 +61,7 @@ export function createSeries(
   function getExtendedXDomain(domain: NumberRange) {
     const x0 = xData[0];
     let x1 = xData[xData.length - 1];
-    if (
-      type === SeriesType.Bar ||
-      type === SeriesType.StackedBar
-    ) {
+    if (bar) {
       x1 += xData[1] - x0;
     }
     return getExtendedDomain(domain, [x0, x1]);
@@ -71,7 +69,7 @@ export function createSeries(
 
   function getExtendedYDomain(domain: NumberRange) {
     let [min, max] = domain;
-    if (type >= SeriesType.Bar) {
+    if (stacked) {
       min = Math.min(min, 0);
     }
     const [startIndex, endIndex] = getExtent();
@@ -94,6 +92,8 @@ export function createSeries(
   const instance = {
     draw,
     stacked,
+    percentage,
+    bar,
     xScale,
     yScale,
     xData,

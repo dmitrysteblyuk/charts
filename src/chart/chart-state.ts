@@ -13,10 +13,11 @@ export type State = Readonly<{
   ownYData: NumericData[];
 }>;
 
-export const enum TransitionReason {
-  YDomainChange,
-  StackChange
-};
+type TransitionTriggersMutable = Partial<{
+  yDomainChange: boolean,
+  stackChange: boolean
+}>;
+export type TransitionTriggers = Readonly<TransitionTriggersMutable>;
 
 export function getFinalTransitionState(series: AnySeries[]): State {
   const xDomains = series.map(({xScale}) => xScale.getDomain());
@@ -45,19 +46,29 @@ export function isStateEqual(from: State, to: State) {
   });
 }
 
-export function getTransitionReason(from: State, to: State) {
+export function getTransitionTriggers(
+  from: State,
+  to: State
+): TransitionTriggers | null {
+  let triggers: TransitionTriggersMutable = {};
+  let isChanged = false;
+
   if (
     from.visibility.some((visibility, index) => (
       visibility !== to.visibility[index] && from.series[index].stacked
     ))
   ) {
-    return TransitionReason.StackChange;
+    triggers.stackChange = isChanged = true;
   }
 
   if (!isArrayEqual(from.yDomains, to.yDomains)) {
-    return TransitionReason.YDomainChange;
+    triggers.yDomainChange = isChanged = true;
   }
-  return -1;
+
+  if (isChanged) {
+    return triggers;
+  }
+  return null;
 }
 
 export function getIntermediateStateFactory(
@@ -69,12 +80,12 @@ export function getIntermediateStateFactory(
     from: State,
     to: State,
     progress: number,
-    reason: TransitionReason
+    triggers: TransitionTriggers
   ): State {
     let {yDomains, yData, visibility} = from;
     const eased = easeOutCubic(progress);
 
-    if (reason === TransitionReason.StackChange) {
+    if (triggers.stackChange) {
       visibility = visibility.map((v0, index) => {
         const v1 = to.visibility[index]
         return v0 + (v1 - v0) * eased;
@@ -91,10 +102,7 @@ export function getIntermediateStateFactory(
       });
     }
 
-    if (
-      reason === TransitionReason.StackChange ||
-      reason === TransitionReason.YDomainChange
-    ) {
+    if (triggers.yDomainChange) {
       yDomains = yDomains.map((domain, domainIndex) => {
         return domain.map((y0, index) => {
           const y1 = to.yDomains[domainIndex][index];

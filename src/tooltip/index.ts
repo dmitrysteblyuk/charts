@@ -11,13 +11,11 @@ export function createTooltip() {
   let values: number[] = [];
   let series: (AnySeries | null)[] = [];
   let hidden = true;
-  let prevHidden = hidden;
   let lineX = 0;
   let lineY2 = 0;
   let pixelRatio = 1;
 
-  const top = 20;
-  const lineY1 = 0;
+  // const lineY1 = 0;
   const timeFormat = (dateTime: number) => {
     const date = new Date(dateTime);
     if (date.getUTCSeconds() || date.getUTCMinutes() || date.getUTCHours()) {
@@ -25,17 +23,11 @@ export function createTooltip() {
     }
     return date.toDateString();
   };
-  let timerId: number | null = null;
 
-  function render(
-    container: Selection<HTMLElement>,
-    lineContainer: Selection
-  ) {
-    if (prevHidden !== hidden) {
-      prevHidden = hidden;
-      toggle(container, lineContainer);
-    }
-
+  function render(container: Selection) {
+    container.setAttrs({
+      'class': hidden ? 'tooltip fade' : 'tooltip appear'
+    });
     if (hidden) {
       return;
     }
@@ -68,77 +60,48 @@ export function createTooltip() {
     });
 
     const rect = container.getRect();
-    lineContainer.renderOne('line', 0).setAttrs({
-      'stroke': '#ddd',
-      'x1': lineX,
-      'x2': lineX,
-      'y1': Math.min(lineY1 + (rect ? rect.height : 0) + top, lineY2),
-      'y2': lineY2
-    });
+    // lineContainer.renderOne('line', 0).setAttrs({
+    //   'stroke': '#ddd',
+    //   'x1': lineX,
+    //   'x2': lineX,
+    //   'y1': Math.min(lineY1 + (rect ? rect.height : 0) - topMargin, lineY2),
+    //   'y2': lineY2
+    // });
 
-    const circlesContainer = lineContainer.renderOne('g', 1);
-    values.forEach((value, index) => {
-      const selection = circlesContainer.renderOne(
-        'circle',
-        index,
-        (circleSelection) => circleSelection.setAttrs({
-          'stroke-width': 2,
-          'r': 5,
-          'fill': 'white'
-        })
-      );
+    // const circlesContainer = lineContainer.renderOne('g', 1);
+    // values.forEach((value, index) => {
+    //   const selection = circlesContainer.renderOne(
+    //     'circle',
+    //     index,
+    //     (circleSelection) => circleSelection.setAttrs({
+    //       'stroke-width': 2,
+    //       'r': 5,
+    //       'fill': 'white'
+    //     })
+    //   );
 
-      const item = series[index];
-      if (!item) {
-        selection.setStyles({'display': 'none'});
-        return;
-      }
+    //   const item = series[index];
+    //   if (!item) {
+    //     selection.setStyles({'display': 'none'});
+    //     return;
+    //   }
 
-      selection.setStyles({
-        display: null
-      }).setAttrs({
-        'stroke': item.getColor(),
-        'cx': lineX,
-        'cy': item.yScale.getScale()(value) / pixelRatio
-      });
-    });
+    //   selection.setStyles({
+    //     display: null
+    //   }).setAttrs({
+    //     'stroke': item.getColor(),
+    //     'cx': lineX,
+    //     'cy': item.yScale.getScale()(value) / pixelRatio
+    //   });
+    // });
 
     const leftPosition = Math.min(
       left,
       window.innerWidth - (rect ? rect.width : 0) - 5
     );
     container.setStyles({
-      'top': `${top}px`,
-      'left': `${leftPosition}px`
+      'transform': `translateX(${leftPosition}px)`
     });
-  }
-
-  function toggle(
-    container: Selection<HTMLElement>,
-    lineContainer: Selection
-  ) {
-    container.setAttrs({
-      'class': hidden ? 'chart-tooltip fade' : 'chart-tooltip appear'
-    });
-    lineContainer.setAttrs({
-      'class': hidden ? 'fade' : 'appear'
-    });
-
-    if (hidden) {
-      timerId = setTimeout(() => {
-        container.setStyles({'display': 'none'});
-        lineContainer.setStyles({'display': 'none'});
-        timerId = null;
-      }, 500);
-      return;
-    }
-
-    if (timerId !== null) {
-      clearInterval(timerId);
-      timerId = null;
-    }
-    container.setStyles({'display': null});
-    lineContainer.setStyles({'display': null});
   }
 
   const instance = {

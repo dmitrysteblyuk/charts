@@ -35,6 +35,9 @@ export function onZoomEvents(
 
   function onStart(event: ZoomEvent) {
     if (!isTouchEvent(event)) {
+      if (event.button > 0) {
+        return;
+      }
       const initialPositions = getMousePositions(event);
 
       if (!isWheelEvent(event)) {
