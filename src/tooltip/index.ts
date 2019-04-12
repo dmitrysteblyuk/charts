@@ -5,7 +5,7 @@ import './index.css';
 
 export type Tooltip = Readonly<ReturnType<typeof createTooltip>>;
 
-export function createTooltip() {
+export function createTooltip(chartPaddingTop: number) {
   let left = 0;
   let time = 0;
   let values: number[] = [];
@@ -15,7 +15,7 @@ export function createTooltip() {
   let lineY2 = 0;
   let pixelRatio = 1;
 
-  // const lineY1 = 0;
+  const lineY1 = 0;
   const timeFormat = (dateTime: number) => {
     const date = new Date(dateTime);
     if (date.getUTCSeconds() || date.getUTCMinutes() || date.getUTCHours()) {
@@ -24,9 +24,12 @@ export function createTooltip() {
     return date.toDateString();
   };
 
-  function render(container: Selection) {
+  function render(container: Selection, lineContainer: Selection) {
     container.setAttrs({
       'class': hidden ? 'tooltip fade' : 'tooltip appear'
+    });
+    lineContainer.setAttrs({
+      'class': hidden ? 'fade' : 'appear'
     });
     if (hidden) {
       return;
@@ -60,40 +63,40 @@ export function createTooltip() {
     });
 
     const rect = container.getRect();
-    // lineContainer.renderOne('line', 0).setAttrs({
-    //   'stroke': '#ddd',
-    //   'x1': lineX,
-    //   'x2': lineX,
-    //   'y1': Math.min(lineY1 + (rect ? rect.height : 0) - topMargin, lineY2),
-    //   'y2': lineY2
-    // });
+    lineContainer.renderOne('line', 0).setAttrs({
+      'stroke': '#ddd',
+      'x1': lineX,
+      'x2': lineX,
+      'y1': lineY1 + (rect ? rect.height : 0) + 20 - chartPaddingTop,
+      'y2': lineY2
+    });
 
-    // const circlesContainer = lineContainer.renderOne('g', 1);
-    // values.forEach((value, index) => {
-    //   const selection = circlesContainer.renderOne(
-    //     'circle',
-    //     index,
-    //     (circleSelection) => circleSelection.setAttrs({
-    //       'stroke-width': 2,
-    //       'r': 5,
-    //       'fill': 'white'
-    //     })
-    //   );
+    const circlesContainer = lineContainer.renderOne('g', 1);
+    values.forEach((value, index) => {
+      const selection = circlesContainer.renderOne(
+        'circle',
+        index,
+        (circleSelection) => circleSelection.setAttrs({
+          'stroke-width': 2,
+          'r': 5,
+          'fill': 'white'
+        })
+      );
 
-    //   const item = series[index];
-    //   if (!item) {
-    //     selection.setStyles({'display': 'none'});
-    //     return;
-    //   }
+      const item = series[index];
+      if (!item) {
+        selection.setStyles({'display': 'none'});
+        return;
+      }
 
-    //   selection.setStyles({
-    //     display: null
-    //   }).setAttrs({
-    //     'stroke': item.getColor(),
-    //     'cx': lineX,
-    //     'cy': item.yScale.getScale()(value) / pixelRatio
-    //   });
-    // });
+      selection.setStyles({
+        display: null
+      }).setAttrs({
+        'stroke': item.getColor(),
+        'cx': lineX,
+        'cy': item.yScale.getScale()(value) / pixelRatio
+      });
+    });
 
     const leftPosition = Math.min(
       left,

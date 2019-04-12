@@ -50,7 +50,7 @@ export function getTransitionTriggers(
   from: State,
   to: State
 ): TransitionTriggers | null {
-  let triggers: TransitionTriggersMutable = {};
+  const triggers: TransitionTriggersMutable = {};
   let isChanged = false;
 
   if (

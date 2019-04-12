@@ -1,4 +1,4 @@
-import {createChart} from '../chart';
+import {createChart, Chart} from '../chart';
 import {createAxis, AxisPosition} from '../axis';
 import {createBrush} from '../brush';
 import {Selection} from '../lib/selection';
@@ -20,6 +20,14 @@ import './index.css';
 
 export type TimeChart = Readonly<ReturnType<typeof createTimeChart>>;
 
+interface ChartConfig {
+  chart: Chart;
+  height: number;
+  offsets: NumberRange;
+  paddings: NumberRange;
+  onRender: (chartContainer: Selection) => void
+}
+
 export function createTimeChart() {
   let outerWidth = 0;
   let pixelRatio = 1;
@@ -31,7 +39,7 @@ export function createTimeChart() {
   const fullValueScale = createChartScale();
   const brush = createBrush();
   const legend = createLegend([]);
-  const tooltip = createTooltip();
+  const tooltip = createTooltip(mainPaddings[0]);
   const getStackedData = memoize(calculateStackedData, 10);
   const helperChart = createChart([], [], calculateStackedData);
   const mainChart = createChart(
@@ -55,19 +63,20 @@ export function createTimeChart() {
     [],
     calculateStackedData
   );
-  const chartOptions = [{
+  const mainConfig = {
     chart: mainChart,
     height: 300,
     offsets: [0, 0, 0, 0],
     paddings: mainPaddings,
     onRender: onMainChartRender
-  }, {
+  };
+  const helperConfig = {
     chart: helperChart,
     height: 65,
     offsets: [0, mainPaddings[1], 0, mainPaddings[3]],
     paddings: [0, 0, 0, 0],
     onRender: bindBrushEvents
-  }];
+  };
 
   let innerWidth = 0;
   let isBrushing = false;
@@ -82,7 +91,7 @@ export function createTimeChart() {
     setSeriesData(mainChart.series);
     setSeriesData(helperChart.series);
 
-    const chartContainers = chartOptions.map(renderChart);
+    const chartContainers = [mainConfig, helperConfig].map(renderChart);
     renderBrush(chartContainers[1]);
     renderLegend();
   }
@@ -99,33 +108,29 @@ export function createTimeChart() {
     });
   }
 
-  function renderChart(
-    {chart, height, paddings, offsets, onRender}: typeof chartOptions[0],
-    index: number
-  ) {
-
+  function renderChart(config: ChartConfig, index: number) {
+    const {chart, height, paddings, offsets, onRender} = config;
     const chartContainer = container.renderOne('div', index, (selection) => (
-      selection.setAttrs({
+      onRender(selection.setAttrs({
         'class': 'chart'
       }).setStyles({
         'padding': offsets.map((value) => `${value}px`).join(' '),
         'height': `${height}px`
-      })
-    )).renderOne('div', index, onRender);
-
-    const canvas = chartContainer.renderOne<HTMLCanvasElement>('canvas', 0);
-    const context = canvas.getContext();
-
-    if (!context) {
-      return chartContainer;
-    }
+      }))
+    ));
 
     const width = outerWidth - offsets[1] - offsets[3];
-    canvas.setAttrs({
+    const canvas = (
+      chartContainer.renderOne<HTMLCanvasElement>('canvas', 0)
+    ).setAttrs({
       'width': toCanvasSize(width),
       'height': toCanvasSize(height)
     });
 
+    const context = canvas.getContext();
+    if (!context) {
+      return chartContainer;
+    }
     if (index) {
       fullTimeScale.setMinDomain(timeScale.getDomain());
     }
@@ -137,6 +142,26 @@ export function createTimeChart() {
       .setPaddings(paddings.map(toCanvasSize))
       .draw(context);
     return chartContainer;
+  }
+
+  function renderSvg(chartContainer: Selection, config: ChartConfig) {
+    const {paddings, offsets} = config;
+
+    return chartContainer.renderOne<SVGElement>('svg', 1).setStyles({
+      'margin': offsets.map((value) => `${value}px`).join(' ')
+    }).setAttrs({
+      'width': getInnerWidth(config),
+      'height': getInnerHeight(config),
+      'transform': `translate(${paddings[3]},${paddings[0]})`
+    });
+  }
+
+  function getInnerHeight({height, paddings}: ChartConfig) {
+    return height - paddings[0] - paddings[2];
+  }
+
+  function getInnerWidth({paddings, offsets}: ChartConfig) {
+    return outerWidth - offsets[1] - offsets[3] - paddings[3] - paddings[1];
   }
 
   function onMainChartRender(mainContainer: Selection) {
@@ -224,21 +249,25 @@ export function createTimeChart() {
         .setSeries(results.map((item) => item && item.series))
         .setValues(values)
         .setLineX(lineX)
-        .setLineY2(chartOptions[0].height)
+        .setLineY2(getInnerHeight(mainConfig))
         .setPixelRatio(pixelRatio)
-        .render(getTooltipContainer());
+        .render(getTooltipContainer(), getTooltipSvg());
     }).on(
       'mouseleave', hideTooltip
     );
 
     function hideTooltip() {
-      tooltip.setHidden(true).render(getTooltipContainer());
+      tooltip.setHidden(true).render(getTooltipContainer(), getTooltipSvg());
     }
 
     function getTooltipContainer() {
       return mainContainer.renderOne('div', 'tooltip', selection => (
         selection.setAttrs({'class': 'tooltip'})
       ));
+    }
+
+    function getTooltipSvg() {
+      return renderSvg(mainContainer, mainConfig);
     }
   }
 
@@ -313,15 +342,11 @@ export function createTimeChart() {
         : getBrushExtentFromTimeScale()
     );
 
-    const brushContainer = helperContainer.renderOne('div', 1, (selection) => (
-      selection.setAttrs({'class': 'brush'})
-    ));
-
-    brush.setHeight(chartOptions[1].height)
+    brush.setHeight(getInnerHeight(helperConfig))
       .setWidth(width)
       .setLeft(left)
       .setRight(right)
-      .render(brushContainer);
+      .render(renderSvg(helperContainer, helperConfig));
   }
 
   function bindBrushEvents() {
@@ -384,7 +409,8 @@ export function createTimeChart() {
 
   const instance = {
     render,
-    chartOptions,
+    mainConfig,
+    helperConfig,
     addSeries,
     mainChart,
     helperChart,

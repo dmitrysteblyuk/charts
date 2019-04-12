@@ -2,9 +2,9 @@ import {onZoomEvents, ZoomMode} from '../lib/zoom';
 import {Selection} from '../lib/selection';
 import {roundRange} from '../lib/utils';
 import {EventEmitter} from '../lib/event-emitter';
-import './index.css';
 
 const enum Behaviour {selectNew, resizeLeft, resizeRight, move};
+const color = 'rgba(0, 25, 100, 0.1)';
 
 export type Brush = Readonly<ReturnType<typeof createBrush>>;
 
@@ -19,6 +19,7 @@ export function createBrush() {
   let height = 0;
   let left = 0;
   let right = 0;
+  const borderWidth = 10;
 
   let reset = true;
   let draggedBeforeClick = false;
@@ -26,47 +27,69 @@ export function createBrush() {
   function render(container: Selection) {
     reset = !(left > 0 || right < width);
     let isNew: boolean | undefined;
+    const common = {
+      'fill': 'transparent',
+      'y': 0,
+      'height': height
+    };
 
-    container.renderOne('div', 0, (selection) => {
-      selection.setAttrs({'class': 'brush-reset-left'})
-        .on('click', onResetClick);
+    container.renderOne('rect', 0, (selection) => {
+      selection.setAttrs({
+        ...common,
+        'fill': color,
+        'x': '0'
+      }).on('click', onResetClick);
       isNew = true;
-    }).setStyles({
-      'transform': `scaleX(${left / width})`
+    }).setAttrs({
+      'width': left
     });
 
-    const centerRect = container.renderOne('div', 1, (selection) => (
-      selection.setAttrs({'class': 'brush-center'})
+    container.renderOne('rect', 1, (selection) => {
+      selection.setAttrs({
+        ...common,
+        'fill': color
+      }).on('click', onResetClick);
+    }).setAttrs({
+      'x': right,
+      'width': width - right
+    });
+
+    const centerRect = container.renderOne('rect', 2, (selection) => (
+      selection.setAttrs(common)
     )).setStyles({
-      'display': reset ? 'none' : null,
-      'transform': `translateX(${left}px) scaleX(${(right - left) / width})`
+      'display': reset ? 'none' : null
     });
 
-    container.renderOne('div', 2, (selection) => {
-      selection.setAttrs({'class': 'brush-reset-right'})
-        .on('click', onResetClick);
-    }).setStyles({
-      'transform': `scaleX(${(width - right) / width})`
+    if (!reset) {
+      centerRect.setAttrs({
+        'x': left,
+        'width': right - left
+      });
+    }
+
+    const leftHandle = container.renderOne('rect', 3, (selection) => (
+      selection.setAttrs(common)
+    )).setAttrs({
+      'x': left - borderWidth,
+      'width': borderWidth * 2
     });
 
-    const leftHandle = container.renderOne('div', 3, (selection) => (
-      selection.setAttrs({'class': 'brush-handle-left'})
-    )).setStyles({
-      'display': reset ? 'none' : null,
-      'transform': `translateX(${left}px)`
-    });
-
-    const rightHandle = container.renderOne('div', 4, (selection) => (
-      selection.setAttrs({'class': 'brush-handle-right'})
-    )).setStyles({
-      'display': reset ? 'none' : null,
-      'transform': `translateX(${right}px)`
+    const rightHandle = container.renderOne('rect', 4, (selection) => (
+      selection.setAttrs(common)
+    )).setAttrs({
+      'x': right - borderWidth,
+      'width': borderWidth * 2
     });
 
     if (!isNew) {
       return;
     }
-    bindDragEvents(container, centerRect, leftHandle, rightHandle);
+    bindDragEvents(
+      container,
+      centerRect,
+      leftHandle,
+      rightHandle
+    );
   }
 
   function onResetClick() {
