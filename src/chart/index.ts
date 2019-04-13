@@ -53,18 +53,25 @@ export function createChart(
   function draw(_context: CanvasRenderingContext2D) {
     context = _context;
 
-    setDomains(
-      ({xScale}) => xScale,
-      ({getExtendedXDomain}) => getExtendedXDomain
-    );
     setSeriesYData(series, getXExtent);
+    setYDomains();
+    setRanges();
+
+    stateTransition(getFinalTransitionState(series));
+  }
+
+  function setYDomains() {
     setDomains(
       ({yScale}) => yScale,
       ({getExtendedYDomain}) => getExtendedYDomain
     );
-    setRanges();
+  }
 
-    stateTransition(getFinalTransitionState(series));
+  function setXDomains() {
+    setDomains(
+      ({xScale}) => xScale,
+      ({getExtendedXDomain}) => getExtendedXDomain
+    );
   }
 
   function onStateUpdate({
@@ -122,7 +129,9 @@ export function createChart(
       if (domain[0] > domain[1]) {
         domain = currentDomain;
       }
-      domain = getExtendedDomain(domain, scale.getMinDomain());
+      if (scale.getMinDomain) {
+        domain = getExtendedDomain(domain, scale.getMinDomain());
+      }
 
       if (!(domain[0] < domain[1])) {
         domain = [domain[0] - 1, domain[1] + 1];
@@ -197,6 +206,7 @@ export function createChart(
     series,
     draw,
     getXExtent,
+    setXDomains,
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance),
     setOuterHeight: (_: typeof outerHeight) => (outerHeight = _, instance),
     setPaddings: (_: typeof paddings) => (paddings = _, instance),

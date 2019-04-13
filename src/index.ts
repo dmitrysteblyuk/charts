@@ -8,10 +8,8 @@ import {Chart} from './chart';
 import {Selection} from './lib/selection';
 import './index.css';
 
-const rootSelection = (
-  new Selection(document.body)
-    .renderOne('div', 'rootContainer')
-);
+const rootElement = document.getElementById('root')!;
+const rootSelection = new Selection('div'/*, rootElement*/);
 
 function initializeCharts(
   json: {
@@ -26,10 +24,10 @@ function initializeCharts(
     const ids = Object.keys(config['names']);
     const xData = (
       (config['columns'].find(([id]) => id === 'x') || []) as number[]
-    ).slice(1);
+    ).splice(1, Infinity);
     const yData = ids.map((yId) => (
       (config['columns'].find(([id]) => id === yId) || []) as number[]
-    ).slice(1));
+    ).splice(1, Infinity));
     const zoomedXData = xData.slice(20, 60);
     const zoomedYData = yData.map((data) => data.slice(20, 60));
 
@@ -81,6 +79,11 @@ function initializeCharts(
 
   (window as any)['charts'] = charts;
   renderCharts(charts);
+
+  // console.log(rootSelection.getHTML());
+  // rootSelection.connectToElement(rootElement);
+  rootSelection.bootstrap(rootElement);
+  charts.forEach(({redraw}) => redraw());
 
   window.onresize = () => {
     renderCharts(charts);

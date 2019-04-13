@@ -20,7 +20,7 @@ export function onZoomEvents(
 ) {
   let positions: ZoomPositions | undefined;
   let mode: ZoomMode | undefined;
-  const windowSelection = new Selection(window as any);
+  const windowSelection = new Selection('', window as any);
 
   selection
     .on('mousedown', onStart)

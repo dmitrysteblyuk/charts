@@ -2,10 +2,9 @@ import {getLinearScale, isArrayEqual} from '../lib/utils';
 
 export type ChartScale = Readonly<ReturnType<typeof createScale>>;
 
-export function createScale() {
+export function createScale(getMinDomain?: () => NumberRange) {
   let domain: NumberRange = [0, 1];
   let range: NumberRange = [0, 1]
-  let minDomain: NumberRange = [Infinity, -Infinity];
   let fixed = false;
   let extendableOnly = false;
   let scale: (x: number) => number;
@@ -35,15 +34,14 @@ export function createScale() {
   const instance = {
     setDomain,
     setRange,
+    getMinDomain,
     getScale: () => scale,
     getInvertedScale: () => getLinearScale(range, domain),
     getDomain: () => domain,
     getRange: () => range,
-    getMinDomain: () => minDomain,
     isFixed: () => fixed,
     isExtendableOnly: () => extendableOnly,
     setFixed: (_: typeof fixed) => (fixed = _, instance),
-    setMinDomain: (_: typeof minDomain) => (minDomain = _, instance),
     setExtendableOnly: (
       (_: typeof extendableOnly) => (extendableOnly = _, instance)
     )

@@ -3,7 +3,7 @@ import {DEFAULT_DURATION} from './animation';
 import './selection.css';
 
 type AnyElement = Element & ElementCSSInlineStyle & GlobalEventHandlers;
-type Primitive = string | boolean | number | null | undefined;
+type Primitive = string | boolean | number | undefined;
 type EventOptions = boolean | AddEventListenerOptions;
 type Key = string | number;
 
@@ -12,13 +12,106 @@ export class Selection<T extends AnyElement = AnyElement> {
   private styles?: CSSProperties;
   private attrs?: Dictionary<Primitive>;
   private eventEmitters: Dictionary<EventEmitter<Event, EventOptions>> = {};
-  private textValue?: Primitive;
-  private hideTimerId: number | null | undefined;
+  private textValue?: string;
+  private hideTimerId: number | null = null;
 
   constructor(
-    private connectedElement?: T,
-    public tagName?: string
+    public tagName: string,
+    private connectedElement?: T
   ) {}
+
+  bootstrap(element: AnyElement) {
+    element.innerHTML = this.getHTML();
+    this.connectToElement(element.children[0] as T);
+  }
+
+  getHTML() {
+    const result: Primitive[] = [`<${this.tagName}`];
+
+    if (this.attrs) {
+      for (const name in this.attrs) {
+        const value = this.attrs[name];
+        if (value !== undefined) {
+          result.push(` ${name}="${escapeHTML(value)}"`);
+        }
+      }
+    }
+
+    if (this.styles) {
+      const all: string[] = [];
+      for (const name in this.styles) {
+        const value = getStyle(this.styles, name);
+        if (value !== null) {
+          all.push(`${name}:${value}`);
+        }
+      }
+      if (all.length) {
+        result.push(` style="${all.join(';')}"`)
+      }
+    }
+    result.push('>', escapeHTML(this.textValue));
+    for (const key in this.childrenByKey) {
+      result.push(this.childrenByKey[key].getHTML());
+    }
+    result.push(`</${this.tagName}>`);
+
+    return result.join('');
+  }
+
+  connectToElement(element: T) {
+    this.connectedElement = element;
+    this.bindEventListeners();
+
+    let index = 0;
+    for (const key in this.childrenByKey) {
+      this.childrenByKey[key].connectToElement(
+        element.children[index++] as AnyElement
+      );
+    }
+  }
+
+  applyToElement(element: T) {
+    if (this.styles) {
+      for (const name in this.styles) {
+        const value = getStyle(this.styles, name);
+        if (value !== null) {
+          setStyle(element.style, name, value);
+        }
+      }
+    }
+
+    if (this.attrs) {
+      for (const name in this.attrs) {
+        const value = this.attrs[name];
+        if (value !== undefined) {
+          element.setAttribute(name, String(value));
+        }
+      }
+    }
+
+    if (this.textValue !== undefined) {
+      element.textContent = this.textValue;
+    }
+
+    for (const key in this.childrenByKey) {
+      const childSelection = this.childrenByKey[key];
+      const childElement = createAndAppendChild(
+        childSelection.tagName!,
+        element
+      );
+      childSelection.applyToElement(childElement);
+    }
+    this.connectedElement = element;
+    this.bindEventListeners();
+  }
+
+  private bindEventListeners() {
+    for (const name in this.eventEmitters) {
+      this.eventEmitters[name].forEach((listener, options) => {
+        this.connectedElement!.addEventListener(name, listener, options);
+      });
+    }
+  }
 
   selectOne<E extends AnyElement>(key: Key): Selection<E> | undefined {
     return this.childrenByKey[key] as Selection<E> | undefined;
@@ -39,7 +132,7 @@ export class Selection<T extends AnyElement = AnyElement> {
       createAndAppendChild<E>(tagName, this.connectedElement)
     );
 
-    const newChild = new Selection(element, tagName);
+    const newChild = new Selection(tagName, element);
     this.childrenByKey[key] = newChild;
     // console.log('render new', tagName, key);
 
@@ -103,21 +196,21 @@ export class Selection<T extends AnyElement = AnyElement> {
     const {connectedElement} = this;
 
     for (const name in newStyles) {
-      const value = (newStyles as any)[name];
-      if (checkChanges && (styles as any)[name] === value) {
+      const value = getStyle(newStyles, name);
+      if (checkChanges && getStyle(styles, name) === value) {
         continue;
       }
-      (styles as any)[name] = value;
+      setStyle(styles, name, value);
 
       if (connectedElement) {
-        connectedElement.style[name as any] = value;
+        setStyle(connectedElement.style, name, value);
         // console.log('update style', name, value);
       }
     }
     return this;
   }
 
-  text(innerText: Primitive): this {
+  text(innerText: string): this {
     if (this.textValue === innerText) {
       return this;
     }
@@ -126,8 +219,7 @@ export class Selection<T extends AnyElement = AnyElement> {
     this.childrenByKey = {};
 
     if (this.connectedElement) {
-      const value = innerText == null ? null : String(innerText);
-      this.connectedElement.textContent = value;
+      this.connectedElement.textContent = innerText;
     }
     return this;
   }
@@ -169,7 +261,7 @@ export class Selection<T extends AnyElement = AnyElement> {
     const classes = this.attrs && this.attrs['class'] as string | undefined;
     const previousShown = !this.styles || this.styles['display'] !== 'none';
 
-    if (this.hideTimerId != null) {
+    if (this.hideTimerId !== null) {
       if (shouldShow) {
         clearTimeout(this.hideTimerId);
         this.hideTimerId = null;
@@ -226,4 +318,24 @@ function createChild<E extends AnyElement>(
     return elementDocument.createElement(tagName) as AnyElement as E;
   }
   return elementDocument.createElementNS(parent.namespaceURI, tagName) as E;
+}
+
+function escapeHTML(value: Primitive): Primitive {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getStyle(styles: CSSProperties, name: string): string | null {
+  return (styles as any)[name];
+}
+
+function setStyle(styles: CSSProperties, name: string, value: string | null) {
+  (styles as any)[name] = value;
 }

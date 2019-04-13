@@ -39,7 +39,7 @@ export function createTimeChart() {
 
   const mainPaddings = [10, 10, 20, 10];
   const timeScale = createScale();
-  const fullTimeScale = createScale();
+  const fullTimeScale = createScale(timeScale.getDomain);
   const valueScale = createScale();
   const fullValueScale = createScale();
   const brush = createBrush();
@@ -107,23 +107,6 @@ export function createTimeChart() {
     renderLegend();
   }
 
-  function setSeriesYData(
-    series: AnySeries[],
-    getXExtent: XExtentCalculator
-  ) {
-    getSeriesData(
-      series,
-      series.map(({toDraw}) => +toDraw()),
-      getStackedData,
-      getPercentageData,
-      getXExtent,
-      [timeScale.getDomain()],
-      0
-    ).forEach((yData, index) => {
-      series[index].setYData(yData);
-    });
-  }
-
   function renderChart(config: ChartConfig, index: number) {
     const {chart, height, paddings, offsets, onRender} = config;
     const chartContainer = container.renderOne('div', index, (selection) => {
@@ -143,21 +126,35 @@ export function createTimeChart() {
       'height': toCanvasSize(height)
     });
 
-    const context = canvas.getContext();
-    if (!context) {
-      return chartContainer;
-    }
-    if (index) {
-      fullTimeScale.setMinDomain(timeScale.getDomain());
-    }
-
     chart
       .setOuterWidth(toCanvasSize(width))
       .setOuterHeight(toCanvasSize(height))
       .setPixelRatio(pixelRatio)
       .setPaddings(paddings.map(toCanvasSize))
-      .draw(context);
+      .setXDomains();
+
+    const context = canvas.getContext();
+    if (context) {
+      chart.draw(context);
+    }
     return chartContainer;
+  }
+
+  function toCanvasSize(size: number) {
+    return Math.round(size * pixelRatio);
+  }
+
+  function redraw() {
+    [mainChart, helperChart].forEach((chart, index) => {
+      const context = container
+        .selectOne(index)!
+        .selectOne<HTMLCanvasElement>(0)!
+        .getContext();
+
+      if (context) {
+        chart.draw(context);
+      }
+    });
   }
 
   function renderSvg(chartContainer: Selection, config: ChartConfig) {
@@ -188,16 +185,29 @@ export function createTimeChart() {
     });
   }
 
+  function setSeriesYData(
+    series: AnySeries[],
+    getXExtent: XExtentCalculator
+  ) {
+    getSeriesData(
+      series,
+      series.map(({toDraw}) => +toDraw()),
+      getStackedData,
+      getPercentageData,
+      getXExtent,
+      [timeScale.getDomain()],
+      0
+    ).forEach((yData, index) => {
+      series[index].setYData(yData);
+    });
+  }
+
   function toggleZoomedSeries() {
     mainChart.series.concat(helperChart.series).forEach((series) => {
       series.setDisplay(!series.isDisplayed());
     });
     timeScale.setFixed(false);
     render(container);
-  }
-
-  function toCanvasSize(size: number) {
-    return Math.round(size * pixelRatio);
   }
 
   function addSeries(mainSeries: AnySeries[], helperSeries: AnySeries[]) {
@@ -445,6 +455,7 @@ export function createTimeChart() {
 
   const instance = {
     render,
+    redraw,
     mainConfig,
     helperConfig,
     addSeries,

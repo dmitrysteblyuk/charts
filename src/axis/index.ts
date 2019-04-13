@@ -126,7 +126,7 @@ export function createAxis(
     if (vertical) {
       count = tickCount;
     } else {
-      count = Math.round(size / 45 / pixelRatio);
+      count = Math.round(size / 55 / pixelRatio);
     }
 
     const {ticks, startIndex} = getTicks(count, scale.getDomain());
@@ -137,7 +137,7 @@ export function createAxis(
     }
 
     const space = size / ticks.length / pixelRatio;
-    const opacity = Math.max(0, Math.min((space - 45) / 20, 1));
+    const opacity = Math.max(0, Math.min((space - 55) / 20, 1));
 
     return {
       ticks,
