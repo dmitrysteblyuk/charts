@@ -1,30 +1,23 @@
 const {requestAnimationFrame, cancelAnimationFrame} = window;
 
 export const DEFAULT_DURATION = 200;
-export function stopAnimation(requestId: number) {
-  cancelAnimationFrame(requestId);
+export function stopAnimation(animationId: number) {
+  cancelAnimationFrame(animationId);
 }
 
 export function startAnimation(
   callback: (progress: number) => void,
-  onRequest: (requestId: number) => void,
-  onStop: () => void,
+  onNext: (animationId: number | null) => void,
   duration = DEFAULT_DURATION
 ) {
   let startTime: number | undefined;
 
-  onRequest(requestAnimationFrame(function step(time) {
-    if (startTime == null) {
-      startTime = time;
-    }
-    const progress = Math.min(1, (time - startTime) / duration);
+  onNext(requestAnimationFrame(function step(time) {
+    const elapsed = time - (startTime || (startTime = time));
+    const progress = Math.min(1, elapsed / duration);
     callback(progress);
 
-    if (progress < 1) {
-      onRequest(requestAnimationFrame(step));
-    } else {
-      onStop();
-    }
+    onNext(progress < 1 ? requestAnimationFrame(step) : null);
   }));
 }
 

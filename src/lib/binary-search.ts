@@ -11,12 +11,6 @@ export function binarySearch(
   if (startIndex >= endIndex) {
     return startIndex - 1;
   }
-  if (isLessOrLessOrEqualThan(startIndex)) {
-    return startIndex;
-  }
-  if (!isLessOrLessOrEqualThan(endIndex - 1)) {
-    return endIndex;
-  }
   return search(startIndex, endIndex);
 
   function search(start: number, end: number): number {

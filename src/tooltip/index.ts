@@ -1,19 +1,22 @@
 import {Selection} from '../lib/selection';
 import {AnySeries} from '../series';
-import {roundAuto} from '../lib/decimal-scale-ticks';
 import './index.css';
 
 export type Tooltip = Readonly<ReturnType<typeof createTooltip>>;
 
-export function createTooltip(chartPaddingTop: number) {
+export function createTooltip(
+  offsets: number[],
+  allSeries: AnySeries[]
+) {
+  let top = 0;
   let left = 0;
   let time = 0;
-  let values: number[] = [];
-  let series: (AnySeries | null)[] = [];
+  let dataIndex = 0;
   let shouldShow = false;
   let lineX = 0;
   let lineY2 = 0;
   let pixelRatio = 1;
+  let pieSeries: AnySeries | null | undefined;
 
   const lineY1 = 0;
   const timeFormat = (dateTime: number) => {
@@ -23,52 +26,91 @@ export function createTooltip(chartPaddingTop: number) {
     }
     return date.toDateString();
   };
+  let lineContainer: Selection;
+  let container: Selection;
 
-  function render(lineContainer: Selection, container: Selection) {
-    container.toggle(shouldShow);
-    lineContainer.toggle(shouldShow);
+  function render(_lineContainer: Selection, _container: Selection) {
+    (container = _container).toggle(shouldShow);
+    (lineContainer = _lineContainer).toggle(
+      shouldShow && !pieSeries
+    );
+
     if (!shouldShow) {
       return;
     }
+    renderPieTooltip();
+    renderLineTooltip();
 
-    container.renderOne<HTMLElement>('div', 0).text(
-      timeFormat(time)
+    const {width, height} = container.getRect()!;
+    const leftPosition = Math.max(
+      0, left - width + offsets[3] - 10
+    );
+    const topPosition = Math.max(
+      0, top - (pieSeries ? height : 0) + offsets[0] - 10
     );
 
-    const valueSelection = container.renderOne('div', 1, (selection) => {
+    container.setStyles({
+      'left': `${leftPosition}px`,
+      'top': `${topPosition}px`
+    });
+  }
+
+  function renderPieTooltip() {
+    const pieDiv = container.renderOne('div', 'pie').setStyles({
+      'display': pieSeries ? null : 'none'
+    });
+    if (!pieSeries) {
+      return;
+    }
+    const yData = pieSeries.getYData();
+    const value = yData[1][2];
+
+    pieDiv.renderOne('div', 0).text(pieSeries.getLabel());
+    pieDiv.renderOne('div', 1).text(value);
+  }
+
+  function renderLineTooltip() {
+    const lineDiv = container.renderOne('div', 'line').setStyles({
+      'display': pieSeries ? 'none' : null
+    });
+    if (pieSeries) {
+      return;
+    }
+
+    lineDiv.renderOne<HTMLElement>('div', 0).text(timeFormat(time));
+
+    const valueSelection = lineDiv.renderOne('div', 1, (selection) => {
       selection.setAttrs({'class': 'chart-tooltip-values'});
     });
 
-    values.forEach((value, index) => {
+    allSeries.forEach((series, index) => {
       const selection = valueSelection.renderOne('div', index);
-      const item = series[index];
-      if (!item) {
+      if (!series.toDraw()) {
         selection.setStyles({'display': 'none'});
         return;
       }
 
       selection.setStyles({
-        'color': item.getColor(),
+        'color': series.getColor(),
         display: null
       });
 
-      selection.renderOne<HTMLElement>('div', 0).text(
-        roundAuto(value)
-      );
-      selection.renderOne('div', 1).text(item.getLabel());
+      const value = series.getOwnYData()[dataIndex];
+
+      selection.renderOne<HTMLElement>('div', 0).text(value);
+      selection.renderOne('div', 1).text(series.getLabel());
     });
 
-    const rect = container.getRect();
     lineContainer.renderOne('line', 0).setAttrs({
       'stroke': '#ddd',
       'x1': lineX,
       'x2': lineX,
-      'y1': lineY1 + (rect ? rect.height : 0) + 20 - chartPaddingTop,
+      'y1': lineY1,
       'y2': lineY2
     });
 
     const circlesContainer = lineContainer.renderOne('g', 1);
-    values.forEach((value, index) => {
+    allSeries.forEach((series, index) => {
       const selection = circlesContainer.renderOne(
         'circle',
         index,
@@ -79,36 +121,31 @@ export function createTooltip(chartPaddingTop: number) {
         })
       );
 
-      const item = series[index];
-      if (!item) {
+      if (!series.toDraw()) {
         selection.setStyles({'display': 'none'});
         return;
       }
 
+      const yData = series.getDisplayedYData();
+      const yCoordinate = yData ? yData[dataIndex] : 1;
+
       selection.setStyles({
         display: null
       }).setAttrs({
-        'stroke': item.getColor(),
+        'stroke': series.getColor(),
         'cx': lineX,
-        'cy': item.yScale.getScale()(value) / pixelRatio
+        'cy': series.yScale.getScale()(yCoordinate) / pixelRatio
       });
-    });
-
-    const leftPosition = Math.min(
-      left,
-      window.innerWidth - (rect ? rect.width : 0) - 5
-    );
-    container.setStyles({
-      'left': `${leftPosition}px`
     });
   }
 
   const instance = {
     render,
+    setTop: (_: typeof top) => (top = _, instance),
     setLeft: (_: typeof left) => (left = _, instance),
     setTime: (_: typeof time) => (time = _, instance),
-    setValues: (_: typeof values) => (values = _, instance),
-    setSeries: (_: typeof series) => (series = _, instance),
+    setPieSeries: (_: typeof pieSeries) => (pieSeries = _, instance),
+    setDataIndex: (_: typeof dataIndex) => (dataIndex = _, instance),
     show: (_: typeof shouldShow) => (shouldShow = _, instance),
     setLineX: (_: typeof lineX) => (lineX = _, instance),
     setLineY2: (_: typeof lineY2) => (lineY2 = _, instance),

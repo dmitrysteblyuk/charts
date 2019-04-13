@@ -86,11 +86,11 @@ export function createSeries(
 
     return getExtendedDomain(
       domain,
-      getSeriesYDomain(getMainYData()!, startIndex, endIndex, min, max)
+      getSeriesYDomain(getDisplayedYData()!, startIndex, endIndex, min, max)
     );
   }
 
-  function getMainYData(): NumericData | undefined {
+  function getDisplayedYData(): NumericData | undefined {
     return yData[+stacked];
   }
 
@@ -108,7 +108,7 @@ export function createSeries(
     xScale,
     yScale,
     xData,
-    getMainYData,
+    getDisplayedYData,
     getStackIndex: () => stackIndex,
     getOwnYData: () => yData[0],
     getYData: () => yData,

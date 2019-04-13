@@ -12,7 +12,7 @@ export class Selection<T extends AnyElement = AnyElement> {
   private styles?: CSSProperties;
   private attrs?: Dictionary<Primitive>;
   private eventEmitters: Dictionary<EventEmitter<Event, EventOptions>> = {};
-  private textValue?: string;
+  private textValue?: Primitive;
   private hideTimerId: number | null = null;
 
   constructor(
@@ -21,11 +21,11 @@ export class Selection<T extends AnyElement = AnyElement> {
   ) {}
 
   bootstrap(element: AnyElement) {
-    element.innerHTML = this.getHTML();
+    element.innerHTML = this.getStaticMarkup();
     this.connectToElement(element.children[0] as T);
   }
 
-  getHTML() {
+  getStaticMarkup() {
     const result: Primitive[] = [`<${this.tagName}`];
 
     if (this.attrs) {
@@ -51,7 +51,7 @@ export class Selection<T extends AnyElement = AnyElement> {
     }
     result.push('>', escapeHTML(this.textValue));
     for (const key in this.childrenByKey) {
-      result.push(this.childrenByKey[key].getHTML());
+      result.push(this.childrenByKey[key].getStaticMarkup());
     }
     result.push(`</${this.tagName}>`);
 
@@ -90,7 +90,7 @@ export class Selection<T extends AnyElement = AnyElement> {
     }
 
     if (this.textValue !== undefined) {
-      element.textContent = this.textValue;
+      element.textContent = String(this.textValue);
     }
 
     for (const key in this.childrenByKey) {
@@ -179,7 +179,7 @@ export class Selection<T extends AnyElement = AnyElement> {
       attrs[name] = value;
 
       if (connectedElement) {
-        if (value == null) {
+        if (value === undefined) {
           connectedElement.removeAttribute(name);
         } else {
           connectedElement.setAttribute(name, String(value));
@@ -210,7 +210,7 @@ export class Selection<T extends AnyElement = AnyElement> {
     return this;
   }
 
-  text(innerText: string): this {
+  text(innerText: Primitive): this {
     if (this.textValue === innerText) {
       return this;
     }
@@ -219,7 +219,7 @@ export class Selection<T extends AnyElement = AnyElement> {
     this.childrenByKey = {};
 
     if (this.connectedElement) {
-      this.connectedElement.textContent = innerText;
+      this.connectedElement.textContent = String(innerText);
     }
     return this;
   }
@@ -257,27 +257,30 @@ export class Selection<T extends AnyElement = AnyElement> {
   }
 
   toggle(shouldShow: boolean, timeout = DEFAULT_DURATION) {
-    const className = shouldShow ? 'appear' : 'fade';
-    const classes = this.attrs && this.attrs['class'] as string | undefined;
     const previousShown = !this.styles || this.styles['display'] !== 'none';
+    if (previousShown === shouldShow) {
+      return this;
+    }
 
     if (this.hideTimerId !== null) {
-      if (shouldShow) {
-        clearTimeout(this.hideTimerId);
-        this.hideTimerId = null;
+      if (!shouldShow) {
+        return;
       }
+
+      clearTimeout(this.hideTimerId);
+      this.hideTimerId = null;
     } if (shouldShow) {
       this.setStyles({'display': null});
     } else {
       this.hideTimerId = setTimeout(() => {
-        this.setStyles({'display': 'none'});
         this.hideTimerId = null;
+        this.setStyles({'display': 'none'});
       }, timeout);
     }
 
-    if (previousShown === shouldShow) {
-      return this;
-    }
+    const className = shouldShow ? 'appear' : 'fade';
+    const classes = this.attrs && this.attrs['class'] as string | undefined;
+
     return this.setAttrs({
       'class': (
         classes &&

@@ -77,10 +77,10 @@
     "semicolon": [
       "always"
     ],
-    "triple-equals": [
+    "triple-equals": true/*[
       true,
       "allow-null-check"
-    ],
+    ]*/,
     "typedef-whitespace": [
       true,
       {

@@ -5,7 +5,7 @@ export class EventEmitter<T, O = {}> {
   private allOptions: (O | undefined)[] = [];
 
   emit(value: T) {
-    this.allListeners.forEach(listener => listener(value));
+    this.allListeners.forEach((listener) => listener(value));
   }
 
   on(listener: Listener<T>, options?: O) {

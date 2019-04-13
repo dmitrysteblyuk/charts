@@ -1,4 +1,5 @@
 import {DrawSeries} from './';
+import {ChartScale} from '../chart/chart-scale';
 
 export const drawPieSeries: DrawSeries = (
   context,
@@ -15,10 +16,12 @@ export const drawPieSeries: DrawSeries = (
 ) => {
   context.fillStyle = color;
 
-  const [d0, d1] = chartXScale.getDomain();
-  const centerX = scaleX((d0 + d1) / 2);
-  const centerY = scaleY(0.5);
-  const radius = Math.min(centerX, centerY) * .9;
+  const {
+    centerX,
+    centerY,
+    defaultRadius: radius
+  } = getPiePosition(scaleX, scaleY, chartXScale);
+
   context.translate(centerX, centerY);
 
   context.beginPath();
@@ -30,3 +33,16 @@ export const drawPieSeries: DrawSeries = (
 
   context.translate(-centerX, -centerY);
 };
+
+export function getPiePosition(
+  scaleX: (x: number) => number,
+  scaleY: (y: number) => number,
+  chartXScale: ChartScale
+) {
+  const [d0, d1] = chartXScale.getDomain();
+  const centerX = scaleX((d0 + d1) / 2);
+  const centerY = scaleY(0.5);
+  const defaultRadius = Math.min(centerX, centerY) * .9;
+
+  return {centerX, centerY, defaultRadius};
+}

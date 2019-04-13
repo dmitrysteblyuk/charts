@@ -64,13 +64,14 @@ export function getSeriesData(
     }, [] as number[]);
 
     indices.forEach((seriesIndex, index) => {
+      const yData = currentData[seriesIndex];
       currentData[seriesIndex] = [
-        currentData[seriesIndex][0],
+        yData[0],
         [
           pieAngles[index],
           index && pieAngles[index - 1],
-          piePercentages[index],
-          pieAverages[index]
+          yData[1] && progress < 1 ? yData[1][2] : pieAverages[index],
+          yData[1] && progress < 1 ? yData[1][3] : piePercentages[index]
         ]
       ];
     });
