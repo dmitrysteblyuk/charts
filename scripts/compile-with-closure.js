@@ -3,18 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const emitEmptyFiles = [
-  './built/lib/selection.css',
-  './built/legend/index.css',
-  './built/tooltip/index.css',
-  './built/time-chart/index.css',
-  './built/index.css'
-];
-emitEmptyFiles.forEach((fileName) => {
-  if (!fs.existsSync(fileName)) {
-    fs.closeSync(fs.openSync(fileName, 'w'));
-  }
-});
+require('./remove-css-imports');
 
 const distDirectory = './dist';
 const distFiles = fs.readdirSync(distDirectory);
@@ -39,7 +28,7 @@ const closureCompiler = new ClosureCompiler({
   js: ['built/**.*'],
   js_output_file: [outputFile],
   output_wrapper: '(function() {%output%})();',
-  externs: ['./closure-externs.js']
+  externs: ['./scripts/closure-externs.js']
 });
 
 const compilerProcess = closureCompiler.run((exitCode, stdOut, stdErr) => {

@@ -21,11 +21,11 @@ export function startAnimation(
   }));
 }
 
-export const easeOutCubic = getCubicBezierFunction(0.215, 0.61, 0.355);
-
 export function getCubicBezierFunction(a: number, b: number, c: number) {
   return (x: number) => {
     const y = 1 - x;
     return a * y * y * y + 3 * b * y * y * x + 3 * c * y * x * x + x * x * x;
   };
 }
+
+export const easeOutCubic = getCubicBezierFunction(0.215, 0.61, 0.355);
