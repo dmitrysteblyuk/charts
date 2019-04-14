@@ -12,8 +12,6 @@
   animation-duration: 0.5s;
   display: flex;
   flex-direction: column;
-  font-family: monospace;
-  font-size: 14px;
   z-index: 1;
 }
 .chart-tooltip-values {

@@ -1,2 +1,2 @@
-var Window = function () {};
-Window.prototype.chartData;
+var Selection = function () {};
+// Selection.prototype.renderOne;

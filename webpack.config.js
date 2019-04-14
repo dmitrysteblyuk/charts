@@ -4,6 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
 const TerserPlugin = require('terser-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: {
@@ -61,6 +62,13 @@ module.exports = {
 
     new MiniCssExtractPlugin({
       filename: 'styles.css'
-    })
+    }),
+
+    new CopyPlugin([
+      {
+        from: 'initial.data.jsonp',
+        to: 'initial.data.jsonp'
+      }
+    ])
   ]
 };

@@ -13,4 +13,5 @@ div.time-chart {
   font-size: 12px;
   position: relative;
   margin: 10px;
+  width: 500px;
 }

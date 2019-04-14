@@ -7,8 +7,11 @@
 /built
 
 /dist
-/chart-data
 /screenshots
+
+*.data.jsonp
+*.data.json
+*.data
 
 # misc
 .DS_Store
