@@ -35,7 +35,7 @@ export function createAxis(
   const textFont = 'px verdana, sans-serif';
   const gridColor = '#ddd';
   const tickPadding = 10;
-  const tickCount = 5;
+  const tickCount = 6;
   const vertical = (
     position === AxisPosition.left ||
     position === AxisPosition.right
@@ -151,7 +151,6 @@ export function createAxis(
 
   const instance = {
     draw,
-    scale,
     isVertical: () => vertical,
     getPosition: () => position,
     setGridSize: (_: typeof gridSize) => (gridSize = _, instance),

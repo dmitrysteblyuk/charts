@@ -8,7 +8,12 @@ export function getDecimalScaleTicks(
   step = Math.max(1, Math.floor(step / product)) * product;
 
   const ratio = step / product;
-  step = (ratio > 7.5 ? 10 : ratio > 2.5 ? 5 : ratio > 1.5 ? 2 : 1) * product;
+  step = (
+    ratio > 7.5 ? 10
+      : ratio > 2.5 ? 5
+      : ratio > 1.75 ? 2.5
+      : 1
+  ) * product;
   return rangeTicks(step, domain);
 }
 

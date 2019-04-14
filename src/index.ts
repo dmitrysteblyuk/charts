@@ -11,6 +11,7 @@ function bootstrapCharts(json: ChartConfig[], rootElement: HTMLElement) {
     isPrerendered ? undefined : rootElement
   );
 
+  (window as any)['json'] = json;
   (window as any)['charts'] = charts;
 
   render(500);

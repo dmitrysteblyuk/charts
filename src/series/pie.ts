@@ -5,6 +5,7 @@ export const drawPieSeries: DrawSeries = (
   context,
   _x,
   [_ownYData, yData],
+  _stacked,
   _scaleX,
   _scaleY,
   _startIndex,

@@ -2,7 +2,11 @@ import {createChart, Chart} from '../chart';
 import {createAxis, AxisPosition} from '../axis';
 import {createBrush} from '../brush';
 import {Selection} from '../lib/selection';
-import {createScale, getExtendedDomain} from '../chart/chart-scale';
+import {
+  createScale,
+  getExtendedDomain,
+  ChartScale
+} from '../chart/chart-scale';
 import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
 import {getTimeScaleTicks} from '../lib/time-scale-ticks';
 import {AnySeries} from '../series';
@@ -32,15 +36,13 @@ interface ChartConfig {
   onRender: (chartContainer: Selection) => void
 }
 
-export function createTimeChart() {
+export function createTimeChart(valueScales: ChartScale[]) {
   let outerWidth = 0;
   let pixelRatio = 1;
 
   const mainPaddings = [10, 10, 20, 10];
   const timeScale = createScale();
   const fullTimeScale = createScale(timeScale.getDomain);
-  const valueScale = createScale();
-  const fullValueScale = createScale();
   const brush = createBrush();
   const legend = createLegend([]);
   const getStackedData = memoize(calculateStackedData, 10);
@@ -63,9 +65,9 @@ export function createTimeChart() {
       ),
       createAxis(
         AxisPosition.left,
-        valueScale,
+        valueScales[0],
         memoize(getDecimalScaleTicks, 1),
-        (tick) => String(roundAuto(tick)),
+        yAxisFormat,
         false,
         true
       )
@@ -75,6 +77,18 @@ export function createTimeChart() {
     calculatePercentageData,
     setSeriesYData
   );
+
+  if (valueScales.length > 1) {
+    mainChart.axes.push(
+      createAxis(
+        AxisPosition.right,
+        valueScales[1],
+        memoize(getDecimalScaleTicks, 1),
+        yAxisFormat
+      )
+    );
+  }
+
   const tooltip = createTooltip(
     mainPaddings,
     mainChart.series
@@ -232,6 +246,10 @@ export function createTimeChart() {
       clientX - mainPaddings[3] - left,
       clientY - mainPaddings[0] - top
     ];
+  }
+
+  function yAxisFormat(tick: number) {
+    return String(roundAuto(tick));
   }
 
   function renderLegend() {
@@ -471,8 +489,6 @@ export function createTimeChart() {
     helperChart,
     timeScale,
     fullTimeScale,
-    valueScale,
-    fullValueScale,
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance),
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance)
   };

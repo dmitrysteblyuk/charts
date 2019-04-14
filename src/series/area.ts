@@ -1,9 +1,10 @@
 import {DrawSeries} from './';
 
-export const drawStackedLineSeries: DrawSeries = (
+export const drawAreaSeries: DrawSeries = (
   context,
   x,
   [_ownYData, y1, y0],
+  stacked,
   scaleX,
   scaleY,
   startIndex,
@@ -12,10 +13,11 @@ export const drawStackedLineSeries: DrawSeries = (
   _lineWidth,
   visibility
 ) => {
+  if (!stacked) {
+    y1 = _ownYData;
+  }
   context.fillStyle = color;
-  context.globalAlpha = 0.7 * (
-    y1 || y0 ? 1 : visibility
-  );
+  context.globalAlpha = 0.7 * (stacked && (y1 || y0) ? 1 : visibility);
   context.beginPath();
 
   if (y1) {
