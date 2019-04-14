@@ -2,14 +2,16 @@ import {Selection} from '../lib/selection';
 import {isArrayEqual} from '../lib/utils';
 import {AnySeries} from '../series';
 import {EventEmitter} from '../lib/event-emitter';
+import {dateTimeFormat} from '../lib/format';
 import './index.css';
 
 export type Tooltip = Readonly<ReturnType<typeof createTooltip>>;
 
 export function createTooltip(
   offsets: number[],
-  allSeries: AnySeries[]
+  getAllSeries: () => AnySeries[]
 ) {
+  let zoomedIn = false;
   let top = 0;
   let left = 0;
   let time = 0;
@@ -20,21 +22,23 @@ export function createTooltip(
   let pieSeries: AnySeries | null = null;
 
   const seriesFocusEvent = new EventEmitter<void>();
+  const zoomSeriesEvent = new EventEmitter<number>();
+
   const lineY1 = 0;
-  const timeFormat = (dateTime: number) => {
-    const date = new Date(dateTime);
-    if (date.getUTCSeconds() || date.getUTCMinutes() || date.getUTCHours()) {
-      return date.toUTCString();
-    }
-    return date.toDateString();
-  };
   let lastVisibleSeries: AnySeries[] = [];
   let lineContainer: Selection;
   let container: Selection;
+  let parentContainer: Selection;
 
-  function render(_lineContainer: Selection, _container: Selection) {
+  function render(
+    _lineContainer: Selection,
+    _container: Selection,
+    _parentContainer: Selection
+  ) {
     container = _container;
     lineContainer = _lineContainer;
+    parentContainer = _parentContainer;
+
     toggleTooltip(shouldShow);
 
     if (!shouldShow) {
@@ -67,11 +71,19 @@ export function createTooltip(
       return;
     }
 
-    lineDiv.renderOne<HTMLElement>('div', 0).text(timeFormat(time));
+    lineDiv.renderOne<HTMLElement>('div', 0, (selection) => {
+      selection.on('click', () => {
+        if (zoomedIn) {
+          return;
+        }
+        zoomSeriesEvent.emit(time);
+      });
+    }).text(dateTimeFormat(time));
 
     const valueSelection = lineDiv.renderOne('div', 1, (selection) => {
       selection.setAttrs({'class': 'chart-tooltip-values'});
     });
+    const allSeries = getAllSeries();
 
     allSeries.forEach((series, index) => {
       const selection = valueSelection.renderOne('div', index);
@@ -174,12 +186,24 @@ export function createTooltip(
 
   function positionTooltip() {
     const {width, height} = container.getRect()!;
-    const leftPosition = Math.max(
-      0, left - width + offsets[3] - 10
+    const rect = parentContainer.getRect()!;
+
+    let leftPosition = (
+      left -
+      (pieSeries ? width + 5 : width / 2) +
+      offsets[3]
     );
-    const topPosition = Math.max(
-      0, top - (pieSeries ? height : 0) + offsets[0] - 10
-    );
+    let topPosition = top - (pieSeries ? height + 5 : 0) + offsets[0];
+
+    leftPosition = Math.max(
+      2,
+      Math.min(leftPosition + rect.left, window.innerWidth - width - 2)
+    ) - rect.left;
+
+    topPosition = Math.max(
+      2,
+      Math.min(topPosition + rect.top, window.innerHeight - height - 2)
+    ) - rect.top;
 
     container.setStyles({
       'transform': `translate(${leftPosition}px,${topPosition}px)`
@@ -187,7 +211,7 @@ export function createTooltip(
   }
 
   function getVisibleSeries() {
-    return allSeries.filter(({toDraw}) => toDraw());
+    return getAllSeries().filter(({toDraw}) => toDraw());
   }
 
   function setPieSeries(nextPieSeries: AnySeries | null) {
@@ -218,7 +242,9 @@ export function createTooltip(
     show,
     setPieSeries,
     seriesFocusEvent,
+    zoomSeriesEvent,
     update,
+    setZoomedIn: (_: typeof zoomedIn) => (zoomedIn = _),
     setTop: (_: typeof top) => (top = _, instance),
     setLeft: (_: typeof left) => (left = _, instance),
     setTime: (_: typeof time) => (time = _, instance),

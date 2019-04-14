@@ -1,7 +1,9 @@
 import {getChartsRenderer, ChartConfig} from './initialize';
 
-(window as any)['bootstrapCharts'] = bootstrapCharts;
-(window as any)['bootstrapIfReady']();
+bootstrapCharts(
+  (window as any)['initialChartData'],
+  document.getElementById('root')!
+);
 
 function bootstrapCharts(json: ChartConfig[], rootElement: HTMLElement) {
   const isPrerendered = rootElement.children.length > 0;

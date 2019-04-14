@@ -23,6 +23,7 @@ export type DrawSeries = (
   color: string,
   lineWidth: number,
   visibility: number,
+  displayProgress: number,
   focused: number,
   centerX: number,
   centerY: number
@@ -41,12 +42,12 @@ export function createSeries(
   color: string,
   label: string,
   strokeWidth: number,
-  getXExtent: XExtentCalculator
+  getXExtent: XExtentCalculator,
+  zoomed: boolean
 ) {
   let displayed = true;
   let hidden = false;
   let pixelRatio = 1;
-  let stackIndex = 0;
   let focused = false;
   const getSeriesYDomain = memoize(getYDomain, 1);
 
@@ -55,6 +56,7 @@ export function createSeries(
     xArray: NumericData,
     yArrays: MultipleData,
     visibility: number,
+    displayProgress: number,
     focusFactor: number,
     centerX: number,
     centerY: number
@@ -72,19 +74,24 @@ export function createSeries(
       color,
       pixelRatio * strokeWidth,
       visibility,
+      displayProgress,
       focusFactor,
       centerX,
       centerY
     );
   }
 
-  function getExtendedXDomain(domain: NumberRange) {
+  function getXDomain() {
     const x0 = xData[0];
     let x1 = xData[xData.length - 1];
     if (bar) {
       x1 += xData[1] - x0;
     }
-    return getExtendedDomain(domain, [x0, x1]);
+    return [x0, x1];
+  }
+
+  function getExtendedXDomain(domain: NumberRange) {
+    return getExtendedDomain(domain, getXDomain());
   }
 
   function getExtendedYDomain(domain: NumberRange) {
@@ -120,19 +127,20 @@ export function createSeries(
     xData,
     getDisplayedYData,
     getFocused: () => focused,
-    getStackIndex: () => stackIndex,
+    getStackIndex: () => +zoomed,
     getOwnYData: () => yData[0],
     getYData: () => yData,
+    getXDomain,
     getExtendedXDomain,
     getExtendedYDomain,
     getColor: () => color,
     getLabel: () => label,
     isHidden: () => hidden,
     isDisplayed: () => displayed,
+    isZoomed: () => zoomed,
     toDraw: () => displayed && !hidden,
     setFocused: (_: typeof focused) => (focused = _, instance),
     setYData: (_: typeof yData) => (yData = _, instance),
-    setStackIndex: (_: typeof stackIndex) => (stackIndex = _, instance),
     setLabel: (_: typeof label) => (label = _, instance),
     setHidden: (_: typeof hidden) => (hidden = _, instance),
     setDisplay: (_: typeof displayed) => (displayed = _, instance),

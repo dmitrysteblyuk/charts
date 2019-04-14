@@ -5,6 +5,7 @@ import {AnySeries} from '../series';
 export function getSeriesData(
   allSeries: AnySeries[],
   visibilities: number[],
+  displayFactors: number[],
   getStackedData: StackedDataCalculator,
   getPercentageData: PercentageDataCalculator,
   getXExtent: XExtentCalculator,
@@ -51,7 +52,11 @@ export function getSeriesData(
       const visibility = visibilities[index];
       const result = avg * visibility;
 
-      pieSum += indices.length < 2 ? avg : result;
+      pieSum += (
+        indices.length < 2 || displayFactors[index] < 1
+          ? avg
+          : result
+      );
 
       return result
     });

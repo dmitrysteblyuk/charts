@@ -2,12 +2,11 @@ import {getLinearScale, isArrayEqual} from '../lib/utils';
 
 export type ChartScale = Readonly<ReturnType<typeof createScale>>;
 
-export function createScale(getMinDomain?: () => NumberRange) {
+export function createScale(initialFixed: boolean) {
   let domain: NumberRange = [0, 1];
-  let range: NumberRange = [0, 1]
-  let fixed = false;
-  let extendableOnly = false;
+  let range: NumberRange = [0, 1];
   let scale: (x: number) => number;
+  let fixed = initialFixed;
 
   resetScale();
 
@@ -31,22 +30,16 @@ export function createScale(getMinDomain?: () => NumberRange) {
     scale = getLinearScale(domain, range);
   }
 
-  const instance = {
+  return {
     setDomain,
     setRange,
-    getMinDomain,
     getScale: () => scale,
     getInvertedScale: () => getLinearScale(range, domain),
     getDomain: () => domain,
     getRange: () => range,
     isFixed: () => fixed,
-    isExtendableOnly: () => extendableOnly,
-    setFixed: (_: typeof fixed) => (fixed = _, instance),
-    setExtendableOnly: (
-      (_: typeof extendableOnly) => (extendableOnly = _, instance)
-    )
+    setFixed: (_: typeof fixed) => (fixed = _)
   };
-  return instance;
 }
 
 export function getExtendedDomain(
@@ -70,4 +63,16 @@ export function getExtendedDomain(
     return domain;
   }
   return [min, max];
+}
+
+export function fitDomain(domain: NumberRange, boundaries: NumberRange) {
+  const [b0, b1] = boundaries;
+  let [x0, x1] = domain;
+  if (x0 < b0) {
+    x1 += -x0 + (x0 = b0);
+  }
+  if (x1 > b1) {
+    x0 = Math.max(x0 - x1 + (x1 = b1), b0);
+  }
+  return [x0, x1]
 }

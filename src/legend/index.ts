@@ -5,10 +5,16 @@ import './index.css';
 
 export type Legend = Readonly<ReturnType<typeof createLegend>>;
 
-export function createLegend(seriesGroups: AnySeries[][]) {
+export function createLegend() {
+  let seriesGroups: AnySeries[][] = [];
   const clickEvent = new EventEmitter<AnySeries[]>();
 
   function render(container: Selection) {
+    const displayed = seriesGroups.map(
+      (group) => group.some(({isDisplayed}) => isDisplayed())
+    );
+    const countDisplayed = displayed.reduce((a, b) => a + +b, 0);
+
     seriesGroups.forEach((group, index) => {
       const [series] = group;
       const itemSelection = container.renderOne('div', index, (selection) => {
@@ -17,13 +23,16 @@ export function createLegend(seriesGroups: AnySeries[][]) {
           'class': 'legend-item'
         }).on(
           'click',
-          () => clickEvent.emit(group)
+          () => clickEvent.emit(seriesGroups[index])
         );
       });
 
-      const displayed = group.some(({isDisplayed}) => isDisplayed());
-      itemSelection.toggle(displayed);
-      if (!displayed) {
+      const toDisplay = countDisplayed > 1 && displayed[index];
+      itemSelection.toggle(
+        toDisplay,
+        group.every(({isZoomed}) => isZoomed())
+      );
+      if (!toDisplay) {
         return;
       }
 
@@ -48,6 +57,7 @@ export function createLegend(seriesGroups: AnySeries[][]) {
   return {
     render,
     clickEvent,
-    seriesGroups
+    getSeriesGroups: () => seriesGroups,
+    setSeriesGrousp: (_: typeof seriesGroups) => (seriesGroups = _)
   };
 }

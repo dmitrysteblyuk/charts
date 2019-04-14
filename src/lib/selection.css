@@ -1,9 +1,11 @@
 .fade {
-  animation: fade 0.2s linear forwards;
+  animation: fade 0.5s ease forwards;
+  position: absolute;
+  top: 0;
 }
 .appear {
   opacity: 0;
-  animation: appear 0.2s linear forwards;
+  animation: appear 0.5s ease forwards;
 }
 
 @keyframes fade {

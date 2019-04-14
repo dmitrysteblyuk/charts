@@ -1,7 +1,7 @@
 import {EventEmitter} from './event-emitter';
-import {DEFAULT_DURATION} from './animation';
 import './selection.css';
 
+const DEFAULT_ANIMATION_DURATION = 500;
 type AnyElement = Element & ElementCSSInlineStyle & GlobalEventHandlers;
 type Primitive = string | boolean | number | undefined;
 type EventOptions = boolean | AddEventListenerOptions;
@@ -256,15 +256,21 @@ export class Selection<T extends AnyElement = AnyElement> {
     return false;
   }
 
-  toggle(shouldShow: boolean, timeout = DEFAULT_DURATION) {
-    const previousShown = !this.styles || this.styles['display'] !== 'none';
-    if (previousShown === shouldShow) {
-      return this;
+  toggle(
+    shouldShow: boolean,
+    forceAnimation?: boolean,
+    timeout = DEFAULT_ANIMATION_DURATION
+  ) {
+    if (!forceAnimation) {
+      const previousShown = !this.styles || this.styles['display'] !== 'none';
+      if (previousShown === shouldShow) {
+        return this;
+      }
     }
 
     if (this.hideTimerId !== null) {
       if (!shouldShow) {
-        return;
+        return this;
       }
 
       clearTimeout(this.hideTimerId);

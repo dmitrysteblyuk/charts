@@ -68,6 +68,10 @@ module.exports = {
       {
         from: 'initial.data.jsonp',
         to: 'initial.data.jsonp'
+      },
+      {
+        from: 'chart.data/',
+        to: 'chart.data/'
       }
     ])
   ]

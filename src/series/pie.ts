@@ -13,11 +13,14 @@ export const drawPieSeries: DrawSeries = (
   color,
   _lineWidth,
   _visibility,
+  _displayFactor,
   focusFactor,
   centerX,
   centerY
 ) => {
   context.fillStyle = color;
+  context.globalAlpha = 1;
+
   const radius = getPieRadius(centerX, centerY);
   const endAngle = yData[0];
   const startAngle = yData[1];

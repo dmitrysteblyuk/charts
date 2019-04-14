@@ -1,4 +1,5 @@
 import {DrawSeries} from './';
+import {getAreaOpacity} from './area'
 
 export const drawBarSeries: DrawSeries = (
   context,
@@ -11,13 +12,19 @@ export const drawBarSeries: DrawSeries = (
   endIndex,
   color,
   _lineWidth,
-  visibility
+  visibility,
+  displayFactor
 ) => {
   if (!stacked) {
     y1 = _ownYData;
   }
   context.fillStyle = color;
-  context.globalAlpha = 0.7 * (stacked && (y1 || y0) ? 1 : visibility);
+  context.globalAlpha = getAreaOpacity(
+    (y1 || y0) && stacked,
+    visibility,
+    displayFactor
+  );
+
   context.beginPath();
   const stepX = scaleX(x[1]) - scaleX(x[0]);
   let lastX = scaleX(x[startIndex]);

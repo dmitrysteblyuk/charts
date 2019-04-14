@@ -2,20 +2,22 @@ import {createChart, Chart} from '../chart';
 import {createAxis, AxisPosition} from '../axis';
 import {createBrush} from '../brush';
 import {Selection} from '../lib/selection';
-import {
-  createScale,
-  getExtendedDomain,
-  ChartScale
-} from '../chart/chart-scale';
+import {createScale, ChartScale} from '../chart/chart-scale';
 import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
 import {getTimeScaleTicks} from '../lib/time-scale-ticks';
 import {AnySeries} from '../series';
 import {createLegend} from '../legend';
 import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
 import {roundRange} from '../lib/utils';
+import {EventEmitter} from '../lib/event-emitter';
 import {memoize} from '../lib/memoize';
 import {getZoomFactorAndOffset} from './zoom-transform';
-import {axisTimeFormat, roundAuto} from '../lib/format';
+import {
+  axisTimeFormat,
+  roundAuto,
+  dateFormat,
+  timeFormat
+} from '../lib/format';
 import {createTooltip} from '../tooltip';
 import {getNearestPoint} from './get-nearest-point';
 import {
@@ -36,19 +38,23 @@ interface ChartConfig {
   onRender: (chartContainer: Selection) => void
 }
 
-export function createTimeChart(valueScales: ChartScale[]) {
+export function createTimeChart(
+  valueScales: ChartScale[],
+  title: string,
+  hideHelperOnZoomIn: boolean,
+  hideAxisOnZoomIn: boolean
+) {
   let outerWidth = 0;
   let pixelRatio = 1;
+  let zoomedIn = false;
 
   const mainPaddings = [10, 10, 20, 10];
-  const timeScale = createScale();
-  const fullTimeScale = createScale(timeScale.getDomain);
-  const brush = createBrush();
-  const legend = createLegend([]);
+  const timeScale = createScale(true);
+  const fullTimeScale = createScale(false);
+  const legend = createLegend();
   const getStackedData = memoize(calculateStackedData, 10);
   const getPercentageData = memoize(calculatePercentageData, 10);
   const helperChart = createChart(
-    [],
     [],
     calculateStackedData,
     calculatePercentageData,
@@ -72,11 +78,11 @@ export function createTimeChart(valueScales: ChartScale[]) {
         true
       )
     ],
-    [],
     calculateStackedData,
     calculatePercentageData,
     setSeriesYData
   );
+  const zoomOutEvent = new EventEmitter<void>();
 
   if (valueScales.length > 1) {
     mainChart.axes.push(
@@ -91,7 +97,7 @@ export function createTimeChart(valueScales: ChartScale[]) {
 
   const tooltip = createTooltip(
     mainPaddings,
-    mainChart.series
+    mainChart.getSeries
   );
 
   const mainConfig = {
@@ -108,35 +114,88 @@ export function createTimeChart(valueScales: ChartScale[]) {
     paddings: [0, 0, 0, 0],
     onRender: bindBrushEvents
   };
+  const brush = createBrush(helperConfig.height);
 
   let innerWidth = 0;
   let mainInnerHeight = 0;
-  let isBrushing = false;
-  let brushLeft = 0;
-  let brushRight = 0;
   let container: Selection;
 
-  function render(_container: Selection) {
-    container = _container;
+  function render(_container?: Selection) {
+    if (_container) {
+      container = _container;
+    }
+
     innerWidth = outerWidth - mainPaddings[1] - mainPaddings[3];
     mainInnerHeight = mainConfig.height - mainPaddings[0] - mainPaddings[2];
 
+    renderHeader();
     const chartContainers = [mainConfig, helperConfig].map(renderChart);
     renderBrush(chartContainers[1]);
     renderLegend();
     tooltip.update();
   }
 
+  function renderHeader() {
+    const headerSelection = container.renderOne('div', 0, (selection) => {
+      selection.setAttrs({'class': 'header'});
+    });
+
+    headerSelection.renderOne('div', 0, (selection) => {
+      selection.setAttrs({'class': 'title'}).text(title);
+    }).toggle(!zoomedIn);
+
+    headerSelection.renderOne('div', 1, (selection) => {
+      selection.setAttrs({'class': 'zoom-out', 'role': 'button'})
+        .setStyles({'display': 'none'})
+        .text('Zoom out')
+        .on('click', () => toggleZoomedSeries(false));
+    }).toggle(zoomedIn);
+
+    const timeSpanText = timeScale.getDomain()
+      .map(zoomedIn ? timeFormat : dateFormat)
+      .filter((value, index, array) => !index || value !== array[index - 1])
+      .join(' - ');
+
+    headerSelection.renderOne('div', 2, (selection) => {
+      selection.setAttrs({'class': 'time-span'});
+    }).text(timeSpanText);
+  }
+
+  function toggleZoomedSeries(displayZoomed: boolean) {
+    if (displayZoomed === zoomedIn) {
+      return;
+    }
+
+    [...mainChart.getSeries(), ...helperChart.getSeries()].forEach(({
+      setDisplay,
+      isZoomed
+    }) => {
+      setDisplay(isZoomed() === displayZoomed);
+    });
+
+    setZoomedIn(displayZoomed);
+    if (!displayZoomed) {
+      zoomOutEvent.emit();
+    }
+    render();
+  }
+
   function renderChart(config: ChartConfig, index: number) {
     const {chart, height, paddings, offsets, onRender} = config;
-    const chartContainer = container.renderOne('div', index, (selection) => {
+    const key = index + 1;
+
+    const chartContainer = container.renderOne('div', key, (selection) => {
       onRender(selection.setAttrs({
         'class': 'chart'
       }).setStyles({
         'padding': offsets.map((value) => `${value}px`).join(' '),
         'height': `${height}px`
       }));
-    });
+    }).toggle(!isChartHidden(index));
+
+    if (isChartHidden(index)) {
+      return chartContainer;
+    }
 
     const width = outerWidth - offsets[1] - offsets[3];
     const canvas = (
@@ -160,12 +219,20 @@ export function createTimeChart(valueScales: ChartScale[]) {
     return chartContainer;
   }
 
+  function isChartHidden(index: number) {
+    return index && hideHelperOnZoomIn && zoomedIn;
+  }
+
   function toCanvasSize(size: number) {
     return Math.round(size * pixelRatio);
   }
 
   function redraw() {
     [mainChart, helperChart].forEach((chart, index) => {
+      if (isChartHidden(index)) {
+        return;
+      }
+
       const context = container
         .selectOne(index)!
         .selectOne<HTMLCanvasElement>(0)!
@@ -200,9 +267,6 @@ export function createTimeChart(valueScales: ChartScale[]) {
   function onMainChartRender(mainContainer: Selection) {
     bindZoomEvents(mainContainer);
     bindTooltipEvents(mainContainer);
-    mainContainer.on('dblclick', () => {
-      toggleZoomedSeries();
-    });
   }
 
   function setSeriesYData(
@@ -212,6 +276,7 @@ export function createTimeChart(valueScales: ChartScale[]) {
     getSeriesData(
       series,
       series.map(({toDraw}) => +toDraw()),
+      series.map(({isDisplayed}) => +isDisplayed()),
       getStackedData,
       getPercentageData,
       getXExtent,
@@ -222,18 +287,10 @@ export function createTimeChart(valueScales: ChartScale[]) {
     });
   }
 
-  function toggleZoomedSeries() {
-    mainChart.series.concat(helperChart.series).forEach((series) => {
-      series.setDisplay(!series.isDisplayed());
-    });
-    timeScale.setFixed(false);
-    render(container);
-  }
-
-  function addSeries(mainSeries: AnySeries[], helperSeries: AnySeries[]) {
-    mainChart.series.push(...mainSeries);
-    helperChart.series.push(...helperSeries);
-    legend.seriesGroups.push([...mainSeries, ...helperSeries]);
+  function addSeries(mainSeries: AnySeries, helperSeries: AnySeries) {
+    mainChart.getSeries().push(mainSeries);
+    helperChart.getSeries().push(helperSeries);
+    legend.getSeriesGroups().push([mainSeries, helperSeries]);
   }
 
   function getPoint(
@@ -255,13 +312,13 @@ export function createTimeChart(valueScales: ChartScale[]) {
   function renderLegend() {
     const legendContainer = container.renderOne(
       'div',
-      'legend',
+      3,
       (selection) => {
         selection.setAttrs({'class': 'legend'});
         legend.clickEvent.on((group) => {
           const hidden = !group[0].isHidden();
           group.forEach((series) => series.setHidden(hidden));
-          render(container);
+          render();
         });
       }
     );
@@ -275,7 +332,7 @@ export function createTimeChart(valueScales: ChartScale[]) {
       if (getTooltipContainer().hasDescendant(target as any)) {
         return;
       }
-      const allSeries = mainChart.series;
+      const allSeries = mainChart.getSeries();
       const visibleSeries = allSeries.filter(({toDraw}) => toDraw());
       let point: number[] | undefined;
       let index = -1;
@@ -309,7 +366,7 @@ export function createTimeChart(valueScales: ChartScale[]) {
         tooltip
           .setDataIndex(index)
           .setTime(time)
-          .setTop(20)
+          .setTop(0)
           .setLineY2(getInnerHeight(mainConfig))
           .setPieSeries(null);
       }
@@ -328,7 +385,8 @@ export function createTimeChart(valueScales: ChartScale[]) {
     function renderTooltip() {
       tooltip.render(
         renderSvg(mainContainer, mainConfig).renderOne('g', 0),
-        getTooltipContainer()
+        getTooltipContainer(),
+        mainContainer
       );
     }
 
@@ -390,60 +448,24 @@ export function createTimeChart(valueScales: ChartScale[]) {
     }
     const nextStartTime = factor * startTime + offset;
     const nextEndTime = factor * endTime + offset;
-
-    timeScale.setFixed(true);
     timeScale.setDomain([nextStartTime, nextEndTime]);
-
-    const currentFullDomain = fullTimeScale.getDomain();
-    const extendedFullDomain = getExtendedDomain(
-      currentFullDomain,
-      [nextStartTime, nextEndTime]
-    );
-
-    if (extendedFullDomain !== currentFullDomain) {
-      fullTimeScale.setExtendableOnly(true);
-      fullTimeScale.setDomain(extendedFullDomain);
-    }
-    render(container);
+    render();
   }
 
   function renderBrush(helperContainer: Selection) {
-    const {width, left, right} = (
-      isBrushing && brush.getWidth() === innerWidth
-        ? {width: innerWidth, left: brushLeft, right: brushRight}
-        : getBrushExtentFromTimeScale()
-    );
-
-    brush.setHeight(getInnerHeight(helperConfig))
-      .setWidth(width)
-      .setLeft(left)
-      .setRight(right)
-      .render(renderSvg(helperContainer, helperConfig));
+    if (!brush.isBrushing() || brush.getWidth() !== innerWidth) {
+      const {width, left, right} = getBrushExtentFromTimeScale();
+      brush.setWidth(width)
+        .setLeft(left)
+        .setRight(right);
+    }
+    brush.render(renderSvg(helperContainer, helperConfig));
   }
 
   function bindBrushEvents() {
-    brush.activeEvent.on((isActive) => {
-      isBrushing = isActive;
-      if (isActive) {
-        return;
-      }
-      render(container);
-    });
-
     brush.changeEvent.on((next) => {
-      brushLeft = next.left;
-      brushRight = next.right;
-
-      const reset = brush.isReset();
-      timeScale.setFixed(!reset);
-
-      if (reset) {
-        fullTimeScale.setExtendableOnly(false);
-      } else {
-        setBrushExtentToTimeScale(next.left, next.right);
-      }
-
-      render(container);
+      setBrushExtentToTimeScale(next.left, next.right);
+      render();
     });
   }
 
@@ -480,6 +502,8 @@ export function createTimeChart(valueScales: ChartScale[]) {
   }
 
   const instance = {
+    legend,
+    tooltip,
     render,
     redraw,
     mainConfig,
@@ -489,9 +513,22 @@ export function createTimeChart(valueScales: ChartScale[]) {
     helperChart,
     timeScale,
     fullTimeScale,
+    zoomOutEvent,
+    setZoomedIn,
+    toggleZoomedSeries,
+    isZoomed: () => zoomedIn,
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance),
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance)
   };
+
+  function setZoomedIn(_zoomedIn: boolean) {
+    zoomedIn = _zoomedIn;
+    tooltip.setZoomedIn(zoomedIn);
+    if (hideAxisOnZoomIn) {
+      mainChart.setAxesHidden(zoomedIn);
+    }
+    return instance;
+  }
 
   return instance;
 }

@@ -20,4 +20,17 @@
 
 .legend {
   margin-left: 10px;
+  position: relative;
+}
+
+.header {
+  position: relative;
+  margin-bottom: 20px;
+  font-size: 15px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.zoom-out {
+  color: steelblue;
 }

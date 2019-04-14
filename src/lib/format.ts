@@ -47,10 +47,27 @@ export function axisTimeFormat(
   return String(date.getUTCFullYear());
 }
 
-function padding(value: number, count = 2) {
+export function padding(value: number, count = 2) {
   const result = String(value);
   if (result.length >= count) {
     return result;
   }
   return new Array(count - result.length).fill(0).join('') + result;
+}
+
+export function dateTimeFormat(dateTime: number) {
+  const date = new Date(dateTime);
+
+  if (date.getUTCSeconds() || date.getUTCMinutes() || date.getUTCHours()) {
+    return date.toUTCString();
+  }
+  return date.toDateString();
+}
+
+export function dateFormat(dateTime: number) {
+  return new Date(dateTime).toDateString();
+}
+
+export function timeFormat(dateTime: number) {
+  return new Date(dateTime).toUTCString();
 }

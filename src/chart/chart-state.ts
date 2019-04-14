@@ -16,7 +16,7 @@ export type State = Readonly<{
   xRanges: NumberRange[];
   yRanges: NumberRange[];
   visibilities: number[];
-  displayed: boolean[];
+  displayed: number[];
   yData: MultipleData[];
   ownYData: NumericData[];
   byXScale: ItemGroup<AnySeries, ChartScale>[];
@@ -44,7 +44,7 @@ export function getFinalTransitionState(series: AnySeries[]): State {
   const yRanges = byYScale.map(({key}) => key.getRange());
 
   const visibilities = series.map(({toDraw}) => +toDraw());
-  const displayed = series.map(({isDisplayed}) => isDisplayed());
+  const displayed = series.map(({isDisplayed}) => +isDisplayed());
   const yData = series.map(({getYData}) => getYData());
   const ownYData = yData.map(([data]) => data);
   const focusFactors = series.map(({getFocused}) => +getFocused());
@@ -86,10 +86,13 @@ export function getTransitionTriggers(
 ): TransitionTriggers | null {
   const triggers: TransitionTriggersMutable = {};
   let isChanged = false;
+  refillPreviousState(from.visibilities, to.visibilities, 0);
+  refillPreviousState(from.displayed, to.displayed, 0);
+  refillPreviousState(from.focusFactors, to.focusFactors, 0);
 
   if (
-    from.visibilities.some((visibilities, index) => (
-      visibilities !== to.visibilities[index] && (
+    to.visibilities.some((visibilities, index) => (
+      visibilities !== from.visibilities[index] && (
         !to.series[index].stacked ||
         (triggers.stackChange = true)
       ) && (
@@ -101,11 +104,16 @@ export function getTransitionTriggers(
     triggers.visibilityChange = isChanged = true;
   }
 
+  const displayChange = !isArrayEqual(from.displayed, to.displayed);
   if (
     from.xDomains.some((xDomains, index) => (
-      xDomains !== to.xDomains[index] &&
-      to.byXScale[index].items.some(({pie}) => pie) &&
-      (triggers.pieChange = true)
+      xDomains !== to.xDomains[index] && (
+        to.byXScale[index].items.some(
+          ({pie, toDraw}) => pie && toDraw()
+        ) &&
+        (triggers.pieChange = true) ||
+        displayChange
+      )
     ))
   ) {
     triggers.xDomainChange = isChanged = true;
@@ -123,6 +131,16 @@ export function getTransitionTriggers(
     return triggers;
   }
   return null;
+
+  function refillPreviousState<T>(
+    fromArray: T[],
+    {length}: T[],
+    defaultValue: T
+  ) {
+    while (fromArray.length < length) {
+      fromArray.push(defaultValue);
+    }
+  }
 }
 
 export function getIntermediateStateFactory(
@@ -155,10 +173,17 @@ export function getIntermediateStateFactory(
         to.visibilities,
         eased
       );
+      next.displayed = transitionValues(
+        from.displayed,
+        to.displayed,
+        eased
+      );
     }
 
     if (triggers.xDomainChange) {
       next.xDomains = transitionDomains(from.xDomains, to.xDomains);
+    } else {
+      next.xDomains = to.xDomains;
     }
 
     if (triggers.yDomainChange) {
@@ -169,12 +194,15 @@ export function getIntermediateStateFactory(
       next.yData = getSeriesData(
         to.series,
         next.visibilities,
+        next.displayed,
         getStackedData,
         getPercentageData,
         getXExtent,
         [to.xDomains[0], from.xDomains[0]],
         eased
       );
+    } else {
+      next.yData = to.yData;
     }
 
     return next;
@@ -184,9 +212,9 @@ export function getIntermediateStateFactory(
       toValues: number[],
       factor: number
     ) {
-      return fromValues.map(
-        (v0, index) => v0 + (toValues[index] - v0) * factor
-      );
+      return fromValues.map((v0, index) => {
+        return v0 + (toValues[index] - v0) * factor;
+      });
     }
 
     function transitionDomains(

@@ -11,13 +11,19 @@ export const drawAreaSeries: DrawSeries = (
   endIndex,
   color,
   _lineWidth,
-  visibility
+  visibility,
+  displayFactor
 ) => {
   if (!stacked) {
     y1 = _ownYData;
   }
   context.fillStyle = color;
-  context.globalAlpha = 0.7 * (stacked && (y1 || y0) ? 1 : visibility);
+  context.globalAlpha = getAreaOpacity(
+    (y1 || y0) && stacked,
+    visibility,
+    displayFactor
+  );
+
   context.beginPath();
 
   if (y1) {
@@ -43,3 +49,11 @@ export const drawAreaSeries: DrawSeries = (
   context.closePath();
   context.fill();
 };
+
+export function getAreaOpacity(
+  stacked: boolean,
+  visibility: number,
+  displayFactor: number
+) {
+  return 0.75 * (stacked ? displayFactor : visibility);
+}

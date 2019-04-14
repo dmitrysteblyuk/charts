@@ -7,21 +7,9 @@
     <meta name="theme-color" content="#000000">
     <meta http-equiv="Cache-control" content="public, max-age=2592000">
     <title>Charts</title>
-    <script>
-      function onChartDataLoad(data) {
-        window.initialChartData = data;
-        bootstrapIfReady();
-      }
-      function bootstrapIfReady() {
-        if (window.bootstrapCharts && window.initialChartData && document.body) {
-          window.bootstrapCharts(window.initialChartData, document.getElementById('root'));
-          window.initialChartData = null;
-        }
-      }
-    </script>
-    <script async type="text/javascript" src="initial.data.jsonp"></script>
+    <script type="text/javascript" src="initial.data.jsonp"></script>
   </head>
-  <body onload="bootstrapIfReady()">
+  <body>
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>

@@ -1,7 +1,5 @@
 const fs = require('fs');
 
-let initialChartData;
-global.onChartDataLoad = (_) => (initialChartData = _);
 global.window = {
   addEventListener() {},
   devicePixelRatio: 2
@@ -13,7 +11,9 @@ require('./remove-css-imports');
 
 const {getChartsRenderer} = require('../built/initialize');
 
-const {render, rootSelection} = getChartsRenderer(initialChartData);
+const {render, rootSelection} = getChartsRenderer(
+  global.window.initialChartData
+);
 
 render(500);
 
@@ -37,10 +37,10 @@ indexContent = indexContent.replace(
 );
 
 if (mainScript) {
-  mainScript = mainScript.replace(/(<script)/, '$1 async');
+  mainScript = mainScript.replace(/(<script\b)/, '$1 defer');
   indexContent = indexContent.replace(
-    /(\.data\.jsonp"><\/script>)/,
-    '$1' + mainScript
+    /(<script)(\s+type="text\/javascript")?(\s+src="initial.data.jsonp"><\/script>)/,
+    '$1 defer$2$3' + mainScript
   );
 }
 

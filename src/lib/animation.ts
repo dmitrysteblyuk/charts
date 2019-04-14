@@ -1,6 +1,6 @@
 const {requestAnimationFrame, cancelAnimationFrame} = window;
 
-export const DEFAULT_DURATION = 200;
+export const DEFAULT_DURATION = 250;
 export function stopAnimation(animationId: number) {
   cancelAnimationFrame(animationId);
 }

@@ -1,5 +1,5 @@
 import {Axis, AxisPosition} from '../axis';
-import {ChartScale, getExtendedDomain} from './chart-scale';
+import {ChartScale} from './chart-scale';
 import {memoize} from '../lib/memoize';
 import {groupBy} from '../lib/utils';
 import {startAnimation, stopAnimation} from '../lib/animation';
@@ -23,11 +23,11 @@ export type Chart = Readonly<ReturnType<typeof createChart>>;
 
 export function createChart(
   axes: Axis[],
-  series: AnySeries[],
   getStackedData: StackedDataCalculator,
   getPercentageData: PercentageDataCalculator,
   setSeriesYData: (series: AnySeries[], getXExtent: XExtentCalculator) => void
 ) {
+  let series: AnySeries[] = [];
   let pixelRatio = 1;
   let outerWidth = 0;
   let outerHeight = 0;
@@ -35,6 +35,7 @@ export function createChart(
   let innerWidth = 0;
   let innerHeight = 0;
   let context: CanvasRenderingContext2D;
+  let axesHidden = false;
 
   const getXExtent = memoize(calculateXExtent, 1);
   const stateTransition = createStateTransition(
@@ -78,10 +79,12 @@ export function createChart(
 
   function onStateUpdate({
     yDomains,
+    xDomains,
     yData,
     visibilities,
     displayed,
     byYScale,
+    byXScale,
     focusFactors
   }: State) {
     context.clearRect(0, 0, outerWidth, outerHeight);
@@ -91,7 +94,13 @@ export function createChart(
       key.setDomain(yDomains[index]);
     });
 
-    drawAxes();
+    byXScale.forEach(({key}, index) => {
+      key.setDomain(xDomains[index]);
+    });
+
+    if (!axesHidden) {
+      drawAxes();
+    }
     drawSeries(yData, visibilities, displayed, focusFactors);
     context.translate(-paddings[3], -paddings[0]);
   }
@@ -108,14 +117,6 @@ export function createChart(
       if (scale.isFixed()) {
         return;
       }
-
-      const currentDomain = scale.getDomain();
-      const startDomain = (
-        scale.isExtendableOnly()
-          ? currentDomain
-          : [Infinity, -Infinity]
-      );
-
       const oneItem = (
         items[0].xScale === scale
           ? items[0]
@@ -125,28 +126,20 @@ export function createChart(
         items = [oneItem];
       }
 
-      let domain = items.reduce((result, item) => {
+      const domain = items.reduce<NumberRange>((result, item) => {
         return getDomainExtender(item)(result);
-      }, startDomain);
+      }, [Infinity, -Infinity]);
 
-      if (domain[0] > domain[1]) {
-        domain = currentDomain;
+      if (domain[0] < domain[1]) {
+        scale.setDomain(domain);
       }
-      if (scale.getMinDomain) {
-        domain = getExtendedDomain(domain, scale.getMinDomain());
-      }
-
-      if (!(domain[0] < domain[1])) {
-        domain = [domain[0] - 1, domain[1] + 1];
-      }
-      scale.setDomain(domain);
     });
   }
 
   function drawSeries(
     yData: MultipleData[],
     visibilities: number[],
-    displayed: boolean[],
+    displayed: number[],
     focusFactors: number[]
   ) {
     series.forEach((item, index) => {
@@ -158,6 +151,7 @@ export function createChart(
         item.xData,
         yData[index],
         visibilities[index],
+        displayed[index],
         focusFactors[index],
         innerWidth / 2,
         innerHeight / 2
@@ -210,11 +204,13 @@ export function createChart(
 
   const instance = {
     axes,
-    series,
     draw,
     redraw,
     getXExtent,
     setXDomains,
+    setAxesHidden: (_: typeof axesHidden) => (axesHidden = _),
+    getSeries: () => series,
+    setSeries: (_: typeof series) => (series = _),
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance),
     setOuterHeight: (_: typeof outerHeight) => (outerHeight = _, instance),
     setPaddings: (_: typeof paddings) => (paddings = _, instance),
