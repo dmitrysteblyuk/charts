@@ -52,11 +52,13 @@ export function createChart(
 
   function draw(_context: CanvasRenderingContext2D) {
     context = _context;
-
     setSeriesYData(series, getXExtent);
     setYDomains();
     setRanges();
+    redraw();
+  }
 
+  function redraw() {
     stateTransition(getFinalTransitionState(series));
   }
 
@@ -79,7 +81,8 @@ export function createChart(
     yData,
     visibilities,
     displayed,
-    byYScale
+    byYScale,
+    focusFactors
   }: State) {
     context.clearRect(0, 0, outerWidth, outerHeight);
     context.translate(paddings[3], paddings[0]);
@@ -89,7 +92,7 @@ export function createChart(
     });
 
     drawAxes();
-    drawSeries(yData, visibilities, displayed);
+    drawSeries(yData, visibilities, displayed, focusFactors);
     context.translate(-paddings[3], -paddings[0]);
   }
 
@@ -143,7 +146,8 @@ export function createChart(
   function drawSeries(
     yData: MultipleData[],
     visibilities: number[],
-    displayed: boolean[]
+    displayed: boolean[],
+    focusFactors: number[]
   ) {
     series.forEach((item, index) => {
       if (!visibilities[index] || !displayed[index]) {
@@ -153,7 +157,10 @@ export function createChart(
         context,
         item.xData,
         yData[index],
-        visibilities[index]
+        visibilities[index],
+        focusFactors[index],
+        innerWidth / 2,
+        innerHeight / 2
       );
     });
     context.globalAlpha = 1;
@@ -205,6 +212,7 @@ export function createChart(
     axes,
     series,
     draw,
+    redraw,
     getXExtent,
     setXDomains,
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance),

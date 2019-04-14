@@ -1,22 +1,20 @@
 import {binarySearch} from '../lib/binary-search';
-import {getPiePosition} from '../series/pie';
+import {getPieRadius} from '../series/pie';
 import {AnySeries} from '../series';
 
 export function getNearestPoint(
   visibleSeries: AnySeries[],
-  point: number[],
+  pointX: number,
+  pointY: number,
+  centerX: number,
+  centerY: number,
   pixelRatio: number
 ) {
-  let pointX = point[0] * pixelRatio;
-  let pointY = point[1] * pixelRatio;
-
   const firstSeries = visibleSeries[0];
-  const {xScale} = firstSeries;
-  const scaleX = xScale.getScale();
 
   if (!firstSeries.pie) {
-    const time = xScale.getInvertedScale()(pointX);
-    const {xData} = firstSeries;
+    const {xData, xScale} = firstSeries;
+    const time = xScale.getInvertedScale()(pointX * pixelRatio);
     const i1 = (
       binarySearch(0, xData.length - 1, (index) => time < xData[index])
     );
@@ -24,12 +22,7 @@ export function getNearestPoint(
     return 2 * time < xData[i0] + xData[i1] ? i0 : i1;
   }
 
-  const {
-    centerX,
-    centerY,
-    defaultRadius: radius
-  } = getPiePosition(scaleX, firstSeries.yScale.getScale(), xScale);
-
+  const radius = getPieRadius(centerX, centerY);
   if ((pointX -= centerX) ** 2 + (pointY -= centerY) ** 2 > radius ** 2) {
     return -1;
   }

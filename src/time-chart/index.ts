@@ -11,10 +11,9 @@ import {onZoomEvents, ZoomMode, ZoomPositions} from '../lib/zoom';
 import {roundRange} from '../lib/utils';
 import {memoize} from '../lib/memoize';
 import {getZoomFactorAndOffset} from './zoom-transform';
-import {axisTimeFormat} from '../lib/time-format';
+import {axisTimeFormat, roundAuto} from '../lib/format';
 import {createTooltip} from '../tooltip';
 import {getNearestPoint} from './get-nearest-point';
-import {roundAuto} from '../lib/decimal-scale-ticks';
 import {
   calculateStackedData,
   calculatePercentageData,
@@ -66,7 +65,7 @@ export function createTimeChart() {
         AxisPosition.left,
         valueScale,
         memoize(getDecimalScaleTicks, 1),
-        roundAuto,
+        (tick) => String(roundAuto(tick)),
         false,
         true
       )
@@ -97,6 +96,7 @@ export function createTimeChart() {
   };
 
   let innerWidth = 0;
+  let mainInnerHeight = 0;
   let isBrushing = false;
   let brushLeft = 0;
   let brushRight = 0;
@@ -105,10 +105,12 @@ export function createTimeChart() {
   function render(_container: Selection) {
     container = _container;
     innerWidth = outerWidth - mainPaddings[1] - mainPaddings[3];
+    mainInnerHeight = mainConfig.height - mainPaddings[0] - mainPaddings[2];
 
     const chartContainers = [mainConfig, helperConfig].map(renderChart);
     renderBrush(chartContainers[1]);
     renderLegend();
+    tooltip.update();
   }
 
   function renderChart(config: ChartConfig, index: number) {
@@ -249,6 +251,8 @@ export function createTimeChart() {
   }
 
   function bindTooltipEvents(mainContainer: Selection) {
+    tooltip.seriesFocusEvent.on(mainChart.redraw);
+
     mainContainer.on('mousemove', ({clientX, clientY, target}: MouseEvent) => {
       if (getTooltipContainer().hasDescendant(target as any)) {
         return;
@@ -260,7 +264,14 @@ export function createTimeChart() {
 
       if (visibleSeries.length) {
         point = getPoint(clientX, clientY, mainContainer);
-        index = getNearestPoint(visibleSeries, point, pixelRatio);
+        index = getNearestPoint(
+          visibleSeries,
+          point[0],
+          point[1],
+          innerWidth / 2,
+          mainInnerHeight / 2,
+          pixelRatio
+        );
       }
 
       if (index === -1) {
@@ -270,26 +281,22 @@ export function createTimeChart() {
 
       const firstSeries = visibleSeries[0];
       if (firstSeries.pie) {
-        tooltip.setPieSeries(visibleSeries[index])
+        tooltip
           .setLeft(point![0])
-          .setTop(point![1]);
+          .setTop(point![1])
+          .setPieSeries(visibleSeries[index]);
       } else {
         const time = firstSeries.xData[index];
-        const lineX = Math.round(
-          firstSeries.xScale.getScale()(time) / pixelRatio
-        );
 
         tooltip
           .setDataIndex(index)
-          .setPieSeries(null)
           .setTime(time)
           .setTop(20)
-          .setLeft(lineX)
-          .setLineX(lineX)
           .setLineY2(getInnerHeight(mainConfig))
+          .setPieSeries(null);
       }
 
-      tooltip.show(true).setPixelRatio(pixelRatio);
+      tooltip.setPixelRatio(pixelRatio).show(true);
       renderTooltip();
     }).on(
       'mouseleave', hideTooltip
@@ -302,7 +309,7 @@ export function createTimeChart() {
 
     function renderTooltip() {
       tooltip.render(
-        renderSvg(mainContainer, mainConfig),
+        renderSvg(mainContainer, mainConfig).renderOne('g', 0),
         getTooltipContainer()
       );
     }

@@ -1,5 +1,7 @@
 import {Selection} from '../lib/selection';
+import {isArrayEqual} from '../lib/utils';
 import {AnySeries} from '../series';
+import {EventEmitter} from '../lib/event-emitter';
 import './index.css';
 
 export type Tooltip = Readonly<ReturnType<typeof createTooltip>>;
@@ -13,11 +15,11 @@ export function createTooltip(
   let time = 0;
   let dataIndex = 0;
   let shouldShow = false;
-  let lineX = 0;
   let lineY2 = 0;
   let pixelRatio = 1;
-  let pieSeries: AnySeries | null | undefined;
+  let pieSeries: AnySeries | null = null;
 
+  const seriesFocusEvent = new EventEmitter<void>();
   const lineY1 = 0;
   const timeFormat = (dateTime: number) => {
     const date = new Date(dateTime);
@@ -26,33 +28,21 @@ export function createTooltip(
     }
     return date.toDateString();
   };
+  let lastVisibleSeries: AnySeries[] = [];
   let lineContainer: Selection;
   let container: Selection;
 
   function render(_lineContainer: Selection, _container: Selection) {
-    (container = _container).toggle(shouldShow);
-    (lineContainer = _lineContainer).toggle(
-      shouldShow && !pieSeries
-    );
+    container = _container;
+    lineContainer = _lineContainer;
+    toggleTooltip(shouldShow);
 
     if (!shouldShow) {
       return;
     }
     renderPieTooltip();
     renderLineTooltip();
-
-    const {width, height} = container.getRect()!;
-    const leftPosition = Math.max(
-      0, left - width + offsets[3] - 10
-    );
-    const topPosition = Math.max(
-      0, top - (pieSeries ? height : 0) + offsets[0] - 10
-    );
-
-    container.setStyles({
-      'left': `${leftPosition}px`,
-      'top': `${topPosition}px`
-    });
+    positionTooltip();
   }
 
   function renderPieTooltip() {
@@ -101,10 +91,11 @@ export function createTooltip(
       selection.renderOne('div', 1).text(series.getLabel());
     });
 
+    lastVisibleSeries = getVisibleSeries();
+    setLinePosition();
+
     lineContainer.renderOne('line', 0).setAttrs({
       'stroke': '#ddd',
-      'x1': lineX,
-      'x2': lineX,
       'y1': lineY1,
       'y2': lineY2
     });
@@ -133,21 +124,105 @@ export function createTooltip(
         display: null
       }).setAttrs({
         'stroke': series.getColor(),
-        'cx': lineX,
         'cy': series.yScale.getScale()(yCoordinate) / pixelRatio
       });
     });
   }
 
+  function update() {
+    if (!shouldShow) {
+      return;
+    }
+
+    if (pieSeries) {
+      if (!pieSeries.toDraw()) {
+        pieSeries = null;
+        toggleTooltip(shouldShow = false);
+      }
+      return;
+    }
+
+    const visibleSeries = getVisibleSeries();
+    if (!isArrayEqual(visibleSeries, lastVisibleSeries)) {
+      toggleTooltip(shouldShow = false);
+      return;
+    }
+
+    const insideView = setLinePosition();
+    positionTooltip();
+    toggleTooltip(insideView);
+  }
+
+  function setLinePosition() {
+    const {xScale} = lastVisibleSeries[0];
+    const x = xScale.getScale()(time);
+    const [r0, r1] = xScale.getRange();
+    const insideView = x >= r0 && x <= r1;
+
+    left = Math.round(x / pixelRatio);
+
+    lineContainer.setAttrs({
+      'transform': `translate(${left},0)`
+    });
+    return insideView;
+  }
+
+  function toggleTooltip(visible: boolean) {
+    container.toggle(visible);
+    lineContainer.toggle(visible && !pieSeries);
+  }
+
+  function positionTooltip() {
+    const {width, height} = container.getRect()!;
+    const leftPosition = Math.max(
+      0, left - width + offsets[3] - 10
+    );
+    const topPosition = Math.max(
+      0, top - (pieSeries ? height : 0) + offsets[0] - 10
+    );
+
+    container.setStyles({
+      'transform': `translate(${leftPosition}px,${topPosition}px)`
+    });
+  }
+
+  function getVisibleSeries() {
+    return allSeries.filter(({toDraw}) => toDraw());
+  }
+
+  function setPieSeries(nextPieSeries: AnySeries | null) {
+    if (pieSeries === nextPieSeries) {
+      return;
+    }
+    if (pieSeries) {
+      pieSeries.setFocused(false);
+    }
+    if (nextPieSeries) {
+      nextPieSeries.setFocused(true);
+    }
+    seriesFocusEvent.emit();
+    pieSeries = nextPieSeries;
+  }
+
+  function show(_shouldShow: boolean) {
+    if ((shouldShow = _shouldShow) || !pieSeries) {
+      return;
+    }
+    pieSeries.setFocused(false);
+    pieSeries = null;
+    seriesFocusEvent.emit();
+  }
+
   const instance = {
     render,
+    show,
+    setPieSeries,
+    seriesFocusEvent,
+    update,
     setTop: (_: typeof top) => (top = _, instance),
     setLeft: (_: typeof left) => (left = _, instance),
     setTime: (_: typeof time) => (time = _, instance),
-    setPieSeries: (_: typeof pieSeries) => (pieSeries = _, instance),
     setDataIndex: (_: typeof dataIndex) => (dataIndex = _, instance),
-    show: (_: typeof shouldShow) => (shouldShow = _, instance),
-    setLineX: (_: typeof lineX) => (lineX = _, instance),
     setLineY2: (_: typeof lineY2) => (lineY2 = _, instance),
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance)
   };

@@ -22,7 +22,9 @@ export type DrawSeries = (
   color: string,
   lineWidth: number,
   visibility: number,
-  chartXScale: ChartScale
+  focused: number,
+  centerX: number,
+  centerY: number
 ) => void;
 
 export function createSeries(
@@ -44,13 +46,17 @@ export function createSeries(
   let hidden = false;
   let pixelRatio = 1;
   let stackIndex = 0;
+  let focused = false;
   const getSeriesYDomain = memoize(getYDomain, 1);
 
   function draw(
     context: CanvasRenderingContext2D,
     xArray: NumericData,
     yArrays: MultipleData,
-    visibility: number
+    visibility: number,
+    focusFactor: number,
+    centerX: number,
+    centerY: number
   ) {
     const [startIndex, endIndex] = getExtent();
     drawSeries(
@@ -64,7 +70,9 @@ export function createSeries(
       color,
       pixelRatio * strokeWidth,
       visibility,
-      xScale
+      focusFactor,
+      centerX,
+      centerY
     );
   }
 
@@ -109,6 +117,7 @@ export function createSeries(
     yScale,
     xData,
     getDisplayedYData,
+    getFocused: () => focused,
     getStackIndex: () => stackIndex,
     getOwnYData: () => yData[0],
     getYData: () => yData,
@@ -119,6 +128,7 @@ export function createSeries(
     isHidden: () => hidden,
     isDisplayed: () => displayed,
     toDraw: () => displayed && !hidden,
+    setFocused: (_: typeof focused) => (focused = _, instance),
     setYData: (_: typeof yData) => (yData = _, instance),
     setStackIndex: (_: typeof stackIndex) => (stackIndex = _, instance),
     setLabel: (_: typeof label) => (label = _, instance),

@@ -1,48 +1,52 @@
 import {DrawSeries} from './';
-import {ChartScale} from '../chart/chart-scale';
+import {percentageFormat} from '../lib/format';
 
 export const drawPieSeries: DrawSeries = (
   context,
   _x,
-  [_ownYData, angles],
-  scaleX,
-  scaleY,
+  [_ownYData, yData],
+  _scaleX,
+  _scaleY,
   _startIndex,
   _endIndex,
   color,
   _lineWidth,
   _visibility,
-  chartXScale
+  focusFactor,
+  centerX,
+  centerY
 ) => {
   context.fillStyle = color;
+  const radius = getPieRadius(centerX, centerY);
+  const endAngle = yData[0];
+  const startAngle = yData[1];
+  const middleAngle = (startAngle + endAngle) / 2;
+  const middleX = radius * Math.cos(middleAngle);
+  const middleY = radius * Math.sin(middleAngle);
 
-  const {
-    centerX,
-    centerY,
-    defaultRadius: radius
-  } = getPiePosition(scaleX, scaleY, chartXScale);
+  if (focusFactor) {
+    centerX += middleX * 0.1 * focusFactor;
+    centerY += middleY * 0.1 * focusFactor;
+  }
 
   context.translate(centerX, centerY);
 
   context.beginPath();
+
   context.moveTo(0, 0);
-  context.lineTo(radius * Math.cos(angles[1]), radius * Math.sin(angles[1]));
-  context.arc(0, 0, radius, angles[1], angles[0]);
+  context.lineTo(radius * Math.cos(startAngle), radius * Math.sin(startAngle));
+  context.arc(0, 0, radius, startAngle, endAngle);
   context.closePath();
   context.fill();
+
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillStyle = '#fff';
+  context.fillText(percentageFormat(yData[3]), middleX * 0.55, middleY * 0.55);
 
   context.translate(-centerX, -centerY);
 };
 
-export function getPiePosition(
-  scaleX: (x: number) => number,
-  scaleY: (y: number) => number,
-  chartXScale: ChartScale
-) {
-  const [d0, d1] = chartXScale.getDomain();
-  const centerX = scaleX((d0 + d1) / 2);
-  const centerY = scaleY(0.5);
-  const defaultRadius = Math.min(centerX, centerY) * .9;
-
-  return {centerX, centerY, defaultRadius};
+export function getPieRadius(centerX: number, centerY: number) {
+  return Math.min(centerX, centerY) * 0.9;
 }
