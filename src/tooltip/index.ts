@@ -123,16 +123,26 @@ export function createTooltip(
     });
 
     lastVisibleSeries = getVisibleSeries();
-    setLinePosition();
 
+    const isBar = lastVisibleSeries.some(({bar}) => bar);
     lineContainer.renderOne('line', 0).setAttrs({
       'stroke': theme.tooltipBorderColor,
       'y1': lineY1,
       'y2': lineY2
-    });
+    }).toggle(!isBar);
 
-    const circlesContainer = lineContainer.renderOne('g', 1);
+    lineContainer.renderOne('rect', 1, (selection) => {
+      selection.setAttrs({
+        'fill': 'rgba(255,255,255,0.1)',
+        'x': 0
+      });
+    }).toggle(isBar);
+
+    const circlesContainer = lineContainer.renderOne('g', 2);
     allSeries.forEach((series, index) => {
+      if (series.bar) {
+        return;
+      }
       const selection = circlesContainer.renderOne(
         'circle',
         index,
@@ -147,17 +157,15 @@ export function createTooltip(
         return;
       }
 
-      const yData = series.getDisplayedYData();
-      const yCoordinate = yData ? yData[dataIndex] : 1;
-
       selection.setStyles({
         display: null
       }).setAttrs({
         'stroke': series.getColor(),
-        'cy': series.yScale.getScale()(yCoordinate) / pixelRatio,
         'fill': theme.maskColor
       });
     });
+
+    setLinePosition();
   }
 
   function update() {
@@ -185,8 +193,15 @@ export function createTooltip(
   }
 
   function setLinePosition() {
-    const {xScale} = lastVisibleSeries[0];
-    const x = xScale.getScale()(time);
+    const {
+      xScale,
+      xData,
+      bar,
+      getYData,
+      yScale
+    } = lastVisibleSeries[lastVisibleSeries.length - 1];
+    const scaleX = xScale.getScale();
+    const x = scaleX(time);
     const [r0, r1] = xScale.getRange();
     const insideView = x >= r0 && x <= r1;
 
@@ -195,6 +210,35 @@ export function createTooltip(
     lineContainer.setAttrs({
       'transform': `translate(${left},0)`
     });
+
+    if (bar) {
+      const [ownYData, y1] = getYData();
+      const value = (y1 || ownYData)[dataIndex];
+      const scaleY = yScale.getScale();
+      const y = Math.round(scaleY(value) / pixelRatio);
+      const height = Math.round(scaleY(0) / pixelRatio) - y;
+
+      lineContainer.selectOne(1)!.setAttrs({
+        'width': Math.ceil((scaleX(xData[1]) - scaleX(xData[0])) / pixelRatio),
+        'y': y,
+        'height': height
+      });
+    }
+
+    const circlesContainer = lineContainer.selectOne(2)!;
+    getAllSeries().forEach((series, index) => {
+      if (series.bar || !series.toDraw()) {
+        return;
+      }
+
+      const yData = series.getDisplayedYData();
+      const yCoordinate = yData ? yData[dataIndex] : 1;
+      const selection = circlesContainer.selectOne(index)!;
+      selection.setAttrs({
+        'cy': series.yScale.getScale()(yCoordinate) / pixelRatio
+      });
+    });
+
     return insideView;
   }
 
