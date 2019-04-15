@@ -416,8 +416,10 @@ export function createTimeChart(
     let startPositions: ZoomPositions;
     let hasChanged: boolean;
 
-    onZoomEvents(mainContainer, (positions, mode, event) => {
-      event.preventDefault();
+    onZoomEvents(mainContainer, (positions, mode, event, isTouch) => {
+      if (!isTouch || mode === ZoomMode.Pinch) {
+        event.preventDefault();
+      }
       if (!hasChanged) {
         hasChanged = true;
       }

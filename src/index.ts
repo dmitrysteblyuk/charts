@@ -44,9 +44,14 @@ function bootstrapCharts(json: ChartConfig[], rootElement: HTMLElement) {
     renderCharts();
   }
 
+  const supportsTouch = 'ontouchstart' in window;
+
   function getRenderArgs(): typeof defaultPrerenderArgs {
     return [
-      Math.min(500, window.innerWidth - 50),
+      Math.min(
+        500,
+        (supportsTouch ? window.outerWidth : window.innerWidth) - 50
+      ),
       window.devicePixelRatio || 1
     ];
   }

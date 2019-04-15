@@ -9,7 +9,8 @@ export function onZoomEvents(
   onZoomChange: (
     positions: ZoomPositions,
     mode: ZoomMode,
-    event: Event
+    event: Event,
+    isTouchEvent?: boolean
   ) => void,
   onZoomStart: (
     initialPositions: ZoomPositions,
@@ -121,7 +122,7 @@ export function onZoomEvents(
       return;
     }
     positions = nextPositions;
-    onZoomChange(nextPositions, mode!, event);
+    onZoomChange(nextPositions, mode!, event, true);
   }
 
   function onEnd(event: ZoomEvent) {
