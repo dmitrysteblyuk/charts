@@ -9,10 +9,6 @@
 /dist
 /screenshots
 
-*.data.jsonp
-*.data.json
-*.data
-
 # misc
 .DS_Store
 .env.local

@@ -9,13 +9,16 @@ require('import-export');
 require('../initial.data.jsonp');
 require('./remove-css-imports');
 
-const {getChartsRenderer} = require('../built/initialize');
+const {
+  getChartsRenderer,
+  defaultPrerenderArgs
+} = require('../built/initialize');
 
 const {render, rootSelection} = getChartsRenderer(
   global.window.initialChartData
 );
 
-render(500);
+render(...defaultPrerenderArgs);
 
 const markup = rootSelection.setAttrs({'id': 'root'}).getStaticMarkup();
 
@@ -29,7 +32,7 @@ indexContent = indexContent.replace(
 
 let mainScript;
 indexContent = indexContent.replace(
-  /(<script(\s+type="text\/javascript")?\s+src="main-.*?\.js"><\/script>)/,
+  /(<script(\s+type="text\/javascript")?\s+src="main\-.*?\.js"><\/script>)/,
   (match) => {
     mainScript = match;
     return '';
@@ -37,9 +40,12 @@ indexContent = indexContent.replace(
 );
 
 if (mainScript) {
-  mainScript = mainScript.replace(/(<script\b)/, '$1 defer');
+  mainScript = mainScript
+    .replace(/(<script\b)/, '$1 defer')
+    .replace(/\bsrc="main\-/, 'src="./main-');
+
   indexContent = indexContent.replace(
-    /(<script)(\s+type="text\/javascript")?(\s+src="initial.data.jsonp"><\/script>)/,
+    /(<script)(\s+type="text\/javascript")?(\s+src="\.\/initial.data.jsonp"><\/script>)/,
     '$1 defer$2$3' + mainScript
   );
 }

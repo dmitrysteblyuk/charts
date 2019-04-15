@@ -10,6 +10,8 @@ import {Selection} from './lib/selection';
 import {padding} from './lib/format';
 import './index.css';
 
+export const defaultPrerenderArgs: [number, number] = [500, 2];
+
 const oneDay = 24 * 3600 * 1000;
 const dayTheme: Theme = {
   gridColor: '#182D3B',
@@ -76,11 +78,11 @@ export function getChartsRenderer(
 
   return {charts, render, rootSelection};
 
-  function render(width: number) {
+  function render(width: number, pixelRatio: number) {
     charts.forEach((chart, index) => {
       chart
         .setOuterWidth(width)
-        .setPixelRatio(window.devicePixelRatio)
+        .setPixelRatio(pixelRatio)
         .render(containers[index]);
     });
   }

@@ -1,4 +1,10 @@
-import {getChartsRenderer, ChartConfig} from './initialize';
+import {
+  getChartsRenderer,
+  ChartConfig,
+  defaultPrerenderArgs
+} from './initialize';
+import {memoize} from './lib/memoize';
+import {isArrayEqual} from './lib/utils';
 
 bootstrapCharts(
   (window as any)['initialChartData'],
@@ -13,20 +19,39 @@ function bootstrapCharts(json: ChartConfig[], rootElement: HTMLElement) {
     isPrerendered ? undefined : rootElement,
     document.body
   );
+  const memoizedRender = memoize(render, 1);
 
   (window as any)['json'] = json;
   (window as any)['charts'] = charts;
 
-  render(500);
+  if (isPrerendered) {
+    memoizedRender(...defaultPrerenderArgs);
+  } else {
+    renderCharts();
+  }
 
-  // window.onresize = () => {
-  //   render();
-  // };
+  window.onresize = renderCharts;
 
   if (!isPrerendered) {
     return;
   }
 
   rootSelection.connectToElement(rootElement);
-  charts.forEach(({redraw}) => redraw());
+
+  if (isArrayEqual(defaultPrerenderArgs, getRenderArgs())) {
+    charts.forEach(({redraw}) => redraw());
+  } else {
+    renderCharts();
+  }
+
+  function getRenderArgs(): typeof defaultPrerenderArgs {
+    return [
+      Math.min(500, window.innerWidth - 50),
+      window.devicePixelRatio || 1
+    ];
+  }
+
+  function renderCharts() {
+    memoizedRender(...getRenderArgs());
+  }
 }

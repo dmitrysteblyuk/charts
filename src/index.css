@@ -15,8 +15,8 @@ div#root {
 div.time-chart {
   display: inline-block;
   position: relative;
-  margin: 30px;
-  width: 500px;
+  padding: 25px;
+  width: 550px;
 }
 
 div.theme {
@@ -27,4 +27,10 @@ div.theme > div {
   font-size: 15px;
   padding: 20px;
   display: inline-block;
+}
+
+@media (max-width: 550px) {
+  div.time-chart {
+    width: 100%;
+  }
 }
