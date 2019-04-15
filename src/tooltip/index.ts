@@ -20,6 +20,7 @@ export function createTooltip(
   let lineY2 = 0;
   let pixelRatio = 1;
   let pieSeries: AnySeries | null = null;
+  let theme: Theme;
 
   const seriesFocusEvent = new EventEmitter<void>();
   const zoomSeriesEvent = new EventEmitter<number>();
@@ -38,6 +39,11 @@ export function createTooltip(
     container = _container;
     lineContainer = _lineContainer;
     parentContainer = _parentContainer;
+
+    container.setStyles({
+      backgroundColor: theme.tooltipBackground,
+      borderColor: theme.tooltipBorderColor
+    });
 
     toggleTooltip(shouldShow);
 
@@ -107,7 +113,7 @@ export function createTooltip(
     setLinePosition();
 
     lineContainer.renderOne('line', 0).setAttrs({
-      'stroke': '#ddd',
+      'stroke': theme.tooltipBorderColor,
       'y1': lineY1,
       'y2': lineY2
     });
@@ -119,8 +125,7 @@ export function createTooltip(
         index,
         (circleSelection) => circleSelection.setAttrs({
           'stroke-width': 2,
-          'r': 5,
-          'fill': 'white'
+          'r': 5
         })
       );
 
@@ -136,7 +141,8 @@ export function createTooltip(
         display: null
       }).setAttrs({
         'stroke': series.getColor(),
-        'cy': series.yScale.getScale()(yCoordinate) / pixelRatio
+        'cy': series.yScale.getScale()(yCoordinate) / pixelRatio,
+        'fill': theme.maskColor
       });
     });
   }
@@ -248,6 +254,7 @@ export function createTooltip(
     zoomSeriesEvent,
     update,
     setZoomedIn: (_: typeof zoomedIn) => (zoomedIn = _),
+    setTheme: (_: typeof theme) => (theme = _, instance),
     setTop: (_: typeof top) => (top = _, instance),
     setLeft: (_: typeof left) => (left = _, instance),
     setTime: (_: typeof time) => (time = _, instance),

@@ -4,7 +4,6 @@ import {roundRange} from '../lib/utils';
 import {EventEmitter} from '../lib/event-emitter';
 
 const enum Behaviour {resizeLeft, resizeRight, move};
-const color = 'rgba(0, 25, 100, 0.1)';
 
 export type Brush = Readonly<ReturnType<typeof createBrush>>;
 
@@ -18,56 +17,76 @@ export function createBrush(height: number) {
   let left = 0;
   let right = 0;
   let brushing = false;
-  const borderWidth = 10;
+  let theme: Theme;
+  const handleWidth = 10;
+  const minWidth = handleWidth;
 
   function render(container: Selection) {
     let isNew: boolean | undefined;
     const common = {
-      'fill': 'transparent',
       'y': 0,
       'height': height
     };
 
     container.renderOne('rect', 0, (selection) => {
-      selection.setAttrs({
-        ...common,
-        'fill': color,
-        'x': '0'
-      });
+      selection.setAttrs(common);
       isNew = true;
     }).setAttrs({
-      'width': left
+      'width': left,
+      'opacity': theme.brushMaskOpacity,
+      'fill': theme.brushMaskColor
     });
 
     container.renderOne('rect', 1, (selection) => {
-      selection.setAttrs({
-        ...common,
-        'fill': color
-      });
+      selection.setAttrs(common);
     }).setAttrs({
       'x': right,
-      'width': width - right
+      'width': width - right,
+      'fill': theme.brushMaskColor,
+      'opacity': theme.brushMaskOpacity
     });
 
     const centerRect = container.renderOne('rect', 2, (selection) => {
-      selection.setAttrs(common);
+      selection.setAttrs({
+        'y': 0.5,
+        'height': height - 1,
+        'fill': 'transparent',
+        'stroke-width': 1
+      });
     }).setAttrs({
       'x': left,
-      'width': right - left
+      'width': right - left,
+      'stroke': theme.brushHandleColor
     });
 
-    const leftHandle = container.renderOne('rect', 3, (selection) => {
-      selection.setAttrs(common);
+    const leftHandle = container.renderOne('path', 3, (selection) => {
+      selection.setAttrs({
+        'd': (
+          `M0 ${
+            height - handleWidth
+          } V${handleWidth} Q0 0 ${handleWidth} 0 H${handleWidth} V${
+            height
+          } Q0 ${height} 0 ${height - handleWidth}Z`
+        )
+      });
     }).setAttrs({
-      'x': left - borderWidth,
-      'width': borderWidth * 2
+      'transform': `translate(${left - handleWidth})`,
+      'fill': theme.brushHandleColor
     });
 
-    const rightHandle = container.renderOne('rect', 4, (selection) => {
-      selection.setAttrs(common);
+    const rightHandle = container.renderOne('path', 4, (selection) => {
+      selection.setAttrs({
+        'd': (
+          `M${handleWidth} ${
+            height - handleWidth
+          } V${handleWidth} Q${handleWidth} 0 0 0 H0 V${
+            height
+          } Q${handleWidth} ${height} ${handleWidth} ${height - handleWidth}Z`
+        )
+      });
     }).setAttrs({
-      'x': right - borderWidth,
-      'width': borderWidth * 2
+      'transform': `translate(${right})`,
+      'fill': theme.brushHandleColor
     });
 
     if (!isNew) {
@@ -125,10 +144,14 @@ export function createBrush(height: number) {
 
       switch (behaviour) {
         case Behaviour.resizeLeft:
-          nextLeft = limit(startLeft + sumDiffX);
+          nextLeft = Math.max(
+            0, Math.min(startLeft + sumDiffX, right - minWidth)
+          );
           break;
         case Behaviour.resizeRight:
-          nextRight = limit(startRight + sumDiffX);
+          nextRight = Math.max(
+            left + minWidth, Math.min(startRight + sumDiffX, currentWidth)
+          );
           break;
         case Behaviour.move:
           nextRight = startRight + sumDiffX;
@@ -143,19 +166,6 @@ export function createBrush(height: number) {
             nextRight = startRight - startLeft;
           }
           break;
-      }
-
-      if (nextLeft > nextRight) {
-        nextRight = nextLeft + (nextLeft = nextRight, 0);
-        const nextStartLeft = startRight;
-        startRight = startLeft;
-        startLeft = nextStartLeft;
-
-        if (behaviour === Behaviour.resizeLeft) {
-          behaviour = Behaviour.resizeRight;
-        } else if (behaviour === Behaviour.resizeRight) {
-          behaviour = Behaviour.resizeLeft;
-        }
       }
 
       if (nextLeft === left && nextRight === right) {
@@ -185,17 +195,15 @@ export function createBrush(height: number) {
     }, () => {
       brushing = false;
     });
-
-    function limit(x: number) {
-      return Math.max(0, Math.min(x, currentWidth));
-    }
   }
 
   const instance = {
+    getMinWidth: () => minWidth,
     render,
     changeEvent,
     isBrushing: () => brushing,
     getWidth: () => width,
+    setTheme: (_: typeof theme) => (theme = _, instance),
     setWidth: (_: typeof width) => (width = _, instance),
     setLeft: (_: typeof left) => (left = _, instance),
     setRight: (_: typeof right) => (right = _, instance)

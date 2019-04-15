@@ -2,7 +2,7 @@ import {createChart, Chart} from '../chart';
 import {createAxis, AxisPosition} from '../axis';
 import {createBrush} from '../brush';
 import {Selection} from '../lib/selection';
-import {createScale, ChartScale} from '../chart/chart-scale';
+import {createScale, ChartScale, fitDomain} from '../chart/chart-scale';
 import {getDecimalScaleTicks} from '../lib/decimal-scale-ticks';
 import {getTimeScaleTicks} from '../lib/time-scale-ticks';
 import {AnySeries} from '../series';
@@ -32,6 +32,7 @@ export type TimeChart = Readonly<ReturnType<typeof createTimeChart>>;
 
 interface ChartConfig {
   chart: Chart;
+  className: string;
   height: number;
   offsets: NumberRange;
   paddings: NumberRange;
@@ -47,6 +48,7 @@ export function createTimeChart(
   let outerWidth = 0;
   let pixelRatio = 1;
   let zoomedIn = false;
+  let theme: Theme;
 
   const mainPaddings = [10, 10, 20, 10];
   const timeScale = createScale(true);
@@ -101,6 +103,7 @@ export function createTimeChart(
   );
 
   const mainConfig = {
+    className: 'main',
     chart: mainChart,
     height: 300,
     offsets: [0, 0, 0, 0],
@@ -108,6 +111,7 @@ export function createTimeChart(
     onRender: onMainChartRender
   };
   const helperConfig = {
+    className: 'helper',
     chart: helperChart,
     height: 65,
     offsets: [0, mainPaddings[1], 0, mainPaddings[3]],
@@ -149,6 +153,8 @@ export function createTimeChart(
         .setStyles({'display': 'none'})
         .text('Zoom out')
         .on('click', () => toggleZoomedSeries(false));
+    }).setStyles({
+      'color': theme.zoomOutText
     }).toggle(zoomedIn);
 
     const timeSpanText = timeScale.getDomain()
@@ -186,7 +192,7 @@ export function createTimeChart(
 
     const chartContainer = container.renderOne('div', key, (selection) => {
       onRender(selection.setAttrs({
-        'class': 'chart'
+        'class': `chart ${config.className}`
       }).setStyles({
         'padding': offsets.map((value) => `${value}px`).join(' '),
         'height': `${height}px`
@@ -234,7 +240,7 @@ export function createTimeChart(
       }
 
       const context = container
-        .selectOne(index)!
+        .selectOne(index + 1)!
         .selectOne<HTMLCanvasElement>(0)!
         .getContext();
 
@@ -449,10 +455,28 @@ export function createTimeChart(
     if (factor === 1 && offset === 0) {
       return;
     }
-    const nextStartTime = factor * startTime + offset;
-    const nextEndTime = factor * endTime + offset;
-    timeScale.setDomain([nextStartTime, nextEndTime]);
+
+    let nextStartTime = factor * startTime + offset;
+    let nextEndTime = factor * endTime + offset;
+    const extend = (nextEndTime - nextStartTime - getMinTimeSpan()) / 2;
+
+    if (extend < 0) {
+      nextEndTime -= extend;
+      nextStartTime += extend;
+    }
+
+    timeScale.setDomain(fitDomain(
+      [nextStartTime, nextEndTime],
+      fullTimeScale.getDomain()
+    ));
+
     render();
+  }
+
+  function getMinTimeSpan() {
+    const inverted = fullTimeScale.getInvertedScale();
+    const minBrushWidth = brush.getMinWidth() * pixelRatio;
+    return Math.ceil(inverted(minBrushWidth) - inverted(0));
   }
 
   function renderBrush(helperContainer: Selection) {
@@ -519,10 +543,18 @@ export function createTimeChart(
     zoomOutEvent,
     setZoomedIn,
     toggleZoomedSeries,
+    setTheme,
     isZoomed: () => zoomedIn,
     setPixelRatio: (_: typeof pixelRatio) => (pixelRatio = _, instance),
     setOuterWidth: (_: typeof outerWidth) => (outerWidth = _, instance)
   };
+
+  function setTheme(_theme: Theme) {
+    brush.setTheme(theme = _theme);
+    tooltip.setTheme(theme);
+    mainChart.setTheme(theme);
+    return instance;
+  }
 
   function setZoomedIn(_zoomedIn: boolean) {
     zoomedIn = _zoomedIn;

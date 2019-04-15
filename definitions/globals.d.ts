@@ -31,3 +31,21 @@ interface Array<T> {
   forEach(iterator: (item: T, index: number) => void): void;
   map<V>(mapper: (item: T, index: number) => V): V[];
 }
+
+interface Theme {
+  gridColor: string;
+  gridOpacity: number;
+  tickColor: string;
+  tickOpacity: number;
+  tickFont: string;
+  zoomOutText: string;
+  tooltipArrow: string;
+  brushMaskColor: string;
+  brushMaskOpacity: number;
+  brushHandleColor: string;
+  maskColor: string;
+  maskOpacity: number;
+  textColor: string;
+  tooltipBackground: string;
+  tooltipBorderColor: string;
+}

@@ -29,11 +29,9 @@ export function createAxis(
 ) {
   let gridSize = 0;
   let pixelRatio = 1;
+  let theme: Theme;
 
-  const textColor = '#777';
   const textSize = 11;
-  const textFont = 'px verdana, sans-serif';
-  const gridColor = '#ddd';
   const tickPadding = 10;
   const tickCount = 6;
   const vertical = (
@@ -47,7 +45,9 @@ export function createAxis(
       context.transform(...matrix[0]);
     }
     context.lineWidth = pixelRatio;
-    context.strokeStyle = gridColor;
+    context.strokeStyle = theme.gridColor;
+    context.globalAlpha = theme.gridOpacity;
+
     drawScale(context);
     drawTicks(context);
 
@@ -81,8 +81,8 @@ export function createAxis(
       });
     }
 
-    context.fillStyle = textColor;
-    context.font = textSize * pixelRatio + textFont;
+    context.fillStyle = theme.tickColor;
+    context.font = textSize * pixelRatio + 'px ' + theme.tickFont;
 
     ticks.forEach((tick, index) => {
       const offset = tickOffsets[index];
@@ -108,9 +108,9 @@ export function createAxis(
       if (matrix) {
         context.transform(...matrix[1]);
       }
-      if (getOpacity) {
-        context.globalAlpha = getOpacity(index);
-      }
+      context.globalAlpha = theme.tickOpacity * (
+        getOpacity ? getOpacity(index) : 1
+      );
       context.fillText(tickFormat(tick), x, y);
       if (matrix) {
         context.transform(...matrix[0]);
@@ -151,6 +151,7 @@ export function createAxis(
 
   const instance = {
     draw,
+    setTheme: (_: typeof theme) => (theme = _, instance),
     isVertical: () => vertical,
     getPosition: () => position,
     setGridSize: (_: typeof gridSize) => (gridSize = _, instance),

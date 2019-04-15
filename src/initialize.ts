@@ -11,17 +11,66 @@ import {padding} from './lib/format';
 import './index.css';
 
 const oneDay = 24 * 3600 * 1000;
+const dayTheme: Theme = {
+  gridColor: '#182D3B',
+  gridOpacity: 0.1,
+  tickColor: '#8E8E93',
+  tickOpacity: 1,
+  tickFont: 'verdana, sans-serif',
+  zoomOutText: '#108BE3',
+  tooltipArrow: '#D2D5D7',
+  brushMaskColor: '#E2EEF9',
+  brushMaskOpacity: 0.6,
+  brushHandleColor: '#C0D1E1',
+  maskColor: '#FFFFFF',
+  maskOpacity: 0.5,
+  textColor: 'black',
+  tooltipBackground: '#FFFFFF',
+  tooltipBorderColor: '#ddd'
+};
+
+const nightTheme: Theme = {
+  gridColor: '#FFFFFF',
+  gridOpacity: 0.1,
+  tickColor: '#A3B1C2',
+  tickOpacity: 0.6,
+  tickFont: 'verdana, sans-serif',
+  zoomOutText: '#48AAF0',
+  tooltipArrow: '#D2D5D7',
+  brushMaskColor: '#304259',
+  brushMaskOpacity: 0.6,
+  brushHandleColor: '#56626D',
+  maskColor: '#242F3E',
+  maskOpacity: 0.5,
+  textColor: 'white',
+  tooltipBackground: '#1A2635',
+  tooltipBorderColor: '#444'
+};
+let currentTheme = nightTheme;
 
 export function getChartsRenderer(
   initialData: ChartConfig[],
-  rootElement?: HTMLElement
+  rootElement?: HTMLElement,
+  bodyElement?: HTMLElement
 ) {
+  const bodySelection = new Selection('', bodyElement);
   const rootSelection = new Selection('div', rootElement);
+
   const containers = initialData.map((_, index) => {
     return rootSelection.renderOne('div', index, (container) => {
       container.setAttrs({'class': 'time-chart'});
     });
   });
+
+  const themeButton = rootSelection.renderOne('div', 'theme').setAttrs({
+    'class': 'theme'
+  }).renderOne('div', 0, (selection) => {
+    selection.setAttrs({
+      'role': 'button'
+    }).on('click', switchTheme);
+  });
+
+  setCurrentTheme();
 
   const charts = initialData.map(initializeChart);
 
@@ -34,6 +83,27 @@ export function getChartsRenderer(
         .setPixelRatio(window.devicePixelRatio)
         .render(containers[index]);
     });
+  }
+
+  function switchTheme() {
+    currentTheme = currentTheme === dayTheme ? nightTheme : dayTheme;
+    setCurrentTheme();
+    charts.forEach((chart) => {
+      chart.setTheme(currentTheme).render();
+    });
+  }
+
+  function setCurrentTheme() {
+    bodySelection.setStyles({
+      backgroundColor: currentTheme.maskColor,
+      color: currentTheme.textColor
+    });
+
+    themeButton.setStyles({
+      color: currentTheme.zoomOutText
+    }).text(
+      `Switch to ${currentTheme === dayTheme ? 'Night' : 'Day'} Mode`
+    );
   }
 }
 
@@ -70,7 +140,9 @@ export function initializeChart(
     titles[chartIndex],
     chartIndex === 3,
     chartIndex === 4
-  );
+  )
+  .setTheme(currentTheme);
+
   const allCharts = [timeChart.mainChart, timeChart.helperChart];
   const initialSeries = initializeSeries(
     timeChart,
@@ -101,9 +173,16 @@ export function initializeChart(
       showZoomedPieSeries(timeChart, time, initialSeries);
       return;
     }
+    const zoomCharts = chartIndex === 3 ? [timeChart.mainChart] : allCharts;
 
     if (time === lastZoomDataLoadTime) {
-      setZoomDomain(timeChart, time);
+      setZoomDomain(timeChart.timeScale, time);
+
+      if (zoomCharts.length === 1) {
+        setZoomDomain(timeChart.fullTimeScale, zoomInTime);
+        timeChart.fullTimeScale.setFixed(true);
+      }
+
       timeChart.toggleZoomedSeries(true);
       return;
     }
@@ -128,7 +207,7 @@ export function initializeChart(
           allCharts,
           initializeSeries(
             timeChart,
-            allCharts,
+            zoomCharts,
             seriesConfig,
             valueScales,
             zoomInTime
@@ -146,7 +225,7 @@ export function initializeChart(
 }
 
 function setZoomDomain(
-  {timeScale}: {timeScale: ChartScale},
+  timeScale: ChartScale,
   zoomInTime: number,
   maxDomain?: NumberRange
 ) {
@@ -197,7 +276,7 @@ function showZoomedPieSeries(
   allSeries.forEach(({setDisplay, isZoomed}) => setDisplay(isZoomed()));
 
   const maxDomain = zoomedSeries[0].getXDomain();
-  setZoomDomain({timeScale}, zoomInTime, maxDomain);
+  setZoomDomain(timeScale, zoomInTime, maxDomain);
 
   fullTimeScale.setDomain(fitDomain(
     [zoomInTime - 3 * oneDay, zoomInTime + 4 * oneDay],
@@ -210,16 +289,19 @@ function showZoomedPieSeries(
 
 function showZoomedSeries(
   {legend, render}: TimeChart,
-  charts: Chart[],
+  allCharts: Chart[],
   newZoomedSeries: AnySeries[][]
 ) {
-  charts.forEach((chart, index) => {
+  allCharts.forEach((chart, index) => {
     const allSeries = chart.getSeries().filter(({isZoomed}) => !isZoomed());
     allSeries.forEach((series) => {
       series.setDisplay(false);
     });
-    allSeries.push(...newZoomedSeries.map((series) => series[index]));
-    chart.setSeries(allSeries);
+
+    if (index < newZoomedSeries[0].length) {
+      allSeries.push(...newZoomedSeries.map((series) => series[index]));
+      chart.setSeries(allSeries);
+    }
   });
 
   const seriesGroups = legend.getSeriesGroups().map(
@@ -247,7 +329,7 @@ function showZoomedSeries(
 }
 
 function initializeSeries(
-  timeChart: TimeChart,
+  {timeScale, fullTimeScale}: TimeChart,
   charts: Chart[],
   config: ChartConfig,
   valueScales: ChartScale[][],
@@ -272,9 +354,14 @@ function initializeSeries(
     );
     const x0 = xData[Math.floor(xData.length * 0.75)];
     const x1 = xData[xData.length - 1] + (hasBar ? xData[1] - xData[0] : 0);
-    timeChart.timeScale.setDomain([x0, x1]);
+    timeScale.setDomain([x0, x1]);
   } else {
-    setZoomDomain(timeChart, zoomInTime);
+    setZoomDomain(timeScale, zoomInTime);
+
+    if (charts.length === 1) {
+      setZoomDomain(fullTimeScale, zoomInTime);
+      fullTimeScale.setFixed(true);
+    }
   }
 
   return yColumns.map((column, seriesIndex) => {
@@ -288,7 +375,7 @@ function initializeSeries(
 
     return charts.map(({getXExtent}, index) => {
       const isMain = !index;
-      const xScale = isMain ? timeChart.timeScale : timeChart.fullTimeScale;
+      const xScale = isMain ? timeScale : fullTimeScale;
       const yScale = valueScales[index][twoYAxis && seriesIndex ? 1 : 0];
 
       return createSeries(

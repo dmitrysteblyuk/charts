@@ -7,11 +7,24 @@ body {
   box-sizing: border-box;
 }
 
-div.time-chart {
-  display: inline-block;
+div#root {
   font-family: verdana, sans-serif;
   font-size: 12px;
+}
+
+div.time-chart {
+  display: inline-block;
   position: relative;
   margin: 30px;
   width: 500px;
+}
+
+div.theme {
+  text-align: center;
+}
+div.theme > div {
+  font-weight: bold;
+  font-size: 15px;
+  padding: 20px;
+  display: inline-block;
 }

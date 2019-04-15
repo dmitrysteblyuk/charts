@@ -38,6 +38,7 @@ export function createChart(
   let innerHeight = 0;
   let context: CanvasRenderingContext2D;
   let axesHidden = false;
+  let theme: Theme;
 
   const getXExtent = memoize(calculateXExtent, 1);
   const stateTransition = createStateTransition(
@@ -63,7 +64,7 @@ export function createChart(
   }
 
   function redraw() {
-    stateTransition(getFinalTransitionState(series));
+    stateTransition(getFinalTransitionState(series, [theme]));
   }
 
   function setYDomains() {
@@ -88,7 +89,8 @@ export function createChart(
     displayed,
     byYScale,
     byXScale,
-    focusFactors
+    focusFactors,
+    scaleY
   }: State, triggers: TransitionTriggers | null) {
     context.clearRect(0, 0, outerWidth, outerHeight);
     context.translate(paddings[3], paddings[0]);
@@ -97,7 +99,13 @@ export function createChart(
       key.setDomain(yDomains[index]);
     });
 
-    if (!triggers || triggers.xDomainAndDisplayChange) {
+    if (
+      !triggers ||
+      triggers.xDomainChange && (
+        triggers.displayChange ||
+        triggers.xScaleFixedChange
+      )
+    ) {
       byXScale.forEach(({key}, index) => {
         key.setDomain(xDomains[index]);
       });
@@ -106,7 +114,7 @@ export function createChart(
     if (!axesHidden) {
       drawAxes();
     }
-    drawSeries(yData, visibilities, displayed, focusFactors);
+    drawSeries(yData, visibilities, displayed, focusFactors, scaleY);
     context.translate(-paddings[3], -paddings[0]);
   }
 
@@ -149,7 +157,8 @@ export function createChart(
     yData: MultipleData[],
     visibilities: number[],
     displayed: number[],
-    focusFactors: number[]
+    focusFactors: number[],
+    scaleY: State['scaleY']
   ) {
     series.forEach((item, index) => {
       if (!visibilities[index] || !displayed[index]) {
@@ -163,7 +172,8 @@ export function createChart(
         displayed[index],
         focusFactors[index],
         innerWidth / 2,
-        innerHeight / 2
+        innerHeight / 2,
+        scaleY[index]
       );
     });
     context.globalAlpha = 1;
@@ -211,12 +221,20 @@ export function createChart(
     }
   }
 
+  function setTheme(_theme: Theme) {
+    theme = _theme;
+    axes.forEach((axis) => {
+      axis.setTheme(theme);
+    });
+  }
+
   const instance = {
     axes,
     draw,
     redraw,
     getXExtent,
     setXDomains,
+    setTheme,
     setAxesHidden: (_: typeof axesHidden) => (axesHidden = _),
     getSeries: () => series,
     setSeries: (_: typeof series) => (series = _),

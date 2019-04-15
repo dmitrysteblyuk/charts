@@ -11,6 +11,7 @@ import {ChartScale} from './chart-scale';
 
 export type State = Readonly<{
   series: AnySeries[];
+  xScaleFixed: boolean[];
   xDomains: NumberRange[];
   yDomains: NumberRange[];
   xRanges: NumberRange[];
@@ -22,12 +23,15 @@ export type State = Readonly<{
   byXScale: ItemGroup<AnySeries, ChartScale>[];
   byYScale: ItemGroup<AnySeries, ChartScale>[];
   focusFactors: number[];
+  scaleY: (((y: number) => number) | null)[];
+  themes: Theme[];
 }>;
 
 type TransitionTriggersMutable = Partial<{
   yDomainChange: boolean,
   xDomainChange: boolean,
-  xDomainAndDisplayChange: boolean,
+  xScaleFixedChange: boolean,
+  displayChange: boolean,
   stackChange: boolean,
   pieChange: boolean,
   visibilityChange: boolean,
@@ -35,10 +39,14 @@ type TransitionTriggersMutable = Partial<{
 }>;
 export type TransitionTriggers = Readonly<TransitionTriggersMutable>;
 
-export function getFinalTransitionState(series: AnySeries[]): State {
+export function getFinalTransitionState(
+  series: AnySeries[],
+  themes: Theme[]
+): State {
   const byXScale = groupBy(series, ({xScale}) => xScale);
   const byYScale = groupBy(series, ({yScale}) => yScale);
 
+  const xScaleFixed = byXScale.map(({key}) => key.isFixed());
   const xDomains = byXScale.map(({key}) => key.getDomain());
   const xRanges = byXScale.map(({key}) => key.getRange());
   const yDomains = byYScale.map(({key}) => key.getDomain());
@@ -49,8 +57,10 @@ export function getFinalTransitionState(series: AnySeries[]): State {
   const yData = series.map(({getYData}) => getYData());
   const ownYData = yData.map(([data]) => data);
   const focusFactors = series.map(({getFocused}) => +getFocused());
+  const scaleY = series.map(({yScale}) => yScale.getScale());
 
   const state = {
+    xScaleFixed,
     xDomains,
     xRanges,
     yDomains,
@@ -63,7 +73,9 @@ export function getFinalTransitionState(series: AnySeries[]): State {
     yData,
     byXScale,
     byYScale,
-    focusFactors
+    focusFactors,
+    scaleY,
+    themes
   };
   return state;
 }
@@ -71,6 +83,7 @@ export function getFinalTransitionState(series: AnySeries[]): State {
 const skipEqualityChecks = {
   series: true,
   yData: true,
+  scaleY: true,
   byXScale: true,
   byYScale: true
 } as Dictionary<boolean, keyof State>;
@@ -111,14 +124,17 @@ export function getTransitionTriggers(
       xDomains !== to.xDomains[index] && (
         to.byXScale[index].items.some(
           ({pie, toDraw}) => pie && toDraw()
-        ) &&
-        (triggers.pieChange = true) ||
-        displayChange
+        ) && (
+          triggers.pieChange = true
+        ) ||
+        displayChange ||
+        to.xScaleFixed[index] !== from.xScaleFixed[index] && (
+          triggers.xScaleFixedChange = true
+        )
       )
     ))
   ) {
     triggers.xDomainChange = isChanged = true;
-    triggers.xDomainAndDisplayChange = displayChange;
   }
 
   if (!isArrayEqual(from.yDomains, to.yDomains)) {
@@ -130,6 +146,7 @@ export function getTransitionTriggers(
   }
 
   if (isChanged) {
+    triggers.displayChange = displayChange;
     return triggers;
   }
   return null;
@@ -191,6 +208,13 @@ export function getIntermediateStateFactory(
     if (triggers.yDomainChange) {
       next.yDomains = transitionDomains(from.yDomains, to.yDomains);
     }
+
+    next.scaleY = to.scaleY.map((toScaleY, index) => {
+      if (to.displayed[index] === from.displayed[index]) {
+        return null;
+      }
+      return !to.displayed[index] ? from.scaleY[index] : toScaleY;
+    });
 
     if (triggers.stackChange || triggers.pieChange) {
       next.yData = getSeriesData(

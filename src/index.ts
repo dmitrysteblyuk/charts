@@ -10,7 +10,8 @@ function bootstrapCharts(json: ChartConfig[], rootElement: HTMLElement) {
 
   const {charts, render, rootSelection} = getChartsRenderer(
     json,
-    isPrerendered ? undefined : rootElement
+    isPrerendered ? undefined : rootElement,
+    document.body
   );
 
   (window as any)['json'] = json;

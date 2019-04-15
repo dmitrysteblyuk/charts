@@ -59,7 +59,8 @@ export function createSeries(
     displayProgress: number,
     focusFactor: number,
     centerX: number,
-    centerY: number
+    centerY: number,
+    scaleY: ((x: number) => number) | null
   ) {
     const [startIndex, endIndex] = getExtent();
     drawSeries(
@@ -68,7 +69,7 @@ export function createSeries(
       yArrays,
       stacked,
       xScale.getScale(),
-      yScale.getScale(),
+      scaleY || yScale.getScale(),
       startIndex,
       endIndex,
       color,
