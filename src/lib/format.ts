@@ -21,17 +21,6 @@ export function axisTimeFormat(
   time: number
 ): string {
   const date = new Date(time);
-  const milliseconds = date.getUTCMilliseconds();
-  if (milliseconds) {
-    const fraction = time % 1 && String(time).split('.')[1] || '';
-    return `.${padding(milliseconds, 3)}${fraction}`;
-  }
-
-  const seconds = date.getUTCSeconds();
-  if (seconds) {
-    return `:${padding(seconds)}`;
-  }
-
   const minutes = date.getUTCMinutes();
   const hours = date.getUTCHours();
   if (hours || minutes) {
@@ -47,7 +36,8 @@ export function axisTimeFormat(
   return String(date.getUTCFullYear());
 }
 
-export function padding(value: number, count = 2) {
+export function padding(value: number) {
+  const count = 2;
   const result = String(value);
   if (result.length >= count) {
     return result;

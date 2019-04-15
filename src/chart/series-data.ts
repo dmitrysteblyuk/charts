@@ -58,7 +58,7 @@ export function getSeriesData(
           : result
       );
 
-      return result
+      return result;
     });
 
     const piePercentages = pieAverages.map((avg) => avg / pieSum);

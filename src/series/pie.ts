@@ -13,13 +13,13 @@ export const drawPieSeries: DrawSeries = (
   color,
   _lineWidth,
   _visibility,
-  _displayFactor,
+  displayFactor,
   focusFactor,
   centerX,
   centerY
 ) => {
   context.fillStyle = color;
-  context.globalAlpha = 1;
+  context.globalAlpha = displayFactor;
 
   const radius = getPieRadius(centerX, centerY);
   const endAngle = yData[0];
@@ -34,18 +34,19 @@ export const drawPieSeries: DrawSeries = (
   }
 
   context.translate(centerX, centerY);
-
+  context.globalCompositeOperation = 'destination-over';
   context.beginPath();
-
   context.moveTo(0, 0);
   context.lineTo(radius * Math.cos(startAngle), radius * Math.sin(startAngle));
   context.arc(0, 0, radius, startAngle, endAngle);
   context.closePath();
   context.fill();
 
+  context.globalCompositeOperation = 'source-over';
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   context.fillStyle = '#fff';
+
   context.fillText(percentageFormat(yData[3]), middleX * 0.55, middleY * 0.55);
 
   context.translate(-centerX, -centerY);

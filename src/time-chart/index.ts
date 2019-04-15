@@ -281,7 +281,7 @@ export function createTimeChart(
       getPercentageData,
       getXExtent,
       [timeScale.getDomain()],
-      0
+      1
     ).forEach((yData, index) => {
       series[index].setYData(yData);
     });
@@ -359,7 +359,10 @@ export function createTimeChart(
         tooltip
           .setLeft(point![0])
           .setTop(point![1])
-          .setPieSeries(visibleSeries[index]);
+          .setPieSeries(
+            visibleSeries[index],
+            visibleSeries.length > 1
+          );
       } else {
         const time = firstSeries.xData[index];
 

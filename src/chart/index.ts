@@ -10,7 +10,8 @@ import {
   isStateEqual,
   getTransitionTriggers,
   getIntermediateStateFactory,
-  getFinalTransitionState
+  getFinalTransitionState,
+  TransitionTriggers
 } from './chart-state';
 import {
   calculateXExtent,
@@ -20,6 +21,7 @@ import {
 } from './series-data';
 
 export type Chart = Readonly<ReturnType<typeof createChart>>;
+const DEFAULT_TRANSITION_DURATION = 200;
 
 export function createChart(
   axes: Axis[],
@@ -47,6 +49,7 @@ export function createChart(
       getPercentageData,
       getXExtent
     ),
+    getTransitionDuration,
     startAnimation,
     stopAnimation
   );
@@ -86,7 +89,7 @@ export function createChart(
     byYScale,
     byXScale,
     focusFactors
-  }: State) {
+  }: State, triggers: TransitionTriggers | null) {
     context.clearRect(0, 0, outerWidth, outerHeight);
     context.translate(paddings[3], paddings[0]);
 
@@ -94,15 +97,21 @@ export function createChart(
       key.setDomain(yDomains[index]);
     });
 
-    byXScale.forEach(({key}, index) => {
-      key.setDomain(xDomains[index]);
-    });
+    if (!triggers || triggers.xDomainAndDisplayChange) {
+      byXScale.forEach(({key}, index) => {
+        key.setDomain(xDomains[index]);
+      });
+    }
 
     if (!axesHidden) {
       drawAxes();
     }
     drawSeries(yData, visibilities, displayed, focusFactors);
     context.translate(-paddings[3], -paddings[0]);
+  }
+
+  function getTransitionDuration({}: TransitionTriggers) {
+    return DEFAULT_TRANSITION_DURATION;
   }
 
   function setDomains(

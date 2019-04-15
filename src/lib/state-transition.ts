@@ -1,11 +1,13 @@
 export function createStateTransition<S, T>(
-  onUpdate: (state: S) => void,
+  onUpdate: (state: S, triggers: T | null) => void,
   isStateEqual: (from: S, to: S) => boolean,
   getTransitionTriggers: (from: S, to: S) => T | null,
   getIntermediateState: (from: S, to: S, progress: number, triggers: T) => S,
+  getDuration: (triggers: T) => number,
   startTransition: ((
     callback: (progress: number) => void,
-    onNext: (id: number | null) => void
+    onNext: (id: number | null) => void,
+    duration: number
   ) => void),
   stopTransition: (id: number) => void
 ) {
@@ -29,7 +31,7 @@ export function createStateTransition<S, T>(
       currentState = newState;
 
       if (!equal) {
-        onUpdate(newState);
+        onUpdate(newState, null);
       }
       return;
     }
@@ -43,10 +45,10 @@ export function createStateTransition<S, T>(
           ? getIntermediateState(startState, finalState, progress, triggers!)
           : finalState
       );
-      onUpdate(currentState);
+      onUpdate(currentState, triggers);
     }, (id: number | null) => {
       transitionId = id;
-    });
+    }, getDuration(triggers));
   }
 
   return setNewState;

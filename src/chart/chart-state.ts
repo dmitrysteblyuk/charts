@@ -27,6 +27,7 @@ export type State = Readonly<{
 type TransitionTriggersMutable = Partial<{
   yDomainChange: boolean,
   xDomainChange: boolean,
+  xDomainAndDisplayChange: boolean,
   stackChange: boolean,
   pieChange: boolean,
   visibilityChange: boolean,
@@ -117,6 +118,7 @@ export function getTransitionTriggers(
     ))
   ) {
     triggers.xDomainChange = isChanged = true;
+    triggers.xDomainAndDisplayChange = displayChange;
   }
 
   if (!isArrayEqual(from.yDomains, to.yDomains)) {

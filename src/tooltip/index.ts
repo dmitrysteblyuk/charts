@@ -214,14 +214,17 @@ export function createTooltip(
     return getAllSeries().filter(({toDraw}) => toDraw());
   }
 
-  function setPieSeries(nextPieSeries: AnySeries | null) {
+  function setPieSeries(
+    nextPieSeries: AnySeries | null,
+    focus?: boolean
+  ) {
     if (pieSeries === nextPieSeries) {
       return;
     }
     if (pieSeries) {
       pieSeries.setFocused(false);
     }
-    if (nextPieSeries) {
+    if (focus && nextPieSeries) {
       nextPieSeries.setFocused(true);
     }
     seriesFocusEvent.emit();
