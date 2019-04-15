@@ -7,25 +7,36 @@
   border-radius: 4px;
   white-space: pre;
   border: 1px solid #ddd;
-  padding: 5px 10px;
+  padding: 10px 15px;
   animation-duration: 0.5s;
   display: flex;
   flex-direction: column;
   z-index: 1;
+  min-width: 200px;
 }
-.chart-tooltip-values {
-  display: flex;
-  justify-content: space-evenly;
-  flex-grow: 1;
+
+.tooltip-header > :last-child {
+  background-image: url('./chevron.svg');
+  width: 18px;
+  height: 18px;
 }
+
+.pie-tooltip,
+.tooltip-header,
 .chart-tooltip-values > * {
-  padding: 7px 5px 0;
-  display: inline-block;
+  display: flex;
+  justify-content: space-between;
 }
-.chart-tooltip-values > * > :first-child {
-  font-size: 17px;
+
+.tooltip-header {
   font-weight: bold;
 }
+
+.chart-tooltip-values > * {
+  padding: 10px 0 0;
+}
+
 .chart-tooltip-values > * > :last-child {
   font-size: 13px;
+  font-weight: bold;
 }

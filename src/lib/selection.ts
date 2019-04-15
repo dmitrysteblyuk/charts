@@ -7,6 +7,8 @@ type Primitive = string | boolean | number | undefined;
 type EventOptions = boolean | AddEventListenerOptions;
 type Key = string | number;
 
+const defaultToggleClassNames = ['fade', 'appear'];
+
 export class Selection<T extends AnyElement = AnyElement> {
   private childrenByKey: Dictionary<Selection, Key> = {};
   private styles?: CSSProperties;
@@ -14,6 +16,7 @@ export class Selection<T extends AnyElement = AnyElement> {
   private eventEmitters: Dictionary<EventEmitter<Event, EventOptions>> = {};
   private textValue?: Primitive;
   private hideTimerId: number | null = null;
+  private toggleClassName: string | undefined;
 
   constructor(
     public tagName: string,
@@ -259,16 +262,9 @@ export class Selection<T extends AnyElement = AnyElement> {
 
   toggle(
     shouldShow: boolean,
-    forceAnimation?: boolean,
+    classNames: string[] = defaultToggleClassNames,
     timeout = DEFAULT_ANIMATION_DURATION
   ) {
-    if (!forceAnimation) {
-      const previousShown = !this.styles || this.styles['display'] !== 'none';
-      if (previousShown === shouldShow) {
-        return this;
-      }
-    }
-
     if (this.hideTimerId !== null) {
       if (!shouldShow) {
         return this;
@@ -285,14 +281,26 @@ export class Selection<T extends AnyElement = AnyElement> {
       }, timeout);
     }
 
-    const className = shouldShow ? 'appear' : 'fade';
-    const classes = this.attrs && this.attrs['class'] as string | undefined;
+    const nextClassName = classNames[+shouldShow];
+    const {toggleClassName} = this;
+    this.toggleClassName = nextClassName;
 
+    if (
+      toggleClassName === nextClassName ||
+      toggleClassName === undefined
+    ) {
+      return this;
+    }
+
+    const classes = this.attrs && this.attrs['class'] as string | undefined;
     return this.setAttrs({
       'class': (
         classes &&
-        classes.replace(/(\s*)\b(fade|appear)\b|$/, ` ${className}`) ||
-        className
+        classes.replace(
+          new RegExp(`(\\s*)\\b(${classNames.join('|')})\\b|$`),
+          ` ${nextClassName}`
+        ) ||
+        nextClassName
       )
     });
   }

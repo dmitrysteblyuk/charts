@@ -29,6 +29,10 @@ module.exports = {
         loader: 'awesome-typescript-loader'
       },
       {
+        test: /\.svg$/,
+        loader: 'url-loader'
+      },
+      {
         test: /\.css$/,
         use: [
           {
@@ -76,6 +80,10 @@ module.exports = {
       {
         from: './polyfills.js',
         to: './polyfills.js'
+      },
+      {
+        from: './favicon.ico',
+        to: './favicon.ico'
       }
     ])
   ]

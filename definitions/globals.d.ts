@@ -39,7 +39,6 @@ interface Theme {
   tickOpacity: number;
   tickFont: string;
   zoomOutText: string;
-  tooltipArrow: string;
   brushMaskColor: string;
   brushMaskOpacity: number;
   brushHandleColor: string;

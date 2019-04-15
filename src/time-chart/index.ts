@@ -12,12 +12,7 @@ import {roundRange} from '../lib/utils';
 import {EventEmitter} from '../lib/event-emitter';
 import {memoize} from '../lib/memoize';
 import {getZoomFactorAndOffset} from './zoom-transform';
-import {
-  axisTimeFormat,
-  roundAuto,
-  dateFormat,
-  timeFormat
-} from '../lib/format';
+import {axisTimeFormat, dateFormat, timeFormat} from '../lib/format';
 import {createTooltip} from '../tooltip';
 import {getNearestPoint} from './get-nearest-point';
 import {
@@ -43,14 +38,16 @@ export function createTimeChart(
   valueScales: ChartScale[],
   title: string,
   hideHelperOnZoomIn: boolean,
-  hideAxisOnZoomIn: boolean
+  hideAxisOnZoomIn: boolean,
+  zoomTimeFormat: (time: number) => string,
+  yAxisFormat: (value: number) => string
 ) {
   let outerWidth = 0;
   let pixelRatio = 1;
   let zoomedIn = false;
   let theme: Theme;
 
-  const mainPaddings = [10, 10, 20, 10];
+  const mainPaddings = [12, 10, 20, 10];
   const timeScale = createScale(true);
   const fullTimeScale = createScale(false);
   const legend = createLegend();
@@ -68,14 +65,18 @@ export function createTimeChart(
         AxisPosition.bottom,
         timeScale,
         memoize(getTimeScaleTicks, 1),
-        axisTimeFormat,
+        () => (
+          zoomedIn && zoomTimeFormat === timeFormat
+            ? timeFormat
+            : axisTimeFormat
+        ),
         true
       ),
       createAxis(
         AxisPosition.left,
         valueScales[0],
         memoize(getDecimalScaleTicks, 1),
-        yAxisFormat,
+        () => yAxisFormat,
         false,
         true
       )
@@ -92,14 +93,15 @@ export function createTimeChart(
         AxisPosition.right,
         valueScales[1],
         memoize(getDecimalScaleTicks, 1),
-        yAxisFormat
+        () => yAxisFormat
       )
     );
   }
 
   const tooltip = createTooltip(
     mainPaddings,
-    mainChart.getSeries
+    mainChart.getSeries,
+    () => zoomedIn ? zoomTimeFormat : dateFormat
   );
 
   const mainConfig = {
@@ -157,9 +159,12 @@ export function createTimeChart(
       'color': theme.zoomOutText
     }).toggle(zoomedIn);
 
+    const timeSpanFormat = zoomedIn ? zoomTimeFormat : dateFormat;
     const timeSpanText = timeScale.getDomain()
-      .map(zoomedIn ? timeFormat : dateFormat)
-      .filter((value, index, array) => !index || value !== array[index - 1])
+      .map(timeSpanFormat)
+      .filter((value, index, array) => (
+        timeSpanFormat === timeFormat || !index || value !== array[index - 1]
+      ))
       .join(' - ');
 
     headerSelection.renderOne('div', 2, (selection) => {
@@ -197,7 +202,7 @@ export function createTimeChart(
         'padding': offsets.map((value) => `${value}px`).join(' '),
         'height': `${height}px`
       }));
-    }).toggle(!isChartHidden(index));
+    }).toggle(!isChartHidden(index), ['hide-helper', 'show-helper']);
 
     if (isChartHidden(index)) {
       return chartContainer;
@@ -311,10 +316,6 @@ export function createTimeChart(
     ];
   }
 
-  function yAxisFormat(tick: number) {
-    return String(roundAuto(tick));
-  }
-
   function renderLegend() {
     const legendContainer = container.renderOne(
       'div',
@@ -375,7 +376,7 @@ export function createTimeChart(
         tooltip
           .setDataIndex(index)
           .setTime(time)
-          .setTop(0)
+          .setTop(5)
           .setLineY2(getInnerHeight(mainConfig))
           .setPieSeries(null);
       }

@@ -1,5 +1,5 @@
 .chart {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   position: relative;
 }
 
@@ -28,9 +28,34 @@
   margin-bottom: 20px;
   font-size: 15px;
   display: flex;
+  max-height: 18px;
   justify-content: space-between;
 }
 
 .zoom-out {
   color: steelblue;
+}
+
+.hide-helper {
+  animation: hide-helper 0.5s ease forwards;
+  position: absolute;
+}
+.show-helper {
+  transform: scale(0);
+  opacity: 0;
+  animation: show-helper 0.5s ease forwards;
+}
+
+@keyframes hide-helper {
+  to {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes show-helper {
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }

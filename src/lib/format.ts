@@ -2,6 +2,18 @@ export function percentageFormat(x: number): string {
   return `${roundAuto(x * 100)}%`;
 }
 
+const valueSuffixes = ['', 'K', 'M'];
+export function axisValueFormat(value: number) {
+  const degree = Math.min(
+    valueSuffixes.length - 1,
+    Math.floor(Math.log(Math.abs(value)) / Math.LN10 / 3)
+  );
+  return (
+    roundAuto(value / Math.pow(1000, degree)) +
+    valueSuffixes[degree]
+  );
+}
+
 export function roundAuto(x: number): number {
   if (x === 0) {
     return x;
@@ -47,17 +59,32 @@ export function padding(value: number) {
 
 export function dateTimeFormat(dateTime: number) {
   const date = new Date(dateTime);
+  return dateFormat(date) + (
+    date.getUTCMinutes() || date.getUTCHours()
+      ? ', ' + timeFormat(date)
+      : ''
+  );
+}
 
-  if (date.getUTCSeconds() || date.getUTCMinutes() || date.getUTCHours()) {
-    return date.toUTCString();
+export function dateFormat(dateTime: number | Date) {
+  const date = getDate(dateTime);
+  return [
+    date.getFullYear(),
+    monthShortNames[date.getMonth()],
+    date.getDate()
+  ].join(' ');
+}
+
+export function timeFormat(time: number | Date) {
+  const date = getDate(time);
+  const minutes = date.getUTCMinutes();
+  const hours = date.getUTCHours();
+  return `${padding(hours)}:${padding(minutes)}`;
+}
+
+function getDate(date: number | Date): Date {
+  if (typeof date === 'number') {
+    return new Date(date);
   }
-  return date.toDateString();
-}
-
-export function dateFormat(dateTime: number) {
-  return new Date(dateTime).toDateString();
-}
-
-export function timeFormat(dateTime: number) {
-  return new Date(dateTime).toUTCString();
+  return date;
 }

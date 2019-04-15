@@ -7,7 +7,13 @@ import {createSeries, AnySeries} from './series';
 import {Chart} from './chart';
 import {createScale, ChartScale, fitDomain} from './chart/chart-scale';
 import {Selection} from './lib/selection';
-import {padding} from './lib/format';
+import {
+  padding,
+  timeFormat,
+  dateTimeFormat,
+  percentageFormat,
+  axisValueFormat
+} from './lib/format';
 import './index.css';
 
 export const defaultPrerenderArgs: [number, number] = [500, 2];
@@ -20,7 +26,6 @@ const dayTheme: Theme = {
   tickOpacity: 1,
   tickFont: 'verdana, sans-serif',
   zoomOutText: '#108BE3',
-  tooltipArrow: '#D2D5D7',
   brushMaskColor: '#E2EEF9',
   brushMaskOpacity: 0.6,
   brushHandleColor: '#C0D1E1',
@@ -38,7 +43,6 @@ const nightTheme: Theme = {
   tickOpacity: 0.6,
   tickFont: 'verdana, sans-serif',
   zoomOutText: '#48AAF0',
-  tooltipArrow: '#D2D5D7',
   brushMaskColor: '#304259',
   brushMaskOpacity: 0.6,
   brushHandleColor: '#56626D',
@@ -141,7 +145,9 @@ export function initializeChart(
     valueScales[0],
     titles[chartIndex],
     chartIndex === 3,
-    chartIndex === 4
+    chartIndex === 4,
+    chartIndex === 3 ? timeFormat : dateTimeFormat,
+    percentage ? percentageFormat : axisValueFormat
   )
   .setTheme(currentTheme);
 

@@ -21,6 +21,9 @@ export function createLegend() {
         selection.setAttrs({
           'role': 'button',
           'class': 'legend-item'
+        }).setStyles({
+          'display': 'none',
+          'background': series.getColor()
         }).on(
           'click',
           () => clickEvent.emit(seriesGroups[index])
@@ -28,23 +31,18 @@ export function createLegend() {
       });
 
       const toDisplay = countDisplayed > 1 && displayed[index];
-      itemSelection.toggle(
-        toDisplay,
-        group.every(({isZoomed}) => isZoomed())
-      );
+      itemSelection.toggle(toDisplay);
+
       if (!toDisplay) {
         return;
       }
 
-      const color = series.getColor();
-      const background = series.isHidden() ? 'none' : color;
-
       itemSelection.renderOne('div', 0, (selection) => selection.setAttrs({
         'class': 'legend-circle'
-      })).setStyles({
-        background,
-        'borderColor': color
-      });
+      })).toggle(
+        !series.isHidden(),
+        ['hide-check', 'show-check']
+      );
 
       itemSelection.renderOne('div', 1, (selection) => selection.setAttrs({
         'class': 'legend-text'

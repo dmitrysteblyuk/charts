@@ -2,14 +2,15 @@ import {Selection} from '../lib/selection';
 import {isArrayEqual} from '../lib/utils';
 import {AnySeries} from '../series';
 import {EventEmitter} from '../lib/event-emitter';
-import {dateTimeFormat} from '../lib/format';
+import {roundAuto} from '../lib/format';
 import './index.css';
 
 export type Tooltip = Readonly<ReturnType<typeof createTooltip>>;
 
 export function createTooltip(
   offsets: number[],
-  getAllSeries: () => AnySeries[]
+  getAllSeries: () => AnySeries[],
+  getTimeFormat: () => (time: number) => string
 ) {
   let zoomedIn = false;
   let top = 0;
@@ -56,7 +57,9 @@ export function createTooltip(
   }
 
   function renderPieTooltip() {
-    const pieDiv = container.renderOne('div', 'pie').setStyles({
+    const pieDiv = container.renderOne('div', 'pie', (selection) => {
+      selection.setAttrs({'class': 'pie-tooltip'});
+    }).setStyles({
       'display': pieSeries ? null : 'none'
     });
     if (!pieSeries) {
@@ -66,7 +69,9 @@ export function createTooltip(
     const value = yData[1][2];
 
     pieDiv.renderOne('div', 0).text(pieSeries.getLabel());
-    pieDiv.renderOne('div', 1).text(value);
+    pieDiv.renderOne('div', 1)
+      .setStyles({color: pieSeries.getColor()})
+      .text(roundAuto(value));
   }
 
   function renderLineTooltip() {
@@ -77,14 +82,22 @@ export function createTooltip(
       return;
     }
 
-    lineDiv.renderOne<HTMLElement>('div', 0, (selection) => {
-      selection.on('click', () => {
+    const header = lineDiv.renderOne<HTMLElement>('div', 0, (selection) => {
+      selection.setAttrs({
+        'class': 'tooltip-header',
+        'role': 'button'
+      }).on('click', () => {
         if (zoomedIn) {
           return;
         }
         zoomSeriesEvent.emit(time);
       });
-    }).text(dateTimeFormat(time));
+    });
+
+    header.renderOne('div', 0).text(getTimeFormat()(time));
+    header.renderOne('div', 1).setStyles({
+      'display': zoomedIn ? 'none' : null
+    });
 
     const valueSelection = lineDiv.renderOne('div', 1, (selection) => {
       selection.setAttrs({'class': 'chart-tooltip-values'});
@@ -93,20 +106,20 @@ export function createTooltip(
 
     allSeries.forEach((series, index) => {
       const selection = valueSelection.renderOne('div', index);
+      selection.setStyles({
+        'display': series.toDraw() ? null : 'none'
+      });
       if (!series.toDraw()) {
-        selection.setStyles({'display': 'none'});
         return;
       }
 
-      selection.setStyles({
-        'color': series.getColor(),
-        display: null
-      });
+      selection.renderOne('div', 0).text(series.getLabel());
 
       const value = series.getOwnYData()[dataIndex];
 
-      selection.renderOne<HTMLElement>('div', 0).text(value);
-      selection.renderOne('div', 1).text(series.getLabel());
+      selection.renderOne<HTMLElement>('div', 1)
+        .setStyles({color: series.getColor()})
+        .text(value);
     });
 
     lastVisibleSeries = getVisibleSeries();

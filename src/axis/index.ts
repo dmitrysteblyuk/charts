@@ -23,7 +23,7 @@ export function createAxis(
     ticks: number[],
     startIndex?: number
   },
-  tickFormat: (tick: number) => string,
+  getTickFormat: () => (tick: number) => string,
   displayScale?: boolean,
   displayGrid?: boolean
 ) {
@@ -71,6 +71,7 @@ export function createAxis(
   function drawTicks(context: CanvasRenderingContext2D) {
     const {ticks, getOpacity} = getTickData();
     const tickOffsets = ticks.map(scale.getScale());
+    const tickFormat = getTickFormat();
 
     if (displayGrid) {
       tickOffsets.forEach((offset) => {
