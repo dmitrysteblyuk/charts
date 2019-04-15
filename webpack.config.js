@@ -66,12 +66,16 @@ module.exports = {
 
     new CopyPlugin([
       {
-        from: 'initial.data.jsonp',
-        to: 'initial.data.jsonp'
+        from: './initial.data.jsonp',
+        to: './initial.data.jsonp'
       },
       {
-        from: 'chart.data/',
-        to: 'chart.data/'
+        from: './chart-data/',
+        to: './chart-data/'
+      },
+      {
+        from: './polyfills.js',
+        to: './polyfills.js'
       }
     ])
   ]

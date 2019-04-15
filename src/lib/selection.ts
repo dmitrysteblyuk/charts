@@ -22,7 +22,7 @@ export class Selection<T extends AnyElement = AnyElement> {
 
   bootstrap(element: AnyElement) {
     element.innerHTML = this.getStaticMarkup();
-    this.connectToElement(element.children[0] as T);
+    this.connectToElement(getElementChildren(element)[0] as T);
   }
 
   getStaticMarkup() {
@@ -63,9 +63,10 @@ export class Selection<T extends AnyElement = AnyElement> {
     this.bindEventListeners();
 
     let index = 0;
+    const children = getElementChildren(element);
     for (const key in this.childrenByKey) {
       this.childrenByKey[key].connectToElement(
-        element.children[index++] as AnyElement
+        children[index++] as AnyElement
       );
     }
   }
@@ -295,6 +296,10 @@ export class Selection<T extends AnyElement = AnyElement> {
       )
     });
   }
+}
+
+function getElementChildren(element: AnyElement) {
+  return element.children || element.childNodes;
 }
 
 const SVG_URI = 'http://www.w3.org/2000/svg';

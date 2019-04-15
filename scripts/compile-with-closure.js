@@ -16,7 +16,7 @@ const outputFile = path.join(distDirectory, mainFile);
 const closureCompiler = new ClosureCompiler({
   compilation_level: 'ADVANCED_OPTIMIZATIONS',
   language_in: 'ES6_STRICT',
-  language_out: 'ES6',
+  language_out: 'ES5',
   variable_renaming_report: './built/app-variable_renaming_report',
   property_renaming_report: './built/app-property_renaming_report',
   warning_level: 'QUIET',

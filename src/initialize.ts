@@ -193,7 +193,7 @@ export function initializeChart(
     const day = padding(date.getDate());
     const month = padding(date.getMonth() + 1);
     const year = date.getFullYear();
-    const url = `./chart.data/${chartIndex + 1}/${year}-${month}/${day}.json`;
+    const url = `./chart-data/${chartIndex + 1}/${year}-${month}/${day}.json`;
 
     fetch(url)
       .then((response) => response.json())
